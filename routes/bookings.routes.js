@@ -20,15 +20,56 @@ router.get('/', async (req, res, next) => {
 });
 
 // Create a booking (ride or pronto) — customer must be logged in
+// If provider_id isn't given, auto-matches the nearest available, KYC-approved provider of the requested type
 router.post('/', requireAuth(['customer']), async (req, res, next) => {
   try {
-    const { service_type, provider_id, pickup_location, drop_or_service_address } = req.body;
+    const { service_type, provider_type, provider_id, pickup_location, drop_or_service_address, pickup_lat, pickup_lng } = req.body;
     const customer_id = req.user.id;
+
+    let matchedProviderId = provider_id;
+
+    if (!matchedProviderId) {
+      if (!provider_type) {
+        return res.status(400).json({ error: 'provider_type is required when provider_id is not given (bike/car/general_worker/skilled_worker)' });
+      }
+      if (pickup_lat === undefined || pickup_lng === undefined) {
+        return res.status(400).json({ error: 'pickup_lat and pickup_lng are required for matching' });
+      }
+
+      // Haversine distance (km) via SQL, ordered nearest-first
+      const match = await pool.query(
+        `SELECT id,
+                ( 6371 * acos(
+                    cos(radians($1)) * cos(radians(current_lat)) *
+                    cos(radians(current_lng) - radians($2)) +
+                    sin(radians($1)) * sin(radians(current_lat))
+                  )
+                ) AS distance_km
+         FROM service_providers
+         WHERE type = $3
+           AND is_available = true
+           AND kyc_status = 'approved'
+           AND current_lat IS NOT NULL AND current_lng IS NOT NULL
+         ORDER BY distance_km ASC
+         LIMIT 1`,
+        [pickup_lat, pickup_lng, provider_type]
+      );
+
+      if (match.rows.length === 0) {
+        return res.status(404).json({ error: 'No available provider found nearby. Try again shortly.' });
+      }
+      matchedProviderId = match.rows[0].id;
+    }
+
     const result = await pool.query(
-      `INSERT INTO bookings (service_type, customer_id, provider_id, pickup_location, drop_or_service_address, status)
-       VALUES ($1, $2, $3, $4, $5, 'requested') RETURNING *`,
-      [service_type, customer_id, provider_id, pickup_location, drop_or_service_address]
+      `INSERT INTO bookings (service_type, customer_id, provider_id, pickup_location, drop_or_service_address, pickup_lat, pickup_lng, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'requested') RETURNING *`,
+      [service_type, customer_id, matchedProviderId, pickup_location, drop_or_service_address, pickup_lat, pickup_lng]
     );
+
+    // Mark the matched provider busy immediately so they aren't double-booked
+    await pool.query('UPDATE service_providers SET is_available = false WHERE id = $1', [matchedProviderId]);
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     next(err);

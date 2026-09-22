@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
+const { requireAuth } = require('../middleware/auth');
 
 // Register a new provider (driver/worker) — KYC starts as 'pending'
 router.post('/register', async (req, res, next) => {
@@ -48,6 +49,56 @@ router.patch('/:id/kyc', async (req, res, next) => {
     const result = await pool.query(
       'UPDATE service_providers SET kyc_status = $1 WHERE id = $2 RETURNING *',
       [status, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Provider toggles their own availability (go online/offline)
+router.patch('/:id/availability', requireAuth(['provider']), async (req, res, next) => {
+  try {
+    if (req.user.id !== parseInt(req.params.id, 10)) {
+      return res.status(403).json({ error: 'You can only update your own availability' });
+    }
+    const { is_available } = req.body;
+
+    // Block going available if their active subscription is exhausted/missing
+    if (is_available) {
+      const sub = await pool.query(
+        `SELECT status FROM provider_subscriptions WHERE provider_id = $1 ORDER BY start_date DESC LIMIT 1`,
+        [req.params.id]
+      );
+      if (sub.rows.length === 0 || sub.rows[0].status !== 'active') {
+        return res.status(403).json({ error: 'No active subscription — renew your plan to go available' });
+      }
+    }
+
+    const result = await pool.query(
+      'UPDATE service_providers SET is_available = $1 WHERE id = $2 RETURNING *',
+      [is_available, req.params.id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Provider updates their live location (called periodically by the driver/worker app)
+router.patch('/:id/location', requireAuth(['provider']), async (req, res, next) => {
+  try {
+    if (req.user.id !== parseInt(req.params.id, 10)) {
+      return res.status(403).json({ error: 'You can only update your own location' });
+    }
+    const { lat, lng } = req.body;
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({ error: 'lat and lng are required' });
+    }
+    const result = await pool.query(
+      'UPDATE service_providers SET current_lat = $1, current_lng = $2 WHERE id = $3 RETURNING *',
+      [lat, lng, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
     res.json(result.rows[0]);
