@@ -5,32 +5,40 @@ import Bookings from './pages/Bookings';
 import './App.css';
 
 const TABS = {
-  providers: { label: 'Providers', component: Providers },
-  bookings: { label: 'Bookings', component: Bookings },
-  plans: { label: 'Subscription Plans', component: Plans },
+  providers: { label: 'Providers', component: Providers, icon: '◉' },
+  bookings: { label: 'Bookings', component: Bookings, icon: '▤' },
+  plans: { label: 'Plans', component: Plans, icon: '◈' },
 };
 
 function Login({ onLogin }) {
   const [key, setKey] = useState('');
   return (
     <div className="login-screen">
-      <form
-        className="login-box"
-        onSubmit={(e) => {
-          e.preventDefault();
-          onLogin(key);
-        }}
-      >
-        <h1>Gofixo Admin</h1>
-        <input
-          type="password"
-          placeholder="Admin key"
-          value={key}
-          onChange={(e) => setKey(e.target.value)}
-          autoFocus
-        />
-        <button type="submit">Log in</button>
-      </form>
+      <div className="login-brand">
+        <div className="login-mark">G</div>
+        <h1>Gofixo</h1>
+        <p>Ops console — Ride &amp; Pronto, Haryana</p>
+      </div>
+      <div className="login-panel">
+        <form
+          className="login-box"
+          onSubmit={(e) => {
+            e.preventDefault();
+            onLogin(key);
+          }}
+        >
+          <label htmlFor="admin-key">Admin key</label>
+          <input
+            id="admin-key"
+            type="password"
+            placeholder="Enter your key"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            autoFocus
+          />
+          <button type="submit">Enter console</button>
+        </form>
+      </div>
     </div>
   );
 }
@@ -55,14 +63,18 @@ export default function App() {
   return (
     <div className="admin-layout">
       <aside className="sidebar">
-        <h1>Gofixo Admin</h1>
+        <div className="brand">
+          <span className="brand-mark">G</span>
+          <span className="brand-name">Gofixo</span>
+        </div>
         <nav>
-          {Object.entries(TABS).map(([key, { label }]) => (
+          {Object.entries(TABS).map(([key, { label, icon }]) => (
             <button
               key={key}
               className={activeTab === key ? 'nav-item active' : 'nav-item'}
               onClick={() => setActiveTab(key)}
             >
+              <span className="nav-icon">{icon}</span>
               {label}
             </button>
           ))}
@@ -74,6 +86,7 @@ export default function App() {
             setLoggedIn(false);
           }}
         >
+          <span className="nav-icon">↩</span>
           Log out
         </button>
       </aside>
