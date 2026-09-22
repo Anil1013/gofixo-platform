@@ -7,6 +7,7 @@ const helmet = require('helmet');
 const providersRoutes = require('./routes/providers.routes');
 const subscriptionsRoutes = require('./routes/subscriptions.routes');
 const bookingsRoutes = require('./routes/bookings.routes');
+const authRoutes = require('./routes/auth.routes');
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.get('/', (req, res) => {
 app.use('/api/providers', providersRoutes);
 app.use('/api/subscriptions', subscriptionsRoutes);
 app.use('/api/bookings', bookingsRoutes);
+app.use('/api/auth', authRoutes);
 
 // Generic error handler — never leak raw error details in production
 app.use((err, req, res, next) => {

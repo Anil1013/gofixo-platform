@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
+const { requireAuth } = require('../middleware/auth');
 
 // List all bookings (admin panel)
 router.get('/', async (req, res, next) => {
@@ -18,10 +19,11 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// Create a booking (ride or pronto)
-router.post('/', async (req, res, next) => {
+// Create a booking (ride or pronto) — customer must be logged in
+router.post('/', requireAuth(['customer']), async (req, res, next) => {
   try {
-    const { service_type, customer_id, provider_id, pickup_location, drop_or_service_address } = req.body;
+    const { service_type, provider_id, pickup_location, drop_or_service_address } = req.body;
+    const customer_id = req.user.id;
     const result = await pool.query(
       `INSERT INTO bookings (service_type, customer_id, provider_id, pickup_location, drop_or_service_address, status)
        VALUES ($1, $2, $3, $4, $5, 'requested') RETURNING *`,
@@ -34,13 +36,23 @@ router.post('/', async (req, res, next) => {
 });
 
 // Provider confirms payment received — this is what unlocks their next booking
-router.post('/:id/confirm-payment', async (req, res, next) => {
+router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, next) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
     const { fare_amount, rating, comment } = req.body;
 
     await client.query('BEGIN');
+
+    const existing = await client.query('SELECT provider_id FROM bookings WHERE id = $1', [id]);
+    if (existing.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+    if (existing.rows[0].provider_id !== req.user.id) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'This booking does not belong to you' });
+    }
 
     const booking = await client.query(
       `UPDATE bookings SET status = 'completed', payment_confirmed_by_provider = true,
