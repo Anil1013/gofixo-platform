@@ -1,17 +1,33 @@
 import { useEffect, useState } from 'react';
-import { apiGet } from '../api';
+import { apiGet, apiPatch } from '../api';
 
 export default function Providers() {
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
 
-  useEffect(() => {
+  function load() {
+    setLoading(true);
     apiGet('/providers')
       .then(setProviders)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(load, []);
+
+  async function updateKyc(id, status) {
+    setUpdatingId(id);
+    try {
+      await apiPatch(`/providers/${id}/kyc`, { status });
+      load();
+    } catch (e) {
+      alert(`Failed to update: ${e.message}`);
+    } finally {
+      setUpdatingId(null);
+    }
+  }
 
   if (loading) return <p>Loading providers...</p>;
   if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
@@ -29,6 +45,7 @@ export default function Providers() {
             <th>KYC</th>
             <th>Rating</th>
             <th>Available</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -43,11 +60,31 @@ export default function Providers() {
               </td>
               <td>{p.avg_rating} ★</td>
               <td>{p.is_available ? '✅' : '—'}</td>
+              <td>
+                {p.kyc_status !== 'approved' && (
+                  <button
+                    className="btn btn-approve"
+                    disabled={updatingId === p.id}
+                    onClick={() => updateKyc(p.id, 'approved')}
+                  >
+                    Approve
+                  </button>
+                )}
+                {p.kyc_status !== 'rejected' && (
+                  <button
+                    className="btn btn-reject"
+                    disabled={updatingId === p.id}
+                    onClick={() => updateKyc(p.id, 'rejected')}
+                  >
+                    Reject
+                  </button>
+                )}
+              </td>
             </tr>
           ))}
           {providers.length === 0 && (
             <tr>
-              <td colSpan="7">No providers registered yet.</td>
+              <td colSpan="8">No providers registered yet.</td>
             </tr>
           )}
         </tbody>

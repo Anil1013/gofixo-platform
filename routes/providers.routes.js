@@ -38,6 +38,24 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// Update KYC status (admin approve/reject)
+router.patch('/:id/kyc', async (req, res, next) => {
+  try {
+    const { status } = req.body; // 'approved' or 'rejected'
+    if (!['approved', 'rejected', 'pending'].includes(status)) {
+      return res.status(400).json({ error: 'status must be approved, rejected, or pending' });
+    }
+    const result = await pool.query(
+      'UPDATE service_providers SET kyc_status = $1 WHERE id = $2 RETURNING *',
+      [status, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Get provider by generated_id
 router.get('/:generatedId', async (req, res, next) => {
   try {
