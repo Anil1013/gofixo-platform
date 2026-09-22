@@ -10,7 +10,8 @@ const bookingsRoutes = require('./routes/bookings.routes');
 const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: process.env.FRONTEND_BASE_URL || '*' }));
+const allowedOrigins = (process.env.FRONTEND_BASE_URL || '').split(',').map((s) => s.trim()).filter(Boolean);
+app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : '*' }));
 app.use(express.json());
 
 app.get('/', (req, res) => {

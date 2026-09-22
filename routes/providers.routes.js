@@ -28,6 +28,16 @@ router.post('/register', async (req, res, next) => {
   }
 });
 
+// List all providers (admin panel)
+router.get('/', async (req, res, next) => {
+  try {
+    const result = await pool.query('SELECT * FROM service_providers ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Get provider by generated_id
 router.get('/:generatedId', async (req, res, next) => {
   try {

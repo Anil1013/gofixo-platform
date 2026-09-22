@@ -2,6 +2,22 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 
+// List all bookings (admin panel)
+router.get('/', async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT b.*, sp.name AS provider_name, sp.generated_id, c.name AS customer_name
+       FROM bookings b
+       LEFT JOIN service_providers sp ON b.provider_id = sp.id
+       LEFT JOIN customers c ON b.customer_id = c.id
+       ORDER BY b.created_at DESC LIMIT 100`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Create a booking (ride or pronto)
 router.post('/', async (req, res, next) => {
   try {

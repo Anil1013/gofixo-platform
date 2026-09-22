@@ -2,6 +2,16 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 
+// List all subscription plans (admin panel)
+router.get('/plans', async (req, res, next) => {
+  try {
+    const result = await pool.query('SELECT * FROM subscription_plans ORDER BY provider_type, fee');
+    res.json(result.rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Provider buys/renews a plan
 router.post('/subscribe', async (req, res, next) => {
   try {
