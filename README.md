@@ -27,3 +27,5 @@ Ride (Bike/Auto/Cab) + Pronto (home services) platform — subscription-based pr
 - Matching logic (nearest available provider)
 - Admin routes (manage subscription_plans, view disputes)
 - Seed data for subscription_plans (the Bike/Car/General/Skilled tiers already agreed)
+
+Auto-deploy via GitHub Actions is now active for backend changes.
