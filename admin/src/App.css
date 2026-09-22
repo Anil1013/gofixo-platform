@@ -12,6 +12,7 @@
   color: white;
   padding: 20px;
   flex-shrink: 0;
+  position: relative;
 }
 
 .sidebar h1 {
@@ -94,3 +95,48 @@
 .btn-reject:hover { background: #dc2626; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .badge-rejected { background: #fee2e2; color: #991b1b; }
+
+.login-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #1a1d23;
+}
+
+.login-box {
+  background: white;
+  padding: 32px;
+  border-radius: 10px;
+  width: 280px;
+  text-align: center;
+}
+
+.login-box h1 { font-size: 18px; margin-bottom: 20px; }
+
+.login-box input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.login-box button {
+  width: 100%;
+  padding: 10px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.nav-item.logout {
+  position: absolute;
+  bottom: 20px;
+  width: calc(100% - 40px);
+  color: #999;
+}

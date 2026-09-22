@@ -10,8 +10,46 @@ const TABS = {
   plans: { label: 'Subscription Plans', component: Plans },
 };
 
+function Login({ onLogin }) {
+  const [key, setKey] = useState('');
+  return (
+    <div className="login-screen">
+      <form
+        className="login-box"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onLogin(key);
+        }}
+      >
+        <h1>Gofixo Admin</h1>
+        <input
+          type="password"
+          placeholder="Admin key"
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+          autoFocus
+        />
+        <button type="submit">Log in</button>
+      </form>
+    </div>
+  );
+}
+
 export default function App() {
+  const [loggedIn, setLoggedIn] = useState(!!sessionStorage.getItem('gofixo_admin_key'));
   const [activeTab, setActiveTab] = useState('providers');
+
+  if (!loggedIn) {
+    return (
+      <Login
+        onLogin={(key) => {
+          sessionStorage.setItem('gofixo_admin_key', key);
+          setLoggedIn(true);
+        }}
+      />
+    );
+  }
+
   const ActiveComponent = TABS[activeTab].component;
 
   return (
@@ -29,6 +67,15 @@ export default function App() {
             </button>
           ))}
         </nav>
+        <button
+          className="nav-item logout"
+          onClick={() => {
+            sessionStorage.removeItem('gofixo_admin_key');
+            setLoggedIn(false);
+          }}
+        >
+          Log out
+        </button>
       </aside>
       <main className="content">
         <ActiveComponent />

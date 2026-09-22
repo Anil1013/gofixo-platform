@@ -39,8 +39,17 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// Simple admin check — compares a header against ADMIN_SECRET
+function requireAdmin(req, res, next) {
+  const key = req.headers['x-admin-key'];
+  if (!key || key !== process.env.ADMIN_SECRET) {
+    return res.status(401).json({ error: 'Invalid admin key' });
+  }
+  next();
+}
+
 // Update KYC status (admin approve/reject)
-router.patch('/:id/kyc', async (req, res, next) => {
+router.patch('/:id/kyc', requireAdmin, async (req, res, next) => {
   try {
     const { status } = req.body; // 'approved' or 'rejected'
     if (!['approved', 'rejected', 'pending'].includes(status)) {

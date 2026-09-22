@@ -35,6 +35,10 @@ OTP-based login for both customers and providers:
 - `POST /api/bookings` — if `provider_id` is omitted, pass `provider_type` + `pickup_lat`/`pickup_lng` instead; the nearest available, KYC-approved provider of that type is auto-matched (Haversine distance in SQL) and marked busy.
 - Run `config/migration_001_location.sql` once against `gofixo-db` to add the lat/lng columns this depends on.
 
+## Admin auth
+
+The admin panel now requires a login key before showing any data. Set `ADMIN_SECRET` in the backend's `.env`, and enter the same value in the admin panel's login screen (stored in the browser's sessionStorage, sent as the `x-admin-key` header on admin actions like KYC approve/reject).
+
 ## Next steps not yet wired up
 
 - Move OTP storage from in-memory to a table with expiry (current version resets on server restart)
