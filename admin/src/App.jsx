@@ -2,12 +2,13 @@ import { useState } from 'react';
 import Providers from './pages/Providers';
 import Plans from './pages/Plans';
 import Bookings from './pages/Bookings';
+import { BikeIcon, CarIcon, HomeToolIcon } from './components/Icons';
 import './App.css';
 
 const TABS = {
-  providers: { label: 'Providers', component: Providers, icon: '◉' },
-  bookings: { label: 'Bookings', component: Bookings, icon: '▤' },
-  plans: { label: 'Plans', component: Plans, icon: '◈' },
+  providers: { label: 'Providers', component: Providers },
+  bookings: { label: 'Bookings', component: Bookings },
+  plans: { label: 'Plans', component: Plans },
 };
 
 function Login({ onLogin }) {
@@ -15,9 +16,13 @@ function Login({ onLogin }) {
   return (
     <div className="login-screen">
       <div className="login-brand">
-        <div className="login-mark">G</div>
+        <div className="login-icons">
+          <BikeIcon className="hero-icon" />
+          <CarIcon className="hero-icon" />
+          <HomeToolIcon className="hero-icon" />
+        </div>
         <h1>Gofixo</h1>
-        <p>Ops console — Ride &amp; Pronto, Haryana</p>
+        <p>Rides and home services, run from one console</p>
       </div>
       <div className="login-panel">
         <form
@@ -68,17 +73,21 @@ export default function App() {
           <span className="brand-name">Gofixo</span>
         </div>
         <nav>
-          {Object.entries(TABS).map(([key, { label, icon }]) => (
+          {Object.entries(TABS).map(([key, { label }]) => (
             <button
               key={key}
               className={activeTab === key ? 'nav-item active' : 'nav-item'}
               onClick={() => setActiveTab(key)}
             >
-              <span className="nav-icon">{icon}</span>
               {label}
             </button>
           ))}
         </nav>
+        <div className="sidebar-art">
+          <BikeIcon />
+          <CarIcon />
+          <HomeToolIcon />
+        </div>
         <button
           className="nav-item logout"
           onClick={() => {
@@ -86,7 +95,6 @@ export default function App() {
             setLoggedIn(false);
           }}
         >
-          <span className="nav-icon">↩</span>
           Log out
         </button>
       </aside>

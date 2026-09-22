@@ -111,6 +111,17 @@ nav { display: flex; flex-direction: column; gap: 2px; }
   border-left-color: var(--amber);
 }
 
+.sidebar-art {
+  margin-top: auto;
+  margin-bottom: 56px;
+  display: flex;
+  gap: 14px;
+  padding: 0 12px;
+  opacity: 0.35;
+}
+
+.sidebar-art svg { width: 22px; height: 22px; color: var(--amber); }
+
 .nav-item.logout {
   position: absolute;
   bottom: 24px;
@@ -210,43 +221,66 @@ nav { display: flex; flex-direction: column; gap: 2px; }
 }
 
 .login-brand {
-  flex: 1.1;
-  background: var(--ink);
+  flex: 1.15;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(232, 134, 46, 0.14), transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(232, 134, 46, 0.10), transparent 50%),
+    var(--ink);
   color: #fff;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 4px;
   padding: 40px;
+  position: relative;
+  overflow: hidden;
 }
 
-.login-mark {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  background: var(--amber);
-  color: var(--ink);
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 700;
-  font-size: 28px;
+.login-brand::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0.025) 0px,
+    rgba(255, 255, 255, 0.025) 1px,
+    transparent 1px,
+    transparent 46px
+  );
+  pointer-events: none;
+}
+
+.login-icons {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 6px;
+  gap: 22px;
+  margin-bottom: 22px;
+  position: relative;
+}
+
+.hero-icon {
+  width: 46px;
+  height: 46px;
+  color: var(--amber);
+  opacity: 0.92;
 }
 
 .login-brand h1 {
-  font-size: 30px;
+  font-size: 32px;
   font-weight: 600;
   margin: 0;
   letter-spacing: -0.01em;
+  position: relative;
 }
 
 .login-brand p {
-  color: #8A90A0;
-  font-size: 14px;
-  margin: 0;
+  color: #9BA1B0;
+  font-size: 14.5px;
+  margin: 10px 0 0;
+  max-width: 260px;
+  text-align: center;
+  line-height: 1.5;
+  position: relative;
 }
 
 .login-panel {
