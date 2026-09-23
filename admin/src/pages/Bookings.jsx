@@ -36,8 +36,22 @@ export default function Bookings() {
             <tr key={b.id}>
               <td>{b.id}</td>
               <td>{b.service_type}</td>
-              <td>{b.provider_name || '—'}</td>
-              <td>{b.customer_name || '—'}</td>
+              <td>
+                {b.provider_generated_id ? (
+                  <>
+                    <div>{b.provider_generated_id}</div>
+                    <div className="sub-line">{b.provider_name} · {b.provider_phone}</div>
+                  </>
+                ) : '—'}
+              </td>
+              <td>
+                {b.customer_id ? (
+                  <>
+                    <div>Cust #{b.customer_id}</div>
+                    <div className="sub-line">{b.customer_name || '—'} · {b.customer_phone}</div>
+                  </>
+                ) : '—'}
+              </td>
               <td>{b.fare_amount ? `₹${b.fare_amount}` : '—'}</td>
               <td>
                 <span className={`badge badge-${b.status}`}>{b.status}</span>

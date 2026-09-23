@@ -7,7 +7,8 @@ const { requireAuth } = require('../middleware/auth');
 router.get('/', async (req, res, next) => {
   try {
     const result = await pool.query(
-      `SELECT b.*, sp.name AS provider_name, sp.generated_id, c.name AS customer_name
+      `SELECT b.*, sp.name AS provider_name, sp.generated_id AS provider_generated_id, sp.phone AS provider_phone,
+              c.name AS customer_name, c.phone AS customer_phone
        FROM bookings b
        LEFT JOIN service_providers sp ON b.provider_id = sp.id
        LEFT JOIN customers c ON b.customer_id = c.id

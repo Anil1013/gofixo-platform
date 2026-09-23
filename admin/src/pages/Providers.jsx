@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react';
 import { apiGet, apiPatch } from '../api';
 
+const DOC_LABELS = {
+  aadhar: 'Aadhar',
+  driving_license: 'DL',
+  vehicle_rc: 'RC',
+  vehicle_photo: 'Vehicle photo',
+  profile_photo: 'Profile photo',
+  police_verification: 'Police verif.',
+};
+
 export default function Providers() {
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,8 +52,10 @@ export default function Providers() {
             <th>Phone</th>
             <th>Type</th>
             <th>KYC</th>
+            <th>Plan</th>
+            <th>Pending</th>
+            <th>Documents</th>
             <th>Rating</th>
-            <th>Available</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -58,8 +69,26 @@ export default function Providers() {
               <td>
                 <span className={`badge badge-${p.kyc_status}`}>{p.kyc_status}</span>
               </td>
+              <td>{p.plan_name ? p.plan_name : <span style={{ color: '#B0A8BE' }}>none</span>}</td>
+              <td>
+                {p.pending_amount !== null
+                  ? `₹${Number(p.pending_amount).toLocaleString('en-IN')} left`
+                  : '—'}
+              </td>
+              <td>
+                {p.documents && p.documents.length > 0 ? (
+                  <div className="doc-links">
+                    {p.documents.map((d, i) => (
+                      <a key={i} href={`https://gofixo.mob13r.com${d.file_url}`} target="_blank" rel="noreferrer">
+                        {DOC_LABELS[d.doc_type] || d.doc_type}
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <span style={{ color: '#B0A8BE' }}>none uploaded</span>
+                )}
+              </td>
               <td>{p.avg_rating} ★</td>
-              <td>{p.is_available ? '✅' : '—'}</td>
               <td>
                 {p.kyc_status !== 'approved' && (
                   <button
@@ -84,7 +113,7 @@ export default function Providers() {
           ))}
           {providers.length === 0 && (
             <tr>
-              <td colSpan="8">No providers registered yet.</td>
+              <td colSpan="10">No providers registered yet.</td>
             </tr>
           )}
         </tbody>

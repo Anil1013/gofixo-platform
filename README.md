@@ -39,6 +39,13 @@ OTP-based login for both customers and providers:
 
 The admin panel now requires a login key before showing any data. Set `ADMIN_SECRET` in the backend's `.env`, and enter the same value in the admin panel's login screen (stored in the browser's sessionStorage, sent as the `x-admin-key` header on admin actions like KYC approve/reject).
 
+## KYC documents
+
+- `POST /api/providers/:id/documents` (provider auth, multipart form: `doc_type` + `file`) — uploads a document. `doc_type` is one of `aadhar`, `driving_license`, `vehicle_rc`, `vehicle_photo`, `profile_photo`, `police_verification`.
+- Files are stored on the EC2 disk under `uploads/providers/:id/` with randomized filenames (not guessable), served at `/uploads/...`. Move to S3 once volume grows — disk storage is fine for this stage and avoids extra AWS cost/setup.
+- `GET /api/providers` now also returns each provider's active `plan_name`, `earning_cap`, `total_earned_this_cycle`, `pending_amount` (cap remaining), and their uploaded `documents` — all shown directly in the admin panel's Providers table.
+- Run `config/migration_002_documents.sql` once against `gofixo-db`.
+
 ## Next steps not yet wired up
 
 - Move OTP storage from in-memory to a table with expiry (current version resets on server restart)

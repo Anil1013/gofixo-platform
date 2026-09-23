@@ -1,7 +1,25 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const crypto = require('crypto');
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const dir = path.join(__dirname, '..', 'uploads', 'providers', String(req.params.id));
+      require('fs').mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      const random = crypto.randomBytes(8).toString('hex'); // avoids guessable URLs
+      cb(null, `${req.body.doc_type || 'doc'}-${random}${path.extname(file.originalname)}`);
+    },
+  }),
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB
+});
 
 // Register a new provider (driver/worker) — KYC starts as 'pending'
 router.post('/register', async (req, res, next) => {
@@ -29,11 +47,51 @@ router.post('/register', async (req, res, next) => {
   }
 });
 
-// List all providers (admin panel)
+// List all providers (admin panel) — includes active plan, pending (cap remaining), and uploaded documents
 router.get('/', async (req, res, next) => {
   try {
-    const result = await pool.query('SELECT * FROM service_providers ORDER BY created_at DESC');
+    const result = await pool.query(`
+      SELECT sp.*,
+        sub.plan_name,
+        sub.earning_cap,
+        sub.total_earned_this_cycle,
+        CASE WHEN sub.earning_cap IS NOT NULL
+             THEN sub.earning_cap - sub.total_earned_this_cycle
+             ELSE NULL END AS pending_amount,
+        COALESCE(docs.documents, '[]') AS documents
+      FROM service_providers sp
+      LEFT JOIN LATERAL (
+        SELECT ps.total_earned_this_cycle, spl.plan_name, spl.earning_cap
+        FROM provider_subscriptions ps
+        JOIN subscription_plans spl ON spl.id = ps.plan_id
+        WHERE ps.provider_id = sp.id
+        ORDER BY ps.start_date DESC LIMIT 1
+      ) sub ON true
+      LEFT JOIN LATERAL (
+        SELECT json_agg(json_build_object('doc_type', doc_type, 'file_url', file_url) ORDER BY uploaded_at DESC) AS documents
+        FROM provider_documents pd WHERE pd.provider_id = sp.id
+      ) docs ON true
+      ORDER BY sp.created_at DESC
+    `);
     res.json(result.rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Provider uploads a KYC document (doc_type: aadhar / driving_license / vehicle_rc / vehicle_photo / profile_photo / police_verification)
+router.post('/:id/documents', requireAuth(['provider']), upload.single('file'), async (req, res, next) => {
+  try {
+    if (req.user.id !== parseInt(req.params.id, 10)) {
+      return res.status(403).json({ error: 'You can only upload your own documents' });
+    }
+    if (!req.file) return res.status(400).json({ error: 'file is required' });
+    const fileUrl = `/uploads/providers/${req.params.id}/${req.file.filename}`;
+    const result = await pool.query(
+      'INSERT INTO provider_documents (provider_id, doc_type, file_url) VALUES ($1, $2, $3) RETURNING *',
+      [req.params.id, req.body.doc_type, fileUrl]
+    );
+    res.status(201).json(result.rows[0]);
   } catch (err) {
     next(err);
   }
