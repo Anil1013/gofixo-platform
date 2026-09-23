@@ -2,7 +2,6 @@ import { useState } from 'react';
 import Providers from './pages/Providers';
 import Plans from './pages/Plans';
 import Bookings from './pages/Bookings';
-import { BikeIcon, CarIcon, HomeToolIcon } from './components/Icons';
 import './App.css';
 
 const TABS = {
@@ -11,39 +10,41 @@ const TABS = {
   plans: { label: 'Plans', component: Plans },
 };
 
+const BIKE_IMG = 'https://images.unsplash.com/photo-1767275090329-331c0ffb1005?w=500&h=500&fit=crop&auto=format&q=70';
+const CAR_IMG = 'https://images.unsplash.com/photo-1595075036870-1e962c189804?w=500&h=500&fit=crop&auto=format&q=70';
+const HOME_IMG = 'https://images.unsplash.com/photo-1758691030988-c7c55ab2ba18?w=500&h=500&fit=crop&auto=format&q=70';
+
 function Login({ onLogin }) {
   const [key, setKey] = useState('');
   return (
     <div className="login-screen">
-      <div className="login-brand">
-        <div className="login-icons">
-          <BikeIcon className="hero-icon" />
-          <CarIcon className="hero-icon" />
-          <HomeToolIcon className="hero-icon" />
+      <div className="login-hero">
+        <div className="hero-photos">
+          <img src={BIKE_IMG} alt="Bike rider" />
+          <img src={CAR_IMG} alt="Car on road" className="hero-photo-mid" />
+          <img src={HOME_IMG} alt="Home service" />
         </div>
         <h1>Gofixo</h1>
         <p>Rides and home services, run from one console</p>
       </div>
-      <div className="login-panel">
-        <form
-          className="login-box"
-          onSubmit={(e) => {
-            e.preventDefault();
-            onLogin(key);
-          }}
-        >
-          <label htmlFor="admin-key">Admin key</label>
-          <input
-            id="admin-key"
-            type="password"
-            placeholder="Enter your key"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-            autoFocus
-          />
-          <button type="submit">Enter console</button>
-        </form>
-      </div>
+      <form
+        className="login-box"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onLogin(key);
+        }}
+      >
+        <label htmlFor="admin-key">Admin key</label>
+        <input
+          id="admin-key"
+          type="password"
+          placeholder="Enter your key"
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+          autoFocus
+        />
+        <button type="submit">Enter console</button>
+      </form>
     </div>
   );
 }
@@ -83,11 +84,6 @@ export default function App() {
             </button>
           ))}
         </nav>
-        <div className="sidebar-art">
-          <BikeIcon />
-          <CarIcon />
-          <HomeToolIcon />
-        </div>
         <button
           className="nav-item logout"
           onClick={() => {
