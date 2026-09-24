@@ -24,10 +24,10 @@ Ride (Bike/Auto/Cab) + Pronto (home services) platform — subscription-based pr
 ## Authentication
 
 OTP-based login for both customers and providers:
-- `POST /api/auth/:role/otp/request` (role = `customer` or `provider`) — body: `{ phone }`. Sends a real SMS via MSG91 if `MSG91_AUTH_KEY` + `MSG91_TEMPLATE_ID` are set in `.env` (template needs DLT approval first). Until then, falls back to returning the OTP directly in the response for testing.
+- `POST /api/auth/:role/otp/request` (role = `customer` or `provider`) — body: `{ phone }`. Sends a real SMS via Fast2SMS's `otp` route if `FAST2SMS_API_KEY` is set in `.env` (this route needs no DLT registration — the message uses Fast2SMS's own pre-approved generic template, e.g. "1234 is your verification code"). Until configured, falls back to returning the OTP directly in the response for testing.
 - `POST /api/auth/:role/otp/verify` — body: `{ phone, otp, name? }`. Returns `{ token, user }`. Customers are auto-created on first verify; providers must already be registered via `/api/providers/register`.
 - Send the token as `Authorization: Bearer <token>` on protected routes. Creating a booking requires a customer token; confirming payment requires the assigned provider's token.
-- Once MSG91's DLT registration + template are approved, add `MSG91_AUTH_KEY` and `MSG91_TEMPLATE_ID` to `.env` and restart — no code changes needed, real SMS starts sending automatically.
+- Later, once DLT registration is done, MSG91 (or Fast2SMS's own DLT route) can replace this for branded "Gofixo" sender messages — swap `sendOtpSms()` in `routes/auth.routes.js`.
 
 ## Matching & location
 

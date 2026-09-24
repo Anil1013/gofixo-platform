@@ -11,19 +11,20 @@ function generateOtp() {
   return String(Math.floor(1000 + Math.random() * 9000)); // 4-digit
 }
 
-// Sends the OTP via MSG91 if fully configured (AUTH_KEY + TEMPLATE_ID, which needs DLT approval).
-// Falls back to dev-mode (no real SMS sent) until then — caller decides whether to expose the OTP in the response.
+// Sends the OTP via Fast2SMS's 'otp' route (no DLT registration needed, works immediately).
+// Falls back to dev-mode (no real SMS sent) if no gateway is configured — caller decides whether
+// to expose the OTP in the response in that case.
 async function sendOtpSms(phone, otp) {
-  const { MSG91_AUTH_KEY, MSG91_TEMPLATE_ID } = process.env;
-  if (!MSG91_AUTH_KEY || !MSG91_TEMPLATE_ID) {
-    return { sent: false, reason: 'MSG91 not fully configured yet (needs DLT-approved template)' };
+  const { FAST2SMS_API_KEY } = process.env;
+  if (!FAST2SMS_API_KEY) {
+    return { sent: false, reason: 'FAST2SMS_API_KEY not set' };
   }
   try {
-    const url = `https://control.msg91.com/api/v5/otp?otp=${otp}&template_id=${MSG91_TEMPLATE_ID}&mobile=91${phone}&authkey=${MSG91_AUTH_KEY}`;
-    const res = await fetch(url, { method: 'POST' });
+    const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${FAST2SMS_API_KEY}&route=otp&variables_values=${otp}&numbers=${phone}`;
+    const res = await fetch(url, { method: 'GET' });
     const data = await res.json();
-    if (data.type === 'success') return { sent: true };
-    return { sent: false, reason: data.message || 'MSG91 request failed' };
+    if (data.return === true) return { sent: true };
+    return { sent: false, reason: JSON.stringify(data.message || data) };
   } catch (err) {
     return { sent: false, reason: err.message };
   }
