@@ -4,15 +4,33 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 
 // In-memory OTP store — fine for MVP testing, but resets on server restart.
-// Before real launch: move to a table with expiry, and send via an SMS gateway (MSG91/Twilio) instead of returning it in the response.
+// Before real launch: move to a table with expiry.
 const otpStore = new Map(); // key: `${role}:${phone}` -> { otp, expiresAt }
 
 function generateOtp() {
   return String(Math.floor(1000 + Math.random() * 9000)); // 4-digit
 }
 
+// Sends the OTP via MSG91 if fully configured (AUTH_KEY + TEMPLATE_ID, which needs DLT approval).
+// Falls back to dev-mode (no real SMS sent) until then — caller decides whether to expose the OTP in the response.
+async function sendOtpSms(phone, otp) {
+  const { MSG91_AUTH_KEY, MSG91_TEMPLATE_ID } = process.env;
+  if (!MSG91_AUTH_KEY || !MSG91_TEMPLATE_ID) {
+    return { sent: false, reason: 'MSG91 not fully configured yet (needs DLT-approved template)' };
+  }
+  try {
+    const url = `https://control.msg91.com/api/v5/otp?otp=${otp}&template_id=${MSG91_TEMPLATE_ID}&mobile=91${phone}&authkey=${MSG91_AUTH_KEY}`;
+    const res = await fetch(url, { method: 'POST' });
+    const data = await res.json();
+    if (data.type === 'success') return { sent: true };
+    return { sent: false, reason: data.message || 'MSG91 request failed' };
+  } catch (err) {
+    return { sent: false, reason: err.message };
+  }
+}
+
 // Request an OTP — role is 'customer' or 'provider'
-router.post('/:role/otp/request', (req, res) => {
+router.post('/:role/otp/request', async (req, res) => {
   const { role } = req.params;
   const { phone } = req.body;
   if (!['customer', 'provider'].includes(role)) {
@@ -23,9 +41,16 @@ router.post('/:role/otp/request', (req, res) => {
   const otp = generateOtp();
   otpStore.set(`${role}:${phone}`, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
 
-  // TEMPORARY: returning OTP directly for testing since no SMS gateway is connected yet.
-  // Remove `otp` from this response once a real SMS provider is wired up.
-  res.json({ message: 'OTP generated', otp });
+  const smsResult = await sendOtpSms(phone, otp);
+
+  if (smsResult.sent) {
+    // Real SMS sent — never echo the OTP back in the response.
+    res.json({ message: 'OTP sent to your phone' });
+  } else {
+    // Dev-mode fallback: no SMS gateway active yet, so return the OTP directly for testing.
+    console.warn(`SMS not sent (${smsResult.reason}) — returning OTP in response for dev testing`);
+    res.json({ message: 'OTP generated (dev mode — SMS not yet active)', otp });
+  }
 });
 
 // Verify OTP and issue a JWT

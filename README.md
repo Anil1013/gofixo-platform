@@ -24,9 +24,10 @@ Ride (Bike/Auto/Cab) + Pronto (home services) platform — subscription-based pr
 ## Authentication
 
 OTP-based login for both customers and providers:
-- `POST /api/auth/:role/otp/request` (role = `customer` or `provider`) — body: `{ phone }`. Returns an OTP (TEMPORARY: returned directly in the response since no SMS gateway is connected yet — replace with a real provider like MSG91/Twilio before launch, and stop returning the OTP in the response).
+- `POST /api/auth/:role/otp/request` (role = `customer` or `provider`) — body: `{ phone }`. Sends a real SMS via MSG91 if `MSG91_AUTH_KEY` + `MSG91_TEMPLATE_ID` are set in `.env` (template needs DLT approval first). Until then, falls back to returning the OTP directly in the response for testing.
 - `POST /api/auth/:role/otp/verify` — body: `{ phone, otp, name? }`. Returns `{ token, user }`. Customers are auto-created on first verify; providers must already be registered via `/api/providers/register`.
 - Send the token as `Authorization: Bearer <token>` on protected routes. Creating a booking requires a customer token; confirming payment requires the assigned provider's token.
+- Once MSG91's DLT registration + template are approved, add `MSG91_AUTH_KEY` and `MSG91_TEMPLATE_ID` to `.env` and restart — no code changes needed, real SMS starts sending automatically.
 
 ## Matching & location
 
