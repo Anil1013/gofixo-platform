@@ -3,8 +3,10 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/admin');
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -24,9 +26,9 @@ const upload = multer({
 // Register a new provider (driver/worker) — KYC starts as 'pending'
 router.post('/register', async (req, res, next) => {
   try {
-    const { name, phone, type } = req.body;
-    if (!name || !phone || !type) {
-      return res.status(400).json({ error: 'name, phone and type are required' });
+    const { name, phone, type, password } = req.body;
+    if (!name || !phone || !type || !password) {
+      return res.status(400).json({ error: 'name, phone, type and password are required' });
     }
 
     // generated_id pattern: RL-D-00231 (driver) or RL-W-00512 (worker)
@@ -34,11 +36,12 @@ router.post('/register', async (req, res, next) => {
     const countResult = await pool.query('SELECT COUNT(*) FROM service_providers WHERE type = $1', [type]);
     const nextNumber = String(parseInt(countResult.rows[0].count, 10) + 1).padStart(5, '0');
     const generatedId = `RL-${prefix}-${nextNumber}`;
+    const passwordHash = await bcrypt.hash(password, 10);
 
     const result = await pool.query(
-      `INSERT INTO service_providers (generated_id, name, phone, type)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [generatedId, name, phone, type]
+      `INSERT INTO service_providers (generated_id, name, phone, type, password_hash)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id, generated_id, name, phone, type, kyc_status, created_at`,
+      [generatedId, name, phone, type, passwordHash]
     );
 
     res.status(201).json(result.rows[0]);
@@ -51,7 +54,8 @@ router.post('/register', async (req, res, next) => {
 router.get('/', async (req, res, next) => {
   try {
     const result = await pool.query(`
-      SELECT sp.*,
+      SELECT sp.id, sp.generated_id, sp.name, sp.phone, sp.type, sp.kyc_status, sp.bank_upi_id,
+        sp.avg_rating, sp.is_available, sp.created_at, sp.current_lat, sp.current_lng,
         sub.plan_name,
         sub.earning_cap,
         sub.total_earned_this_cycle,
@@ -96,15 +100,6 @@ router.post('/:id/documents', requireAuth(['provider']), upload.single('file'), 
     next(err);
   }
 });
-
-// Simple admin check — compares a header against ADMIN_SECRET
-function requireAdmin(req, res, next) {
-  const key = req.headers['x-admin-key'];
-  if (!key || key !== process.env.ADMIN_SECRET) {
-    return res.status(401).json({ error: 'Invalid admin key' });
-  }
-  next();
-}
 
 // Update KYC status (admin approve/reject)
 router.patch('/:id/kyc', requireAdmin, async (req, res, next) => {
@@ -178,7 +173,9 @@ router.patch('/:id/location', requireAuth(['provider']), async (req, res, next) 
 router.get('/:generatedId', async (req, res, next) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM service_providers WHERE generated_id = $1',
+      `SELECT id, generated_id, name, phone, type, kyc_status, bank_upi_id, avg_rating,
+              is_available, created_at, current_lat, current_lng
+       FROM service_providers WHERE generated_id = $1`,
       [req.params.generatedId]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });

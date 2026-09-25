@@ -23,11 +23,20 @@ Ride (Bike/Auto/Cab) + Pronto (home services) platform — subscription-based pr
 
 ## Authentication
 
-OTP-based login for both customers and providers:
-- `POST /api/auth/:role/otp/request` (role = `customer` or `provider`) — body: `{ phone }`. Sends a real SMS via Fast2SMS's `otp` route if `FAST2SMS_API_KEY` is set in `.env` (this route needs no DLT registration — the message uses Fast2SMS's own pre-approved generic template, e.g. "1234 is your verification code"). Until configured, falls back to returning the OTP directly in the response for testing.
-- `POST /api/auth/:role/otp/verify` — body: `{ phone, otp, name? }`. Returns `{ token, user }`. Customers are auto-created on first verify; providers must already be registered via `/api/providers/register`.
-- Send the token as `Authorization: Bearer <token>` on protected routes. Creating a booking requires a customer token; confirming payment requires the assigned provider's token.
-- Later, once DLT registration is done, MSG91 (or Fast2SMS's own DLT route) can replace this for branded "Gofixo" sender messages — swap `sendOtpSms()` in `routes/auth.routes.js`.
+Phone + password login for both customers and providers — no SMS/OTP needed:
+- `POST /api/auth/customer/register` — body: `{ name?, phone, password }`. Creates a customer account.
+- Providers get their password set as part of `POST /api/providers/register` — body: `{ name, phone, type, password }`.
+- `POST /api/auth/:role/login` (role = `customer` or `provider`) — body: `{ phone, password }`. Returns `{ token, user }`.
+- `POST /api/auth/:role/reset-password` — body: `{ phone, new_password }`. Self-service, no verification step (by design, for now — anyone who knows the phone number could reset that account; revisit before a wider public launch).
+- Send the token as `Authorization: Bearer <token>` on protected routes. Creating a booking requires a customer token; starting/confirming a booking requires the assigned provider's token.
+
+## Ride/job start PIN
+
+Replaces OTP verification for starting a booking:
+- When a booking is created (`POST /api/bookings`), the response includes a `start_pin` (4 digits) — this is what the customer's app/dashboard shows them.
+- The customer reads this PIN out to the provider in person when the provider arrives.
+- `POST /api/bookings/:id/start` (provider auth) — body: `{ pin }`. If it matches, the booking moves from `requested` to `ongoing`. Wrong PIN or wrong provider is rejected.
+- Payment confirmation (`/api/bookings/:id/confirm-payment`) still happens separately at the end, same as before.
 
 ## Matching & location
 
@@ -49,10 +58,9 @@ The admin panel now requires a login key before showing any data. Set `ADMIN_SEC
 
 ## Next steps not yet wired up
 
-- Move OTP storage from in-memory to a table with expiry (current version resets on server restart)
-- Real SMS gateway integration
-- Admin auth (KYC approve/reject is currently open — add an admin login before real launch)
+- Reset-password flow has no verification step yet (see Authentication section note above)
 - Notify the matched provider (push notification) that a booking was assigned to them
 - Expand matching radius/fallback if no provider is found nearby
+- Run `config/migration_003_password_pin.sql` once against `gofixo-db` for the password_hash and start_pin columns
 
 Auto-deploy via GitHub Actions is now active for backend changes.

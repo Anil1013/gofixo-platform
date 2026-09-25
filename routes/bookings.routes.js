@@ -3,6 +3,10 @@ const router = express.Router();
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
 
+function generatePin() {
+  return String(Math.floor(1000 + Math.random() * 9000)); // 4-digit
+}
+
 // List all bookings (admin panel)
 router.get('/', async (req, res, next) => {
   try {
@@ -62,16 +66,49 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       matchedProviderId = match.rows[0].id;
     }
 
+    const startPin = generatePin();
+
     const result = await pool.query(
-      `INSERT INTO bookings (service_type, customer_id, provider_id, pickup_location, drop_or_service_address, pickup_lat, pickup_lng, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'requested') RETURNING *`,
-      [service_type, customer_id, matchedProviderId, pickup_location, drop_or_service_address, pickup_lat, pickup_lng]
+      `INSERT INTO bookings (service_type, customer_id, provider_id, pickup_location, drop_or_service_address, pickup_lat, pickup_lng, start_pin, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'requested') RETURNING *`,
+      [service_type, customer_id, matchedProviderId, pickup_location, drop_or_service_address, pickup_lat, pickup_lng, startPin]
     );
 
     // Mark the matched provider busy immediately so they aren't double-booked
     await pool.query('UPDATE service_providers SET is_available = false WHERE id = $1', [matchedProviderId]);
 
     res.status(201).json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Provider starts the ride/job by entering the PIN the customer sees on their dashboard
+router.post('/:id/start', requireAuth(['provider']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { pin } = req.body;
+    if (!pin) return res.status(400).json({ error: 'pin is required' });
+
+    const existing = await pool.query('SELECT provider_id, start_pin, status FROM bookings WHERE id = $1', [id]);
+    if (existing.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
+    const booking = existing.rows[0];
+
+    if (booking.provider_id !== req.user.id) {
+      return res.status(403).json({ error: 'This booking does not belong to you' });
+    }
+    if (booking.status !== 'requested') {
+      return res.status(400).json({ error: `Booking is already ${booking.status}` });
+    }
+    if (booking.start_pin !== pin) {
+      return res.status(401).json({ error: 'Incorrect PIN' });
+    }
+
+    const result = await pool.query(
+      `UPDATE bookings SET status = 'ongoing' WHERE id = $1 RETURNING *`,
+      [id]
+    );
+    res.json(result.rows[0]);
   } catch (err) {
     next(err);
   }
