@@ -318,3 +318,29 @@ button.cta:disabled { opacity: 0.5; }
   font-size: 15px;
   background: white;
 }
+
+.phone-input {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: white;
+}
+
+.phone-prefix {
+  padding: 12px 10px;
+  background: #F4F1F8;
+  color: var(--text-dim);
+  font-size: 15px;
+  border-right: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.phone-input input {
+  border: none;
+  border-radius: 0;
+  flex: 1;
+}
+
+.phone-input input:focus { outline: none; }

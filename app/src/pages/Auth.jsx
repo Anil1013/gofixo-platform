@@ -91,13 +91,16 @@ export default function Auth({ onAuthed }) {
         )}
 
         <label>Phone number</label>
-        <input
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="10-digit mobile number"
-          inputMode="numeric"
-          required
-        />
+        <div className="phone-input">
+          <span className="phone-prefix">+91</span>
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+            placeholder="10-digit mobile number"
+            inputMode="numeric"
+            required
+          />
+        </div>
 
         <label>{mode === 'reset' ? 'New password' : 'Password'}</label>
         <input
