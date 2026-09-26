@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
+const { requireAuth } = require('../middleware/auth');
 
 // List all subscription plans (admin panel)
 router.get('/plans', async (req, res, next) => {
@@ -12,10 +13,11 @@ router.get('/plans', async (req, res, next) => {
   }
 });
 
-// Provider buys/renews a plan
-router.post('/subscribe', async (req, res, next) => {
+// Provider buys/renews their own plan
+router.post('/subscribe', requireAuth(['provider']), async (req, res, next) => {
   try {
-    const { provider_id, plan_id } = req.body;
+    const { plan_id } = req.body;
+    const provider_id = req.user.id;
 
     const plan = await pool.query('SELECT * FROM subscription_plans WHERE id = $1', [plan_id]);
     if (plan.rows.length === 0) return res.status(404).json({ error: 'Plan not found' });

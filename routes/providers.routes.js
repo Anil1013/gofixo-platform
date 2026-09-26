@@ -169,6 +169,53 @@ router.patch('/:id/location', requireAuth(['provider']), async (req, res, next) 
   }
 });
 
+// Logged-in provider's own profile — plan, pending amount, documents
+router.get('/me', requireAuth(['provider']), async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT sp.*,
+        sub.plan_name,
+        sub.earning_cap,
+        sub.total_earned_this_cycle,
+        CASE WHEN sub.earning_cap IS NOT NULL
+             THEN sub.earning_cap - sub.total_earned_this_cycle
+             ELSE NULL END AS pending_amount,
+        COALESCE(docs.documents, '[]') AS documents
+      FROM service_providers sp
+      LEFT JOIN LATERAL (
+        SELECT ps.total_earned_this_cycle, spl.plan_name, spl.earning_cap
+        FROM provider_subscriptions ps
+        JOIN subscription_plans spl ON spl.id = ps.plan_id
+        WHERE ps.provider_id = sp.id
+        ORDER BY ps.start_date DESC LIMIT 1
+      ) sub ON true
+      LEFT JOIN LATERAL (
+        SELECT json_agg(json_build_object('doc_type', doc_type, 'file_url', file_url) ORDER BY uploaded_at DESC) AS documents
+        FROM provider_documents pd WHERE pd.provider_id = sp.id
+      ) docs ON true
+      WHERE sp.id = $1`,
+      [req.user.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Available subscription plans for a given provider type
+router.get('/plans/:type', async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM subscription_plans WHERE provider_type = $1 ORDER BY fee',
+      [req.params.type]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Get provider by generated_id
 router.get('/:generatedId', async (req, res, next) => {
   try {

@@ -24,6 +24,40 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// A logged-in customer's own bookings
+router.get('/mine', requireAuth(['customer']), async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT b.*, sp.name AS provider_name, sp.generated_id AS provider_generated_id, sp.phone AS provider_phone
+       FROM bookings b
+       LEFT JOIN service_providers sp ON b.provider_id = sp.id
+       WHERE b.customer_id = $1
+       ORDER BY b.created_at DESC`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// A logged-in provider's own bookings
+router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT b.*, c.name AS customer_name, c.phone AS customer_phone
+       FROM bookings b
+       LEFT JOIN customers c ON b.customer_id = c.id
+       WHERE b.provider_id = $1
+       ORDER BY b.created_at DESC`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Create a booking (ride or pronto) — customer must be logged in
 // If provider_id isn't given, auto-matches the nearest available, KYC-approved provider of the requested type
 router.post('/', requireAuth(['customer']), async (req, res, next) => {
@@ -111,6 +145,54 @@ router.post('/:id/start', requireAuth(['provider']), async (req, res, next) => {
     res.json(result.rows[0]);
   } catch (err) {
     next(err);
+  }
+});
+
+// Customer rates the provider after a completed booking
+router.post('/:id/rate', requireAuth(['customer']), async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { rating, comment } = req.body;
+    if (!rating) return res.status(400).json({ error: 'rating is required' });
+
+    await client.query('BEGIN');
+    const booking = await client.query('SELECT customer_id, provider_id, status FROM bookings WHERE id = $1', [id]);
+    if (booking.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+    if (booking.rows[0].customer_id !== req.user.id) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'This booking does not belong to you' });
+    }
+    if (booking.rows[0].status !== 'completed') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Can only rate a completed booking' });
+    }
+
+    await client.query(
+      `INSERT INTO booking_ratings (booking_id, rated_by, rating, comment) VALUES ($1, 'customer', $2, $3)`,
+      [id, rating, comment || null]
+    );
+
+    // Update the provider's running average rating
+    const providerId = booking.rows[0].provider_id;
+    const avg = await client.query(
+      `SELECT AVG(rating)::numeric(2,1) AS avg_rating FROM booking_ratings br
+       JOIN bookings b ON br.booking_id = b.id
+       WHERE b.provider_id = $1 AND br.rated_by = 'customer'`,
+      [providerId]
+    );
+    await client.query('UPDATE service_providers SET avg_rating = $1 WHERE id = $2', [avg.rows[0].avg_rating, providerId]);
+
+    await client.query('COMMIT');
+    res.status(201).json({ message: 'Rating submitted' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    client.release();
   }
 });
 
