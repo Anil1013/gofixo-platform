@@ -3,13 +3,14 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
+const { isValidPassword, PASSWORD_ERROR } = require('../utils/password');
 
 // Register a new customer — phone + password (name optional)
 router.post('/customer/register', async (req, res, next) => {
   try {
     const { name, phone, password } = req.body;
     if (!phone || !password) return res.status(400).json({ error: 'phone and password are required' });
-    if (password.length < 4) return res.status(400).json({ error: 'password must be at least 4 characters' });
+    if (!isValidPassword(password)) return res.status(400).json({ error: PASSWORD_ERROR });
 
     const existing = await pool.query('SELECT id FROM customers WHERE phone = $1', [phone]);
     if (existing.rows.length) return res.status(409).json({ error: 'Phone already registered — please log in instead' });
@@ -68,7 +69,7 @@ router.post('/:role/reset-password', async (req, res, next) => {
       return res.status(400).json({ error: 'role must be customer or provider' });
     }
     if (!phone || !new_password) return res.status(400).json({ error: 'phone and new_password are required' });
-    if (new_password.length < 4) return res.status(400).json({ error: 'new_password must be at least 4 characters' });
+    if (!isValidPassword(new_password)) return res.status(400).json({ error: PASSWORD_ERROR });
 
     const table = role === 'customer' ? 'customers' : 'service_providers';
     const password_hash = await bcrypt.hash(new_password, 10);

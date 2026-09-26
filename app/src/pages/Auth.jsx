@@ -107,7 +107,7 @@ export default function Auth({ onAuthed }) {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="At least 4 characters"
+          placeholder="Min 8 chars, letters + numbers"
           required
         />
 

@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
+const { isValidPassword, PASSWORD_ERROR } = require('../utils/password');
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -30,6 +31,7 @@ router.post('/register', async (req, res, next) => {
     if (!name || !phone || !type || !password) {
       return res.status(400).json({ error: 'name, phone, type and password are required' });
     }
+    if (!isValidPassword(password)) return res.status(400).json({ error: PASSWORD_ERROR });
 
     // generated_id pattern: RL-D-00231 (driver) or RL-W-00512 (worker)
     const prefix = (type === 'bike' || type === 'car') ? 'D' : 'W';
