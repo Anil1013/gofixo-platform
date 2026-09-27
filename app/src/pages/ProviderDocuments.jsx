@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { apiGet, apiUpload, getUser } from '../api';
 
 const RIDE_DOCS = [
-  { value: 'aadhar', label: 'Aadhar card' },
+  { value: 'aadhar_front', label: 'Aadhar card (front)' },
+  { value: 'aadhar_back', label: 'Aadhar card (back)' },
   { value: 'driving_license', label: 'Driving license' },
   { value: 'vehicle_rc', label: 'Vehicle RC' },
-  { value: 'vehicle_photo', label: 'Vehicle photo' },
-  { value: 'profile_photo', label: 'Profile photo' },
+  { value: 'vehicle_photo_front', label: 'Vehicle photo (front)' },
+  { value: 'vehicle_photo_back', label: 'Vehicle photo (back)' },
 ];
 
 const WORKER_DOCS = [
@@ -17,7 +18,7 @@ const WORKER_DOCS = [
 
 export default function ProviderDocuments() {
   const user = getUser();
-  const isRide = user.type === 'bike' || user.type === 'car';
+  const isRide = ['bike', 'car', 'auto'].includes(user.type);
   const docTypes = isRide ? RIDE_DOCS : WORKER_DOCS;
 
   const [docType, setDocType] = useState(docTypes[0].value);
@@ -51,14 +52,31 @@ export default function ProviderDocuments() {
     }
   }
 
+  const uploadedTypes = new Set(uploaded.map((d) => d.doc_type));
+  const remaining = docTypes.filter((d) => !uploadedTypes.has(d.value));
+  const allDone = remaining.length === 0;
+
   return (
     <div className="screen">
       <h2>KYC documents</h2>
 
+      <div className={allDone ? 'kyc-progress done' : 'kyc-progress'}>
+        <p className="kyc-progress-label">
+          {allDone ? '✅ All required documents uploaded' : `${uploadedTypes.size} of ${docTypes.length} required documents uploaded`}
+        </p>
+        <div className="kyc-checklist">
+          {docTypes.map((d) => (
+            <div key={d.value} className={uploadedTypes.has(d.value) ? 'kyc-check-item done' : 'kyc-check-item'}>
+              <span>{uploadedTypes.has(d.value) ? '✓' : '○'}</span> {d.label}
+            </div>
+          ))}
+        </div>
+      </div>
+
       <label>Document type</label>
       <select value={docType} onChange={(e) => setDocType(e.target.value)}>
         {docTypes.map((d) => (
-          <option key={d.value} value={d.value}>{d.label}</option>
+          <option key={d.value} value={d.value}>{d.label}{uploadedTypes.has(d.value) ? ' ✓' : ''}</option>
         ))}
       </select>
 

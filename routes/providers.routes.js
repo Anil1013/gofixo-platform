@@ -103,6 +103,12 @@ router.post('/:id/documents', requireAuth(['provider']), upload.single('file'), 
   }
 });
 
+const REQUIRED_DOCS = {
+  bike: ['aadhar_front', 'aadhar_back', 'driving_license', 'vehicle_rc', 'vehicle_photo_front', 'vehicle_photo_back'],
+  car: ['aadhar_front', 'aadhar_back', 'driving_license', 'vehicle_rc', 'vehicle_photo_front', 'vehicle_photo_back'],
+  auto: ['aadhar_front', 'aadhar_back', 'driving_license', 'vehicle_rc', 'vehicle_photo_front', 'vehicle_photo_back'],
+};
+
 // Update KYC status (admin approve/reject)
 router.patch('/:id/kyc', requireAdmin, async (req, res, next) => {
   try {
@@ -110,6 +116,21 @@ router.patch('/:id/kyc', requireAdmin, async (req, res, next) => {
     if (!['approved', 'rejected', 'pending'].includes(status)) {
       return res.status(400).json({ error: 'status must be approved, rejected, or pending' });
     }
+
+    if (status === 'approved') {
+      const provider = await pool.query('SELECT type FROM service_providers WHERE id = $1', [req.params.id]);
+      if (provider.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
+      const required = REQUIRED_DOCS[provider.rows[0].type];
+      if (required) {
+        const docs = await pool.query('SELECT doc_type FROM provider_documents WHERE provider_id = $1', [req.params.id]);
+        const uploaded = new Set(docs.rows.map((d) => d.doc_type));
+        const missing = required.filter((r) => !uploaded.has(r));
+        if (missing.length > 0) {
+          return res.status(400).json({ error: `Cannot approve — missing required documents: ${missing.join(', ')}` });
+        }
+      }
+    }
+
     const result = await pool.query(
       'UPDATE service_providers SET kyc_status = $1 WHERE id = $2 RETURNING *',
       [status, req.params.id]

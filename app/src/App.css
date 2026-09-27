@@ -531,3 +531,34 @@ button.cta:disabled { opacity: 0.5; }
   border-radius: 20px;
   margin-bottom: 10px;
 }
+
+/* ---- KYC checklist ---- */
+.kyc-progress {
+  background: var(--gold-bg);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+.kyc-progress.done { background: var(--teal-bg); }
+
+.kyc-progress-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #B9840F;
+  margin: 0 0 10px;
+}
+
+.kyc-progress.done .kyc-progress-label { color: #0D8F7F; }
+
+.kyc-checklist { display: flex; flex-direction: column; gap: 6px; }
+
+.kyc-check-item {
+  font-size: 13px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kyc-check-item.done { color: var(--text); }
