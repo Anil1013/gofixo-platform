@@ -34,7 +34,7 @@ router.post('/register', async (req, res, next) => {
     if (!isValidPassword(password)) return res.status(400).json({ error: PASSWORD_ERROR });
 
     // generated_id pattern: RL-D-00231 (driver) or RL-W-00512 (worker)
-    const prefix = (type === 'bike' || type === 'car') ? 'D' : 'W';
+    const prefix = ['bike', 'car', 'auto'].includes(type) ? 'D' : 'W';
     const countResult = await pool.query('SELECT COUNT(*) FROM service_providers WHERE type = $1', [type]);
     const nextNumber = String(parseInt(countResult.rows[0].count, 10) + 1).padStart(5, '0');
     const generatedId = `RL-${prefix}-${nextNumber}`;

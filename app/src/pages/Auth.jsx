@@ -3,6 +3,7 @@ import { apiPost, setSession } from '../api';
 
 const PROVIDER_TYPES = [
   { value: 'bike', label: 'Bike driver' },
+  { value: 'auto', label: 'Auto driver' },
   { value: 'car', label: 'Car driver' },
   { value: 'general_worker', label: 'Home helper (cleaning, general)' },
   { value: 'skilled_worker', label: 'Skilled worker (electrician, plumber, carpenter)' },

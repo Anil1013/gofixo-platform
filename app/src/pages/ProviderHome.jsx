@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { apiGet, apiPatch, apiPost } from '../api';
 
+const TYPE_ICON = { bike: '🏍', auto: '🛺', car: '🚗', general_worker: '🧹', skilled_worker: '🔧' };
+
 export default function ProviderHome() {
   const [profile, setProfile] = useState(null);
   const [activeBooking, setActiveBooking] = useState(null);
@@ -104,26 +106,45 @@ export default function ProviderHome() {
 
   return (
     <div className="screen">
-      <h2>Your dashboard</h2>
+      <div className="dash-header">
+        <div className="dash-avatar">{TYPE_ICON[profile.type] || '🔧'}</div>
+        <div>
+          <p className="dash-name">{profile.name}</p>
+          <p className="dash-id">{profile.generated_id}</p>
+        </div>
+        <span className={`badge badge-${profile.kyc_status} dash-kyc`}>{profile.kyc_status}</span>
+      </div>
 
-      <div className="status-card">
-        <p className="pickup-line">{profile.generated_id} · {profile.type}</p>
-        <span className={`badge badge-${profile.kyc_status}`}>{profile.kyc_status}</span>
-        {profile.plan_name ? (
-          <p className="provider-line" style={{ marginTop: 8 }}>
-            Plan: {profile.plan_name} · ₹{Number(profile.pending_amount).toLocaleString('en-IN')} left this cycle
-          </p>
-        ) : (
-          <p className="provider-line" style={{ marginTop: 8 }}>No active plan — subscribe to go available</p>
-        )}
+      <div className="stat-grid">
+        <div className="stat-tile">
+          <p className="stat-label">Plan</p>
+          <p className="stat-value">{profile.plan_name || '—'}</p>
+        </div>
+        <div className="stat-tile">
+          <p className="stat-label">Left this cycle</p>
+          <p className="stat-value">{profile.pending_amount !== null ? `₹${Number(profile.pending_amount).toLocaleString('en-IN')}` : '—'}</p>
+        </div>
+        <div className="stat-tile">
+          <p className="stat-label">Rating</p>
+          <p className="stat-value">{profile.avg_rating} ★</p>
+        </div>
+        <div className="stat-tile">
+          <p className="stat-label">Status</p>
+          <p className="stat-value">{profile.is_available ? 'Online' : 'Offline'}</p>
+        </div>
       </div>
 
       {error && <p className="auth-error">{error}</p>}
 
       {!activeBooking && (
         <>
-          <button className="cta" onClick={toggleAvailability} disabled={busy || profile.kyc_status !== 'approved'}>
-            {profile.is_available ? 'Go offline' : 'Go available'}
+          <button
+            className={profile.is_available ? 'availability-toggle online' : 'availability-toggle'}
+            onClick={toggleAvailability}
+            disabled={busy || profile.kyc_status !== 'approved'}
+          >
+            <span className="toggle-dot" />
+            {profile.is_available ? "You're online — tap to go offline" : 'Tap to go available'}
           </button>
           {profile.kyc_status !== 'approved' && (
             <p className="auth-error">KYC must be approved before you can go available.</p>
@@ -133,11 +154,10 @@ export default function ProviderHome() {
       )}
 
       {activeBooking && activeBooking.status === 'requested' && (
-        <div className="pin-card" style={{ background: 'white', color: 'var(--text)', border: '1px solid var(--line)' }}>
-          <p className="pin-label" style={{ color: 'var(--text-dim)' }}>New booking — {activeBooking.pickup_location}</p>
-          <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 10 }}>
-            {activeBooking.customer_name || 'Customer'} · {activeBooking.customer_phone}
-          </p>
+        <div className="job-card">
+          <p className="job-label">New booking</p>
+          <p className="pickup-line">📍 {activeBooking.pickup_location}</p>
+          <p className="provider-line">{activeBooking.customer_name || 'Customer'} · {activeBooking.customer_phone}</p>
           <label>Enter customer's PIN to start</label>
           <input value={pin} onChange={(e) => setPin(e.target.value)} placeholder="4-digit PIN" inputMode="numeric" />
           <button className="cta" onClick={startBooking} disabled={busy || pin.length < 4}>Start</button>
@@ -145,8 +165,9 @@ export default function ProviderHome() {
       )}
 
       {activeBooking && activeBooking.status === 'ongoing' && (
-        <div className="rating-card">
-          <p>In progress — {activeBooking.pickup_location}</p>
+        <div className="job-card">
+          <p className="job-label">In progress</p>
+          <p className="pickup-line">📍 {activeBooking.pickup_location}</p>
           <label>Fare amount (₹)</label>
           <input value={fareAmount} onChange={(e) => setFareAmount(e.target.value)} placeholder="e.g. 120" inputMode="numeric" />
           <label>Rate the customer</label>

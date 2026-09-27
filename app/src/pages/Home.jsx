@@ -3,6 +3,7 @@ import { apiPost } from '../api';
 
 const RIDE_TYPES = [
   { value: 'bike', label: 'Bike' },
+  { value: 'auto', label: 'Auto' },
   { value: 'car', label: 'Car' },
 ];
 
