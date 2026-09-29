@@ -22,6 +22,7 @@ export default function ProviderHome() {
 
   const buzzingRef = useRef(false);
   const buzzedBookingRef = useRef(null);
+  const pushSetupRef = useRef(false);
 
   async function loadAll() {
     try {
@@ -95,6 +96,41 @@ export default function ProviderHome() {
 
   useEffect(() => () => stopBuzzer(), []); // stop on unmount
 
+  async function setupBackgroundNotifications() {
+    if (pushSetupRef.current || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+    if (Notification.permission === 'denied') return;
+
+    try {
+      const permission = Notification.permission === 'granted'
+        ? 'granted'
+        : await Notification.requestPermission();
+      if (permission !== 'granted') return;
+
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      const keyResponse = await apiGet('/providers/push/public-key', true);
+      if (!keyResponse.public_key) return;
+
+      const base64ToUint8 = (value) => {
+        const padding = '='.repeat((4 - (value.length % 4)) % 4);
+        const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/');
+        return Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+      };
+
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: base64ToUint8(keyResponse.public_key),
+        });
+      }
+
+      await apiPost('/providers/push-subscription', subscription.toJSON(), true);
+      pushSetupRef.current = true;
+    } catch {
+      // Foreground buzzer remains available if background push is unavailable.
+    }
+  }
+
   async function updateCurrentLocation(refreshProfile = false) {
     if (!navigator.geolocation) {
       throw new Error('Location not available on this device.');
@@ -128,6 +164,7 @@ export default function ProviderHome() {
       const goingOnline = !profile.is_available;
       if (goingOnline) {
         await updateCurrentLocation(false);
+        await setupBackgroundNotifications();
       }
       await apiPatch(`/providers/${profile.id}/availability`, { is_available: goingOnline }, true);
       await loadAll();
