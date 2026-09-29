@@ -3,7 +3,7 @@ const router = express.Router();
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
-const { findNearestProvider, handleDeclineOrTimeout } = require('../services/matching');
+const { findNearestProvider, claimNearestProvider, handleDeclineOrTimeout } = require('../services/matching');
 
 const SERVICE_TYPES = new Set(['ride', 'services']);
 const PROVIDER_TYPES = new Set(['bike', 'auto', 'car', 'general_worker', 'skilled_worker']);
@@ -84,6 +84,8 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
 // The request is offered to the NEAREST on-duty, KYC-approved provider of the requested type
 // (their app buzzes). If they decline or don't respond in time, it moves to the next nearest.
 router.post('/', requireAuth(['customer']), async (req, res, next) => {
+  const client = await pool.connect();
+  let inTransaction = false;
   try {
     const { service_type, provider_type, pickup_location, drop_or_service_address, pickup_lat, pickup_lng } = req.body;
     const customer_id = req.user.id;
@@ -106,21 +108,46 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       return res.status(400).json({ error: 'pickup coordinates are out of range' });
     }
 
-    // One live booking at a time (stops a customer from locking up several providers at once)
-    const open = await pool.query(
-      `SELECT id FROM bookings WHERE customer_id = $1 AND status IN ('requested', 'accepted', 'ongoing') LIMIT 1`,
+    await client.query('BEGIN');
+    inTransaction = true;
+
+    // Serialize booking creation for this customer so two simultaneous taps cannot
+    // both pass the active-booking check.
+    await client.query(
+      'SELECT pg_advisory_xact_lock(hashtext($1))',
+      [`gofixo-customer-booking:${customer_id}`]
+    );
+
+    const open = await client.query(
+      `SELECT id FROM bookings
+       WHERE customer_id = $1 AND status IN ('requested', 'accepted', 'ongoing')
+       LIMIT 1
+       FOR UPDATE`,
       [customer_id]
     );
     if (open.rows.length > 0) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
       return res.status(409).json({ error: 'You already have an active booking' });
     }
 
-    const nearest = await findNearestProvider(provider_type, pickupLatitude, pickupLongitude, []);
+    // Claim the provider inside the same transaction as the booking insert.
+    // This prevents another booking from selecting the same provider between
+    // "find nearest" and "mark unavailable".
+    const nearest = await claimNearestProvider(
+      client,
+      provider_type,
+      pickupLatitude,
+      pickupLongitude,
+      []
+    );
     if (!nearest) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
       return res.status(404).json({ error: 'No available provider found nearby. Try again shortly.' });
     }
 
-    const result = await pool.query(
+    const result = await client.query(
       `INSERT INTO bookings (service_type, provider_type, customer_id, provider_id, pickup_location, drop_or_service_address,
                              pickup_lat, pickup_lng, start_pin, status, offered_at, declined_providers)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'requested', NOW(), '{}') RETURNING *`,
@@ -128,12 +155,14 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
        pickupLatitude, pickupLongitude, generatePin()]
     );
 
-    // Hold the provider while the offer is open so they aren't offered a second job
-    await pool.query('UPDATE service_providers SET is_available = false WHERE id = $1', [nearest.id]);
-
+    await client.query('COMMIT');
+    inTransaction = false;
     res.status(201).json(result.rows[0]);
   } catch (err) {
+    if (inTransaction) await client.query('ROLLBACK').catch(() => {});
     next(err);
+  } finally {
+    client.release();
   }
 });
 
