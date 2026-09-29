@@ -67,10 +67,27 @@ export async function apiGet(path, auth = false) {
 export async function apiUpload(path, formData, auth = true) {
   const headers = {};
   if (auth) headers['Authorization'] = `Bearer ${getToken()}`;
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    headers,
-    body: formData,
-  });
-  return handle(res);
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+  } catch (err) {
+    throw new Error('Upload failed. Please check your internet connection and try again.');
+  }
+
+  const contentType = res.headers.get('content-type') || '';
+  const data = contentType.includes('application/json')
+    ? await res.json().catch(() => ({}))
+    : {};
+  if (res.status === 401) {
+    clearSession();
+    window.dispatchEvent(new Event('gofixo:session-expired'));
+  }
+  if (!res.ok) {
+    throw new Error(data.error || `Upload failed (${res.status})`);
+  }
+  return data;
 }
