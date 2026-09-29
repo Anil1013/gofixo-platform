@@ -5,7 +5,7 @@ import { getRoute } from '../utils/geo';
 import { startBuzzer, stopBuzzer } from '../utils/buzzer';
 
 const TYPE_ICON = { bike: '🏍', auto: '🛺', car: '🚗', general_worker: '🧹', skilled_worker: '🔧' };
-const OFFER_SECONDS = 30;
+const OFFER_SECONDS = 60;
 
 export default function ProviderHome() {
   const [profile, setProfile] = useState(null);
@@ -23,6 +23,7 @@ export default function ProviderHome() {
   const buzzingRef = useRef(false);
   const buzzedBookingRef = useRef(null);
   const pushSetupRef = useRef(false);
+  const autoOnlineAttemptRef = useRef(false);
 
   async function loadAll() {
     try {
@@ -45,6 +46,25 @@ export default function ProviderHome() {
     const interval = setInterval(loadAll, 4000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    // Opening the partner app puts an approved provider back on duty automatically.
+    // This runs only once per app session, so a manual Offline tap is respected
+    // for the rest of that session. A fresh app launch will go online again.
+    if (!profile || autoOnlineAttemptRef.current) return;
+    autoOnlineAttemptRef.current = true;
+    if (profile.kyc_status !== 'approved' || profile.is_available || activeBooking) return;
+
+    (async () => {
+      try {
+        await updateCurrentLocation(false);
+        await apiPatch('/providers/' + profile.id + '/availability', { is_available: true }, true);
+        await loadAll();
+      } catch {
+        await loadAll();
+      }
+    })();
+  }, [profile?.id, profile?.kyc_status, profile?.is_available, activeBooking?.id]);
 
   useEffect(() => {
     if (activeBooking?.status === 'ongoing' && activeBooking.fare_amount) {
@@ -73,7 +93,7 @@ export default function ProviderHome() {
     const isRequested = activeBooking && activeBooking.status === 'requested';
     if (isRequested && buzzedBookingRef.current !== activeBooking.id) {
       stopBuzzer();
-      startBuzzer(6000);
+      startBuzzer(60 * 1000);
       buzzedBookingRef.current = activeBooking.id;
       buzzingRef.current = true;
     }
@@ -255,6 +275,7 @@ export default function ProviderHome() {
         rating: rating || undefined,
         comment: comment || undefined,
       }, true);
+      await updateCurrentLocation(false).catch(() => {});
       setFareAmount('');
       setRating(0);
       setComment('');
