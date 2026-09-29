@@ -17,6 +17,7 @@ export default function Providers() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
+  const [search, setSearch] = useState('');
 
   function load() {
     setLoading(true);
@@ -60,9 +61,24 @@ export default function Providers() {
   if (loading) return <p>Loading providers...</p>;
   if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
 
+  const query = search.trim().toLowerCase();
+  const visibleProviders = providers.filter((p) => {
+    if (!query) return true;
+    return [p.generated_id, p.name, p.phone, p.type, p.kyc_status]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(query));
+  });
+  const pendingKyc = providers.filter((p) => p.kyc_status === 'pending').length;
+
   return (
     <div>
-      <h2>Providers ({providers.length})</h2>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 16 }}>
+        <div>
+          <h2 style={{ marginBottom: 4 }}>Providers ({providers.length})</h2>
+          <span style={{ color: '#B0A8BE' }}>Pending KYC: {pendingKyc}</span>
+        </div>
+        <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search phone / provider ID / name" style={{ minWidth: 280 }} />
+      </div>
       <table className="data-table">
         <thead>
           <tr>
@@ -79,7 +95,7 @@ export default function Providers() {
           </tr>
         </thead>
         <tbody>
-          {providers.map((p) => (
+          {visibleProviders.map((p) => (
             <tr key={p.id}>
               <td>{p.generated_id}</td>
               <td>{p.name}</td>
@@ -135,9 +151,9 @@ export default function Providers() {
               </td>
             </tr>
           ))}
-          {providers.length === 0 && (
+          {visibleProviders.length === 0 && (
             <tr>
-              <td colSpan="10">No providers registered yet.</td>
+              <td colSpan="10">{providers.length === 0 ? 'No providers registered yet.' : 'No provider matches this search.'}</td>
             </tr>
           )}
         </tbody>
