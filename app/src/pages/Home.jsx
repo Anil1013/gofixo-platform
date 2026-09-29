@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiPost } from '../api';
 import MapView from '../components/MapView';
-import { reverseGeocode, searchAddress, getRoute, formatDistance } from '../utils/geo';
+import { reverseGeocodeDetails, reverseGeocode, searchAddress, getRoute, formatDistance } from '../utils/geo';
 
 const RIDE_TYPES = [
   { value: 'bike', label: 'Bike' },
