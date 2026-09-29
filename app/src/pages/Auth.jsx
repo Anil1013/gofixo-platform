@@ -15,6 +15,7 @@ export default function Auth({ onAuthed }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [providerType, setProviderType] = useState('bike');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -35,7 +36,7 @@ export default function Auth({ onAuthed }) {
         setMode('login');
         setMessage('Account created — please log in.');
       } else if (mode === 'reset') {
-        await apiPost(`/auth/${role}/reset-password`, { phone, new_password: password });
+        await apiPost(`/auth/${role}/reset-password`, { phone, current_password: currentPassword, new_password: password });
         setMode('login');
         setMessage('Password reset — please log in with your new password.');
       } else {
@@ -103,6 +104,19 @@ export default function Auth({ onAuthed }) {
           />
         </div>
 
+        {mode === 'reset' && (
+          <>
+            <label>Current password</label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="Your current password"
+              required
+            />
+          </>
+        )}
+
         <label>{mode === 'reset' ? 'New password' : 'Password'}</label>
         <input
           type="password"
@@ -122,7 +136,7 @@ export default function Auth({ onAuthed }) {
         <div className="auth-links">
           {mode !== 'login' && <button type="button" onClick={() => setMode('login')}>Back to login</button>}
           {mode === 'login' && <button type="button" onClick={() => setMode('register')}>New here? Create account</button>}
-          {mode === 'login' && <button type="button" onClick={() => setMode('reset')}>Forgot password?</button>}
+          {mode === 'login' && <button type="button" onClick={() => setMode('reset')}>Change password</button>}
         </div>
       </form>
     </div>
