@@ -30,6 +30,23 @@ Phone + password login for both customers and providers — no SMS/OTP needed:
 - `POST /api/auth/:role/reset-password` — body: `{ phone, new_password }`. Self-service, no verification step (by design, for now — anyone who knows the phone number could reset that account; revisit before a wider public launch).
 - Send the token as `Authorization: Bearer <token>` on protected routes. Creating a booking requires a customer token; starting/confirming a booking requires the assigned provider's token.
 
+## Ride-request matching (buzzer, Accept/Decline)
+
+- `POST /api/bookings` no longer takes `provider_id` — it always finds the **nearest on-duty, KYC-approved provider** of the requested `provider_type` (Haversine distance) and offers them the job. That provider's app buzzes (sound + vibration) with an Accept/Decline card and a 30-second countdown.
+- `POST /api/bookings/:id/accept` (provider auth) — claims the request. Fails with 409 if it already timed out or was taken.
+- `POST /api/bookings/:id/decline` (provider auth) — the provider stays on duty; the request is immediately offered to the next-nearest provider.
+- If nobody responds in 30s (`services/matching.js` + the sweeper in `server.js`, runs every 5s), that provider is put **offline** (they didn't respond, so they must explicitly go available again) and the request moves on. A provider who explicitly declines stays online.
+- If every nearby provider of that type is exhausted, the booking's status becomes `no_provider` and the customer sees a "try again" screen.
+- Booking status flow: `requested` → `accepted` → `ongoing` (PIN entered) → `completed`.
+- Privacy: the customer only sees the provider's name/phone/live location once status is `accepted` or later. The provider only sees the customer's phone once they've accepted. The customer's `start_pin` is never sent to the provider's own bookings endpoint — they must get it verbally.
+- Run `config/migration_005_offers.sql` once against `gofixo-db` (adds `provider_type`, `offered_at`, `declined_providers` to `bookings`).
+
+## Maps & location (free, no API key)
+
+- `app/src/utils/geo.js` — OpenStreetMap Nominatim for reverse-geocoding (coordinates → address) and address search, OSRM's public demo server for route line / distance / ETA. Swappable later for Mapbox/HERE/Google if volume needs it — only this file changes.
+- `app/src/components/MapView.jsx` — Leaflet + OpenStreetMap tiles, shows pickup/provider/destination pins and the route line.
+- "Navigate" links open Google Maps turn-by-turn (no key needed, just a URL).
+
 ## Ride/job start PIN
 
 Replaces OTP verification for starting a booking:

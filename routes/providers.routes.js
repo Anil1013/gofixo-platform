@@ -53,7 +53,7 @@ router.post('/register', async (req, res, next) => {
 });
 
 // List all providers (admin panel) — includes active plan, pending (cap remaining), and uploaded documents
-router.get('/', async (req, res, next) => {
+router.get('/', requireAdmin, async (req, res, next) => {
   try {
     const result = await pool.query(`
       SELECT sp.id, sp.generated_id, sp.name, sp.phone, sp.type, sp.kyc_status, sp.bank_upi_id,

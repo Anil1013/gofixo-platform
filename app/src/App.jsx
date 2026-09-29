@@ -10,6 +10,39 @@ import ProviderHistory from './pages/ProviderHistory';
 import { apiGet, getToken, getUser, getRole, clearSession } from './api';
 import './App.css';
 
+// Bookings the customer has finished looking at (rated / dismissed) — kept so a page reload doesn't bring them back
+const DISMISSED_KEY = 'gofixo_dismissed_bookings';
+const RECENT_COMPLETED_MS = 10 * 60 * 1000;
+
+function getDismissed() {
+  try {
+    return JSON.parse(localStorage.getItem(DISMISSED_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function dismissBooking(id) {
+  const list = getDismissed();
+  if (!list.includes(id)) list.push(id);
+  localStorage.setItem(DISMISSED_KEY, JSON.stringify(list.slice(-50)));
+}
+
+// The booking the customer should be looking at right now (live one, a just-finished one to rate, or a "no provider" notice)
+function pickCurrent(bookings) {
+  const dismissed = new Set(getDismissed());
+  return (
+    bookings.find((b) => {
+      if (dismissed.has(b.id)) return false;
+      if (['requested', 'accepted', 'ongoing', 'no_provider'].includes(b.status)) return true;
+      if (b.status === 'completed' && b.completed_at) {
+        return Date.now() - new Date(b.completed_at).getTime() < RECENT_COMPLETED_MS;
+      }
+      return false;
+    }) || null
+  );
+}
+
 export default function App() {
   const [user, setUserState] = useState(getUser());
   const [role, setRoleState] = useState(getRole());
@@ -24,10 +57,9 @@ export default function App() {
     }
     try {
       const bookings = await apiGet('/bookings/mine', true);
-      const active = bookings.find((b) => b.status !== 'completed');
-      setActiveBooking(active || null);
+      setActiveBooking(pickCurrent(bookings));
     } catch {
-      // ignore
+      // ignore — next poll will retry
     } finally {
       setChecking(false);
     }
@@ -69,11 +101,17 @@ export default function App() {
   function renderContent() {
     if (role === 'customer') {
       if (activeBooking) {
-        return <Active booking={activeBooking} onRefresh={checkActiveBooking} onDone={() => setActiveBooking(null)} />;
+        return (
+          <Active
+            booking={activeBooking}
+            onRefresh={checkActiveBooking}
+            onDismiss={() => dismissBooking(activeBooking.id)}
+            onDone={() => { dismissBooking(activeBooking.id); setActiveBooking(null); }}
+          />
+        );
       }
       return tab === 'home' ? <Home onBooked={(b) => setActiveBooking(b)} /> : <History />;
     }
-    // provider
     if (tab === 'home') return <ProviderHome />;
     if (tab === 'plans') return <ProviderPlans />;
     if (tab === 'docs') return <ProviderDocuments />;

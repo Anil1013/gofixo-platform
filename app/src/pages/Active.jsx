@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react';
-import { apiGet, apiPost } from '../api';
+import { apiPost } from '../api';
+import MapView from '../components/MapView';
+import { navigateToCoords } from '../utils/geo';
 
 const STEPS = [
-  { key: 'requested', label: 'Requested', icon: '🔍' },
+  { key: 'requested', label: 'Finding driver', icon: '🔍' },
+  { key: 'accepted', label: 'On the way', icon: '🚖' },
   { key: 'ongoing', label: 'In progress', icon: '🚦' },
   { key: 'completed', label: 'Completed', icon: '✅' },
 ];
 
 function stepIndex(status) {
-  return STEPS.findIndex((s) => s.key === status);
+  const i = STEPS.findIndex((s) => s.key === status);
+  return i === -1 ? 0 : i;
 }
 
-export default function Active({ booking, onRefresh, onDone }) {
+export default function Active({ booking, onRefresh, onDismiss, onDone }) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [rated, setRated] = useState(false);
@@ -19,8 +23,8 @@ export default function Active({ booking, onRefresh, onDone }) {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (booking.status === 'completed') return;
-    const interval = setInterval(onRefresh, 6000);
+    if (booking.status === 'completed' || booking.status === 'no_provider') return;
+    const interval = setInterval(onRefresh, 5000);
     return () => clearInterval(interval);
   }, [booking.status]);
 
@@ -40,7 +44,22 @@ export default function Active({ booking, onRefresh, onDone }) {
     setTimeout(() => setCopied(false), 1500);
   }
 
+  if (booking.status === 'no_provider') {
+    return (
+      <div className="screen">
+        <div className="thanks-card" style={{ background: 'var(--red-bg)', color: 'var(--red)' }}>
+          <p>😕 No provider was available nearby right now.</p>
+        </div>
+        <button className="cta" onClick={() => { onDismiss(); onDone(); }}>Try again</button>
+      </div>
+    );
+  }
+
   const current = stepIndex(booking.status);
+  const markers = [{ lat: Number(booking.pickup_lat), lng: Number(booking.pickup_lng), emoji: '📍', color: '#EC4899' }];
+  if (booking.provider_lat && booking.provider_lng) {
+    markers.push({ lat: Number(booking.provider_lat), lng: Number(booking.provider_lng), emoji: '🏍', color: '#8B5CF6' });
+  }
 
   return (
     <div className="screen">
@@ -48,7 +67,7 @@ export default function Active({ booking, onRefresh, onDone }) {
 
       <div className="stepper">
         {STEPS.map((s, i) => (
-          <div key={s.key} className={`step ${i <= current ? 'done' : ''} ${i === current ? 'current' : ''}`}>
+          <div key={s.key} className={`step ${i <= current ? 'done' : ''}`}>
             <span className="step-icon">{s.icon}</span>
             <span className="step-label">{s.label}</span>
             {i < STEPS.length - 1 && <span className="step-line" />}
@@ -56,12 +75,16 @@ export default function Active({ booking, onRefresh, onDone }) {
         ))}
       </div>
 
+      {booking.status !== 'completed' && <MapView markers={markers} height={180} />}
+
       <div className="status-card">
         <p className="pickup-line">📍 {booking.pickup_location}</p>
-        {booking.provider_name && (
+        {booking.provider_name ? (
           <p className="provider-line">
             {booking.provider_name} · <span className="id-chip">{booking.provider_generated_id}</span>
           </p>
+        ) : (
+          <p className="provider-line">Looking for the nearest provider...</p>
         )}
       </div>
 
@@ -85,17 +108,16 @@ export default function Active({ booking, onRefresh, onDone }) {
           <input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Optional comment" />
           {error && <p className="auth-error">{error}</p>}
           <button className="cta" onClick={submitRating} disabled={!rating}>Submit rating</button>
+          <button className="secondary" onClick={() => { onDismiss(); onDone(); }}>Skip</button>
         </div>
       )}
 
       {booking.status === 'completed' && rated && (
-        <div className="thanks-card">
-          <p>🎉 Thanks for your feedback!</p>
-        </div>
+        <div className="thanks-card"><p>🎉 Thanks for your feedback!</p></div>
       )}
 
       {booking.status === 'completed' && (
-        <button className="secondary" onClick={onDone}>Book another</button>
+        <button className="cta" onClick={() => { onDismiss(); onDone(); }}>Book another</button>
       )}
     </div>
   );

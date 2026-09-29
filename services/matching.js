@@ -1,0 +1,78 @@
+const pool = require('../config/db');
+
+// Nearest available, KYC-approved provider of the requested type (Haversine distance in km),
+// skipping anyone who already declined / missed this booking.
+async function findNearestProvider(providerType, lat, lng, excludeIds = []) {
+  const result = await pool.query(
+    `SELECT id,
+            ( 6371 * acos(
+                LEAST(1, GREATEST(-1,
+                  cos(radians($1)) * cos(radians(current_lat)) *
+                  cos(radians(current_lng) - radians($2)) +
+                  sin(radians($1)) * sin(radians(current_lat))
+                ))
+              )
+            ) AS distance_km
+     FROM service_providers
+     WHERE type = $3
+       AND is_available = true
+       AND kyc_status = 'approved'
+       AND current_lat IS NOT NULL AND current_lng IS NOT NULL
+       AND NOT (id = ANY($4::int[]))
+     ORDER BY distance_km ASC
+     LIMIT 1`,
+    [lat, lng, providerType, excludeIds]
+  );
+  return result.rows[0] || null;
+}
+
+// Offers the booking to the next nearest provider (skipping those who already declined/timed out).
+// The offered provider is marked busy while the offer is open. If nobody is left, the booking becomes 'no_provider'.
+async function offerToNextProvider(booking) {
+  const next = await findNearestProvider(
+    booking.provider_type,
+    booking.pickup_lat,
+    booking.pickup_lng,
+    booking.declined_providers || []
+  );
+
+  if (!next) {
+    await pool.query(
+      `UPDATE bookings SET status = 'no_provider', provider_id = NULL, offered_at = NULL WHERE id = $1`,
+      [booking.id]
+    );
+    return null;
+  }
+
+  await pool.query(
+    `UPDATE bookings SET provider_id = $1, status = 'requested', offered_at = NOW() WHERE id = $2`,
+    [next.id, booking.id]
+  );
+  await pool.query('UPDATE service_providers SET is_available = false WHERE id = $1', [next.id]);
+  return next.id;
+}
+
+// A provider declined (or let the offer time out): record them, free/offline them, and offer to the next nearest.
+//  - explicit decline  -> provider stays on duty (available again)
+//  - timeout           -> provider is put offline (they didn't respond, so they must tap "Go available" again)
+async function handleDeclineOrTimeout(bookingId, timedOut = false) {
+  const res = await pool.query('SELECT * FROM bookings WHERE id = $1', [bookingId]);
+  const booking = res.rows[0];
+  if (!booking || booking.status !== 'requested' || !booking.provider_id) return;
+
+  // Atomic claim: only proceeds if the booking is still waiting on THIS provider
+  // (so a simultaneous "Accept" and a timeout can't both win).
+  const claim = await pool.query(
+    `UPDATE bookings
+     SET declined_providers = array_append(COALESCE(declined_providers, '{}'), provider_id)
+     WHERE id = $1 AND status = 'requested' AND provider_id = $2
+     RETURNING *`,
+    [bookingId, booking.provider_id]
+  );
+  if (claim.rows.length === 0) return;
+
+  await pool.query('UPDATE service_providers SET is_available = $1 WHERE id = $2', [!timedOut, booking.provider_id]);
+  await offerToNextProvider(claim.rows[0]);
+}
+
+module.exports = { findNearestProvider, offerToNextProvider, handleDeclineOrTimeout };

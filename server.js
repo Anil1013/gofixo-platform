@@ -9,6 +9,8 @@ const providersRoutes = require('./routes/providers.routes');
 const subscriptionsRoutes = require('./routes/subscriptions.routes');
 const bookingsRoutes = require('./routes/bookings.routes');
 const authRoutes = require('./routes/auth.routes');
+const pool = require('./config/db');
+const { handleDeclineOrTimeout } = require('./services/matching');
 
 const app = express();
 
@@ -39,3 +41,23 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Gofixo backend running on port ${PORT}`));
+
+// Ride-request timeout: if the provider who is being buzzed doesn't respond within OFFER_TIMEOUT_SECONDS,
+// they're put offline and the request moves to the next nearest on-duty provider.
+// (Single PM2 process, so a simple interval is enough. Claims in handleDeclineOrTimeout are atomic anyway.)
+const OFFER_TIMEOUT_SECONDS = 30;
+setInterval(async () => {
+  try {
+    const expired = await pool.query(
+      `SELECT id FROM bookings
+       WHERE status = 'requested' AND offered_at IS NOT NULL
+         AND offered_at < NOW() - ($1 || ' seconds')::interval`,
+      [String(OFFER_TIMEOUT_SECONDS)]
+    );
+    for (const row of expired.rows) {
+      await handleDeclineOrTimeout(row.id, true);
+    }
+  } catch (err) {
+    console.error('Offer timeout sweeper error:', err.message);
+  }
+}, 5000);

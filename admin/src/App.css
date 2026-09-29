@@ -304,3 +304,7 @@ nav { display: flex; flex-direction: column; gap: 2px; }
 .doc-links a:hover { text-decoration: underline; }
 
 .sub-line { font-size: 11.5px; color: var(--text-dim); margin-top: 2px; }
+
+.badge-accepted { background: #E8EEFB; color: #3B5FC4; }
+.badge-ongoing { background: #EFE8FC; color: var(--violet); }
+.badge-no_provider { background: var(--red-bg); color: var(--red); }

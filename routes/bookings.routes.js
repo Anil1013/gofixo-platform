@@ -2,13 +2,22 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/admin');
+const { findNearestProvider, handleDeclineOrTimeout } = require('../services/matching');
 
 function generatePin() {
   return String(Math.floor(1000 + Math.random() * 9000)); // 4-digit
 }
 
-// List all bookings (admin panel)
-router.get('/', async (req, res, next) => {
+// Booking lifecycle:
+//   requested  -> offered to the nearest on-duty provider (their app buzzes); they have a short window to respond
+//   accepted   -> provider accepted and is on the way; customer's PIN is needed to start
+//   ongoing    -> provider entered the correct PIN
+//   completed  -> provider confirmed payment
+//   no_provider-> everyone nearby declined / missed it
+
+// List all bookings (admin panel only — contains customer phone numbers and PINs)
+router.get('/', requireAdmin, async (req, res, next) => {
   try {
     const result = await pool.query(
       `SELECT b.*, sp.name AS provider_name, sp.generated_id AS provider_generated_id, sp.phone AS provider_phone,
@@ -24,11 +33,16 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// A logged-in customer's own bookings
+// A logged-in customer's own bookings (includes their own start_pin)
 router.get('/mine', requireAuth(['customer']), async (req, res, next) => {
   try {
     const result = await pool.query(
-      `SELECT b.*, sp.name AS provider_name, sp.generated_id AS provider_generated_id, sp.phone AS provider_phone
+      `SELECT b.*,
+              CASE WHEN b.status IN ('accepted', 'ongoing', 'completed') THEN sp.name END AS provider_name,
+              CASE WHEN b.status IN ('accepted', 'ongoing', 'completed') THEN sp.generated_id END AS provider_generated_id,
+              CASE WHEN b.status IN ('accepted', 'ongoing', 'completed') THEN sp.phone END AS provider_phone,
+              CASE WHEN b.status IN ('accepted', 'ongoing') THEN sp.current_lat END AS provider_lat,
+              CASE WHEN b.status IN ('accepted', 'ongoing') THEN sp.current_lng END AS provider_lng
        FROM bookings b
        LEFT JOIN service_providers sp ON b.provider_id = sp.id
        WHERE b.customer_id = $1
@@ -41,11 +55,16 @@ router.get('/mine', requireAuth(['customer']), async (req, res, next) => {
   }
 });
 
-// A logged-in provider's own bookings
+// A logged-in provider's own bookings — start_pin is deliberately NOT included:
+// the provider has to get it from the customer in person.
 router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) => {
   try {
     const result = await pool.query(
-      `SELECT b.*, c.name AS customer_name, c.phone AS customer_phone
+      `SELECT b.id, b.service_type, b.customer_id, b.provider_id, b.pickup_location, b.drop_or_service_address,
+              b.fare_amount, b.duration_minutes, b.status, b.payment_confirmed_by_provider,
+              b.created_at, b.completed_at, b.pickup_lat, b.pickup_lng, b.offered_at,
+              c.name AS customer_name,
+              CASE WHEN b.status IN ('accepted', 'ongoing', 'completed') THEN c.phone END AS customer_phone
        FROM bookings b
        LEFT JOIN customers c ON b.customer_id = c.id
        WHERE b.provider_id = $1
@@ -58,60 +77,82 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
   }
 });
 
-// Create a booking (ride or pronto) — customer must be logged in
-// If provider_id isn't given, auto-matches the nearest available, KYC-approved provider of the requested type
+// Create a booking (ride or pronto) — customer must be logged in.
+// The request is offered to the NEAREST on-duty, KYC-approved provider of the requested type
+// (their app buzzes). If they decline or don't respond in time, it moves to the next nearest.
 router.post('/', requireAuth(['customer']), async (req, res, next) => {
   try {
-    const { service_type, provider_type, provider_id, pickup_location, drop_or_service_address, pickup_lat, pickup_lng } = req.body;
+    const { service_type, provider_type, pickup_location, drop_or_service_address, pickup_lat, pickup_lng } = req.body;
     const customer_id = req.user.id;
 
-    let matchedProviderId = provider_id;
-
-    if (!matchedProviderId) {
-      if (!provider_type) {
-        return res.status(400).json({ error: 'provider_type is required when provider_id is not given (bike/car/general_worker/skilled_worker)' });
-      }
-      if (pickup_lat === undefined || pickup_lng === undefined) {
-        return res.status(400).json({ error: 'pickup_lat and pickup_lng are required for matching' });
-      }
-
-      // Haversine distance (km) via SQL, ordered nearest-first
-      const match = await pool.query(
-        `SELECT id,
-                ( 6371 * acos(
-                    cos(radians($1)) * cos(radians(current_lat)) *
-                    cos(radians(current_lng) - radians($2)) +
-                    sin(radians($1)) * sin(radians(current_lat))
-                  )
-                ) AS distance_km
-         FROM service_providers
-         WHERE type = $3
-           AND is_available = true
-           AND kyc_status = 'approved'
-           AND current_lat IS NOT NULL AND current_lng IS NOT NULL
-         ORDER BY distance_km ASC
-         LIMIT 1`,
-        [pickup_lat, pickup_lng, provider_type]
-      );
-
-      if (match.rows.length === 0) {
-        return res.status(404).json({ error: 'No available provider found nearby. Try again shortly.' });
-      }
-      matchedProviderId = match.rows[0].id;
+    if (!service_type || !provider_type) {
+      return res.status(400).json({ error: 'service_type and provider_type are required' });
+    }
+    if (pickup_lat === undefined || pickup_lng === undefined) {
+      return res.status(400).json({ error: 'pickup_lat and pickup_lng are required for matching' });
     }
 
-    const startPin = generatePin();
+    // One live booking at a time (stops a customer from locking up several providers at once)
+    const open = await pool.query(
+      `SELECT id FROM bookings WHERE customer_id = $1 AND status IN ('requested', 'accepted', 'ongoing') LIMIT 1`,
+      [customer_id]
+    );
+    if (open.rows.length > 0) {
+      return res.status(409).json({ error: 'You already have an active booking' });
+    }
+
+    const nearest = await findNearestProvider(provider_type, pickup_lat, pickup_lng, []);
+    if (!nearest) {
+      return res.status(404).json({ error: 'No available provider found nearby. Try again shortly.' });
+    }
 
     const result = await pool.query(
-      `INSERT INTO bookings (service_type, customer_id, provider_id, pickup_location, drop_or_service_address, pickup_lat, pickup_lng, start_pin, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'requested') RETURNING *`,
-      [service_type, customer_id, matchedProviderId, pickup_location, drop_or_service_address, pickup_lat, pickup_lng, startPin]
+      `INSERT INTO bookings (service_type, provider_type, customer_id, provider_id, pickup_location, drop_or_service_address,
+                             pickup_lat, pickup_lng, start_pin, status, offered_at, declined_providers)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'requested', NOW(), '{}') RETURNING *`,
+      [service_type, provider_type, customer_id, nearest.id, pickup_location, drop_or_service_address,
+       pickup_lat, pickup_lng, generatePin()]
     );
 
-    // Mark the matched provider busy immediately so they aren't double-booked
-    await pool.query('UPDATE service_providers SET is_available = false WHERE id = $1', [matchedProviderId]);
+    // Hold the provider while the offer is open so they aren't offered a second job
+    await pool.query('UPDATE service_providers SET is_available = false WHERE id = $1', [nearest.id]);
 
     res.status(201).json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Provider accepts the request that is buzzing on their phone
+router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `UPDATE bookings SET status = 'accepted'
+       WHERE id = $1 AND provider_id = $2 AND status = 'requested'
+         AND NOT ($2 = ANY(COALESCE(declined_providers, '{}')))
+       RETURNING id, service_type, customer_id, provider_id, pickup_location, drop_or_service_address,
+                 status, pickup_lat, pickup_lng, created_at`,
+      [req.params.id, req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(409).json({ error: 'This request is no longer available (it may have timed out)' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Provider declines — stays on duty; the request goes to the next nearest provider
+router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) => {
+  try {
+    const existing = await pool.query('SELECT provider_id, status FROM bookings WHERE id = $1', [req.params.id]);
+    if (existing.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
+    if (existing.rows[0].provider_id !== req.user.id || existing.rows[0].status !== 'requested') {
+      return res.status(409).json({ error: 'This request is no longer available' });
+    }
+    await handleDeclineOrTimeout(req.params.id, false);
+    res.json({ message: 'Request declined' });
   } catch (err) {
     next(err);
   }
@@ -131,15 +172,16 @@ router.post('/:id/start', requireAuth(['provider']), async (req, res, next) => {
     if (booking.provider_id !== req.user.id) {
       return res.status(403).json({ error: 'This booking does not belong to you' });
     }
-    if (booking.status !== 'requested') {
-      return res.status(400).json({ error: `Booking is already ${booking.status}` });
+    if (booking.status !== 'accepted') {
+      return res.status(400).json({ error: booking.status === 'requested' ? 'Accept the request first' : `Booking is already ${booking.status}` });
     }
     if (booking.start_pin !== pin) {
       return res.status(401).json({ error: 'Incorrect PIN' });
     }
 
     const result = await pool.query(
-      `UPDATE bookings SET status = 'ongoing' WHERE id = $1 RETURNING *`,
+      `UPDATE bookings SET status = 'ongoing' WHERE id = $1
+       RETURNING id, service_type, customer_id, provider_id, pickup_location, status, created_at`,
       [id]
     );
     res.json(result.rows[0]);
@@ -171,6 +213,15 @@ router.post('/:id/rate', requireAuth(['customer']), async (req, res, next) => {
       return res.status(400).json({ error: 'Can only rate a completed booking' });
     }
 
+    const already = await client.query(
+      `SELECT 1 FROM booking_ratings WHERE booking_id = $1 AND rated_by = 'customer'`,
+      [id]
+    );
+    if (already.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'You have already rated this booking' });
+    }
+
     await client.query(
       `INSERT INTO booking_ratings (booking_id, rated_by, rating, comment) VALUES ($1, 'customer', $2, $3)`,
       [id, rating, comment || null]
@@ -196,7 +247,8 @@ router.post('/:id/rate', requireAuth(['customer']), async (req, res, next) => {
   }
 });
 
-// Provider confirms payment received — this is what unlocks their next booking
+// Provider confirms payment received — this is what unlocks their next booking.
+// Only possible once the ride/job was started with the customer's PIN.
 router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, next) => {
   const client = await pool.connect();
   try {
@@ -205,7 +257,7 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
 
     await client.query('BEGIN');
 
-    const existing = await client.query('SELECT provider_id FROM bookings WHERE id = $1', [id]);
+    const existing = await client.query('SELECT provider_id, status FROM bookings WHERE id = $1', [id]);
     if (existing.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Booking not found' });
@@ -214,10 +266,15 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
       await client.query('ROLLBACK');
       return res.status(403).json({ error: 'This booking does not belong to you' });
     }
+    if (existing.rows[0].status !== 'ongoing') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Start the ride/job with the customer\'s PIN before confirming payment' });
+    }
 
     const booking = await client.query(
       `UPDATE bookings SET status = 'completed', payment_confirmed_by_provider = true,
-       fare_amount = $1, completed_at = NOW() WHERE id = $2 RETURNING *`,
+       fare_amount = $1, completed_at = NOW() WHERE id = $2
+       RETURNING id, service_type, customer_id, provider_id, pickup_location, fare_amount, status, completed_at`,
       [fare_amount, id]
     );
     const providerId = booking.rows[0].provider_id;

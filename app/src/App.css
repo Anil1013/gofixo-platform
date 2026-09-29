@@ -562,3 +562,74 @@ button.cta:disabled { opacity: 0.5; }
 }
 
 .kyc-check-item.done { color: var(--text); }
+
+/* ---- Map ---- */
+.map-box {
+  width: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  margin: 12px 0;
+  border: 1px solid var(--line);
+}
+
+.map-pin-inner {
+  width: 30px;
+  height: 30px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(45deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  border: 2px solid white;
+}
+
+.map-pin-inner > * { transform: rotate(-45deg); }
+
+/* ---- Destination search ---- */
+.find-row { display: flex; gap: 8px; }
+.find-row input { flex: 1; }
+.find-row button {
+  padding: 0 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--plum);
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.route-info { font-size: 13px; color: var(--text-dim); margin: 8px 0 0; }
+
+/* ---- Buzzer / offer card ---- */
+.buzz-card {
+  background: white;
+  border: 2px solid var(--amber);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 8px 28px rgba(245, 165, 36, 0.25);
+  animation: buzz-pulse 1s ease-in-out infinite;
+}
+
+@keyframes buzz-pulse {
+  0%, 100% { box-shadow: 0 8px 28px rgba(245, 165, 36, 0.25); }
+  50% { box-shadow: 0 8px 34px rgba(245, 165, 36, 0.45); }
+}
+
+.buzz-title { font-size: 17px; font-weight: 700; margin: 0 0 2px; }
+.buzz-timer { font-size: 13px; color: var(--amber-dark, #C96E1E); font-weight: 600; margin: 0 0 8px; }
+
+.buzz-actions { display: flex; gap: 10px; margin-top: 14px; }
+
+.decline-btn, .accept-btn {
+  flex: 1;
+  padding: 13px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.decline-btn { background: #F1EDF5; color: var(--text-dim); }
+.accept-btn { background: var(--prism); color: white; }
