@@ -94,7 +94,13 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
       {booking.status !== 'completed' && <MapView markers={markers} height={180} />}
 
       <div className="status-card">
-        <p className="pickup-line">📍 {booking.pickup_location}</p>
+        <p className="pickup-line">📍 Pickup: {booking.pickup_location}</p>
+        {booking.drop_or_service_address && booking.service_type === 'ride' && (
+          <p className="pickup-line">🏁 Drop: {booking.drop_or_service_address}</p>
+        )}
+        {booking.service_type === 'ride' && booking.fare_amount && (
+          <p className="fare-line">Estimated fare <span>₹{Number(booking.fare_amount).toLocaleString('en-IN')}</span></p>
+        )}
         {booking.provider_name ? (
           <p className="provider-line">
             {booking.provider_name} · <span className="id-chip">{booking.provider_generated_id}</span>
