@@ -314,7 +314,7 @@ router.patch('/:id/location', requireAuth(['provider']), async (req, res, next) 
       return res.status(400).json({ error: 'lat or lng is out of range' });
     }
     const result = await pool.query(
-      'UPDATE service_providers SET current_lat = $1, current_lng = $2 WHERE id = $3 RETURNING *',
+      'UPDATE service_providers SET current_lat = $1, current_lng = $2, location_updated_at = NOW() WHERE id = $3 RETURNING *',
       [latitude, longitude, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
