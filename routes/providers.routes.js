@@ -119,7 +119,7 @@ router.get('/', requireAdmin, async (req, res, next) => {
         ORDER BY ps.start_date DESC LIMIT 1
       ) sub ON true
       LEFT JOIN LATERAL (
-        SELECT json_agg(json_build_object('id', id, 'doc_type', doc_type, 'file_url', file_url) ORDER BY uploaded_at DESC) AS documents
+        SELECT json_agg(json_build_object('id', id, 'doc_type', doc_type) ORDER BY uploaded_at DESC) AS documents
         FROM provider_documents pd WHERE pd.provider_id = sp.id
       ) docs ON true
       ORDER BY sp.created_at DESC
@@ -130,7 +130,33 @@ router.get('/', requireAdmin, async (req, res, next) => {
   }
 });
 
-// Authenticated provider/admin access to a stored KYC document.
+// Admin-only access to a stored KYC document. Documents are never publicly served.
+router.get('/admin/:id/documents/:documentId', requireAdmin, async (req, res, next) => {
+  try {
+    const providerId = parseInt(req.params.id, 10);
+    const documentId = parseInt(req.params.documentId, 10);
+    if (!Number.isInteger(providerId) || !Number.isInteger(documentId)) {
+      return res.status(400).json({ error: 'Invalid provider or document ID' });
+    }
+    const result = await pool.query(
+      'SELECT file_url FROM provider_documents WHERE id = $1 AND provider_id = $2',
+      [documentId, providerId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Document not found' });
+
+    const relativePath = result.rows[0].file_url.replace(/^\/uploads\//, '');
+    const filePath = path.resolve(__dirname, '..', 'uploads', relativePath);
+    const uploadsRoot = path.resolve(__dirname, '..', 'uploads') + path.sep;
+    if (!filePath.startsWith(uploadsRoot)) return res.status(400).json({ error: 'Invalid document path' });
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Document file not found' });
+
+    res.sendFile(filePath);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Authenticated provider access to a stored KYC document.
 router.get('/:id/documents/:documentId', requireAuth(['provider']), async (req, res, next) => {
   try {
     if (req.user.id !== parseInt(req.params.id, 10)) {
