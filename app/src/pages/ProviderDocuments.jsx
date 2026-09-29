@@ -27,10 +27,14 @@ export default function ProviderDocuments() {
   const [uploaded, setUploaded] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [kycStatus, setKycStatus] = useState('pending');
+  const [reviewNote, setReviewNote] = useState('');
 
   async function load() {
     const me = await apiGet('/providers/me', true);
     setUploaded(me.documents || []);
+    setKycStatus(me.kyc_status || 'pending');
+    setReviewNote(me.kyc_review_note || '');
   }
 
   useEffect(() => { load(); }, []);
@@ -89,6 +93,22 @@ export default function ProviderDocuments() {
     <div className="screen">
       <h2>KYC documents</h2>
 
+      {reviewNote && (
+        <div className="auth-error" style={{ marginBottom: 16 }}>
+          <strong>KYC update:</strong>
+          <p style={{ margin: '6px 0 0' }}>{reviewNote}</p>
+          {kycStatus !== 'approved' && (
+            <p style={{ margin: '8px 0 0' }}>Please correct the document issue below and upload the required document(s).</p>
+          )}
+        </div>
+      )}
+
+      {kycStatus === 'approved' && !reviewNote && (
+        <div className="kyc-progress done">
+          <p className="kyc-progress-label">✅ KYC approved</p>
+        </div>
+      )}
+
       <div className={allDone ? 'kyc-progress done' : 'kyc-progress'}>
         <p className="kyc-progress-label">
           {allDone ? '✅ All required documents uploaded' : `${uploadedTypes.size} of ${docTypes.length} required documents uploaded`}
@@ -105,7 +125,7 @@ export default function ProviderDocuments() {
       <label>Document type</label>
       <select value={docType} onChange={(e) => setDocType(e.target.value)}>
         {docTypes.map((d) => (
-          <option key={d.value} value={d.value}>{d.label}{uploadedTypes.has(d.value) ? ' ✓' : ''}</option>
+          <option key={d.value} value={d.value}>{d.label}{uploadedTypes.has(d.value) ? ' ✓ — replace if needed' : ''}</option>
         ))}
       </select>
 
