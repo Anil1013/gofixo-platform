@@ -517,7 +517,7 @@ router.get('/me', requireAuth(['provider']), async (req, res, next) => {
           FROM bookings b
           WHERE b.provider_id = sp.id
             AND b.status = 'completed'
-            AND COALESCE(b.completed_at, b.updated_at, b.created_at) >= CURRENT_DATE
+            AND COALESCE(b.completed_at, b.created_at) >= CURRENT_DATE
         ) AS today_rides,
         sub.plan_name,
         sub.earning_cap,
