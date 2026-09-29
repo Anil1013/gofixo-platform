@@ -143,23 +143,16 @@ setInterval(async () => {
   }
 }, 5000);
 
-// Keep provider availability state consistent with the 5-minute matching freshness rule.
+// Provider availability is controlled by the provider. Do not force Offline
+// just because a sleeping phone stopped sending GPS updates. Matching still requires
+// a fresh location, so a sleeping provider is not offered a new job until GPS resumes.
 setInterval(async () => {
   try {
     await pool.query(
-      `UPDATE service_providers sp
-       SET is_available = false
-       WHERE sp.is_available = true
-         AND (sp.location_updated_at IS NULL
-              OR sp.location_updated_at <= NOW() - ($1 || ' seconds')::interval)
-         AND NOT EXISTS (
-           SELECT 1 FROM bookings b
-           WHERE b.provider_id = sp.id
-             AND b.status IN ('accepted', 'ongoing')
-         )`,
+      'SELECT COUNT(*) FROM service_providers WHERE is_available = true AND (location_updated_at IS NULL OR location_updated_at <= NOW() - ($1 || \' seconds\')::interval)',
       [String(STALE_LOCATION_SECONDS)]
     );
   } catch (err) {
-    console.error('Stale provider sweeper error:', err.message);
+    console.error('Stale provider check error:', err.message);
   }
 }, 60000);
