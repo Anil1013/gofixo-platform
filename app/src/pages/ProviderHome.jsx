@@ -437,6 +437,25 @@ export default function ProviderHome() {
       )}
 
       {!activeBooking && (
+        <section className="partner-empty-booking">
+          <div className="incoming-head">
+            <div>
+              <span className="section-kicker">LIVE REQUESTS</span>
+              <h2>Incoming Bookings</h2>
+            </div>
+            <span className="live-dot">● Online</span>
+          </div>
+          <div className="empty-request-card">
+            <div className="empty-request-icon">🏍️</div>
+            <div>
+              <strong>Waiting for your next ride</strong>
+              <small>Stay online and nearby requests will appear here.</small>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {!activeBooking && (
         <section className="provider-benefits">
           <span className="section-kicker">GOFIXO PARTNER</span>
           <h2>Keep Going!</h2>
