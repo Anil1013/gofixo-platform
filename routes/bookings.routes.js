@@ -464,6 +464,9 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
     if (rating !== undefined && rating !== null && (!Number.isInteger(Number(rating)) || Number(rating) < 1 || Number(rating) > 5)) {
       return res.status(400).json({ error: 'rating must be an integer from 1 to 5' });
     }
+    if (comment !== undefined && comment !== null && (typeof comment !== 'string' || comment.length > 500)) {
+      return res.status(400).json({ error: 'comment must be a string up to 500 characters' });
+    }
 
     await client.query('BEGIN');
 
