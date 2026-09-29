@@ -71,6 +71,8 @@ router.get('/', requireAdmin, async (req, res, next) => {
         FROM provider_subscriptions ps
         JOIN subscription_plans spl ON spl.id = ps.plan_id
         WHERE ps.provider_id = sp.id
+          AND ps.status = 'active'
+          AND ps.expiry_date > NOW()
         ORDER BY ps.start_date DESC LIMIT 1
       ) sub ON true
       LEFT JOIN LATERAL (
@@ -150,13 +152,21 @@ router.patch('/:id/availability', requireAuth(['provider']), async (req, res, ne
     }
     const { is_available } = req.body;
 
-    // Block going available if their active subscription is exhausted/missing
+    // Block going available if the provider has no non-expired active subscription.
     if (is_available) {
-      const sub = await pool.query(
-        `SELECT status FROM provider_subscriptions WHERE provider_id = $1 ORDER BY start_date DESC LIMIT 1`,
+      await pool.query(
+        `UPDATE provider_subscriptions
+         SET status = 'expired'
+         WHERE provider_id = $1 AND status = 'active' AND expiry_date <= NOW()`,
         [req.params.id]
       );
-      if (sub.rows.length === 0 || sub.rows[0].status !== 'active') {
+      const sub = await pool.query(
+        `SELECT status FROM provider_subscriptions
+         WHERE provider_id = $1 AND status = 'active' AND expiry_date > NOW()
+         ORDER BY start_date DESC LIMIT 1`,
+        [req.params.id]
+      );
+      if (sub.rows.length === 0) {
         return res.status(403).json({ error: 'No active subscription — renew your plan to go available' });
       }
     }
@@ -210,6 +220,8 @@ router.get('/me', requireAuth(['provider']), async (req, res, next) => {
         FROM provider_subscriptions ps
         JOIN subscription_plans spl ON spl.id = ps.plan_id
         WHERE ps.provider_id = sp.id
+          AND ps.status = 'active'
+          AND ps.expiry_date > NOW()
         ORDER BY ps.start_date DESC LIMIT 1
       ) sub ON true
       LEFT JOIN LATERAL (
