@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { API_BASE, apiUpload, getToken } from '../api';
 
-export default function ProfilePhoto({ role, userId, size = 'large', onChanged }) {
+export default function ProfilePhoto({ role, userId, size = 'large', onChanged, fallbackImage = '' }) {
   const [src, setSrc] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -83,6 +83,8 @@ export default function ProfilePhoto({ role, userId, size = 'large', onChanged }
       <div className="profile-photo-frame">
         {src ? (
           <img src={src} alt="Profile" />
+        ) : fallbackImage ? (
+          <img src={fallbackImage} alt="Profile" />
         ) : (
           <span>{role === 'provider' ? 'P' : 'C'}</span>
         )}
