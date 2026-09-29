@@ -5,6 +5,9 @@ const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
 const { findNearestProvider, handleDeclineOrTimeout } = require('../services/matching');
 
+const SERVICE_TYPES = new Set(['ride', 'pronto']);
+const PROVIDER_TYPES = new Set(['bike', 'auto', 'car', 'general_worker', 'skilled_worker']);
+
 function generatePin() {
   return String(Math.floor(1000 + Math.random() * 9000)); // 4-digit
 }
@@ -88,8 +91,19 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
     if (!service_type || !provider_type) {
       return res.status(400).json({ error: 'service_type and provider_type are required' });
     }
-    if (pickup_lat === undefined || pickup_lng === undefined) {
-      return res.status(400).json({ error: 'pickup_lat and pickup_lng are required for matching' });
+    if (!SERVICE_TYPES.has(service_type)) {
+      return res.status(400).json({ error: 'Invalid service_type' });
+    }
+    if (!PROVIDER_TYPES.has(provider_type)) {
+      return res.status(400).json({ error: 'Invalid provider_type' });
+    }
+    const pickupLatitude = Number(pickup_lat);
+    const pickupLongitude = Number(pickup_lng);
+    if (!Number.isFinite(pickupLatitude) || !Number.isFinite(pickupLongitude)) {
+      return res.status(400).json({ error: 'pickup_lat and pickup_lng must be valid numbers' });
+    }
+    if (pickupLatitude < -90 || pickupLatitude > 90 || pickupLongitude < -180 || pickupLongitude > 180) {
+      return res.status(400).json({ error: 'pickup coordinates are out of range' });
     }
 
     // One live booking at a time (stops a customer from locking up several providers at once)
@@ -101,7 +115,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       return res.status(409).json({ error: 'You already have an active booking' });
     }
 
-    const nearest = await findNearestProvider(provider_type, pickup_lat, pickup_lng, []);
+    const nearest = await findNearestProvider(provider_type, pickupLatitude, pickupLongitude, []);
     if (!nearest) {
       return res.status(404).json({ error: 'No available provider found nearby. Try again shortly.' });
     }
@@ -111,7 +125,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
                              pickup_lat, pickup_lng, start_pin, status, offered_at, declined_providers)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'requested', NOW(), '{}') RETURNING *`,
       [service_type, provider_type, customer_id, nearest.id, pickup_location, drop_or_service_address,
-       pickup_lat, pickup_lng, generatePin()]
+       pickupLatitude, pickupLongitude, generatePin()]
     );
 
     // Hold the provider while the offer is open so they aren't offered a second job
@@ -196,7 +210,9 @@ router.post('/:id/rate', requireAuth(['customer']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { rating, comment } = req.body;
-    if (!rating) return res.status(400).json({ error: 'rating is required' });
+    if (!Number.isInteger(Number(rating)) || Number(rating) < 1 || Number(rating) > 5) {
+      return res.status(400).json({ error: 'rating must be an integer from 1 to 5' });
+    }
 
     await client.query('BEGIN');
     const booking = await client.query('SELECT customer_id, provider_id, status FROM bookings WHERE id = $1', [id]);
@@ -254,6 +270,13 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
   try {
     const { id } = req.params;
     const { fare_amount, rating, comment } = req.body;
+    const fare = Number(fare_amount);
+    if (!Number.isFinite(fare) || fare <= 0 || fare > 1000000) {
+      return res.status(400).json({ error: 'fare_amount must be a positive amount up to 1000000' });
+    }
+    if (rating !== undefined && rating !== null && (!Number.isInteger(Number(rating)) || Number(rating) < 1 || Number(rating) > 5)) {
+      return res.status(400).json({ error: 'rating must be an integer from 1 to 5' });
+    }
 
     await client.query('BEGIN');
 
@@ -275,14 +298,14 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
       `UPDATE bookings SET status = 'completed', payment_confirmed_by_provider = true,
        fare_amount = $1, completed_at = NOW() WHERE id = $2
        RETURNING id, service_type, customer_id, provider_id, pickup_location, fare_amount, status, completed_at`,
-      [fare_amount, id]
+      [fare, id]
     );
     const providerId = booking.rows[0].provider_id;
 
     // Log the earning
     await client.query(
       `INSERT INTO earnings_log (booking_id, provider_id, amount) VALUES ($1, $2, $3)`,
-      [id, providerId, fare_amount]
+      [id, providerId, fare]
     );
 
     // Update the running total against the provider's active subscription
@@ -292,7 +315,7 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
        WHERE provider_id = $2 AND status = 'active'
        RETURNING *,
        (SELECT earning_cap FROM subscription_plans WHERE id = provider_subscriptions.plan_id) AS cap`,
-      [fare_amount, providerId]
+      [fare, providerId]
     );
 
     let providerAvailable = true;
