@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
+const crypto = require('crypto');
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
 const { findNearestProvider, claimNearestProvider, handleDeclineOrTimeout } = require('../services/matching');
@@ -9,7 +10,7 @@ const SERVICE_TYPES = new Set(['ride', 'services']);
 const PROVIDER_TYPES = new Set(['bike', 'auto', 'car', 'general_worker', 'skilled_worker']);
 
 function generatePin() {
-  return String(Math.floor(1000 + Math.random() * 9000)); // 4-digit
+  return String(crypto.randomInt(1000, 10000)); // cryptographically secure 4-digit PIN
 }
 
 // Booking lifecycle:
