@@ -646,3 +646,207 @@ button.cta:disabled { opacity: 0.5; }
 
 .decline-btn { background: #F1EDF5; color: var(--text-dim); }
 .accept-btn { background: var(--prism); color: white; }
+
+
+/* =========================================================
+   Gofixo customer home — premium visual refresh
+   ========================================================= */
+.home-screen {
+  padding: 0 16px 28px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255,122,0,.10), transparent 30%),
+    linear-gradient(180deg, #fbfcff 0%, #f8f9fd 100%);
+}
+
+.home-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 245px;
+  margin: -1px -16px 22px;
+  padding: 22px 18px 20px;
+  display: flex;
+  gap: 8px;
+  border-radius: 0 0 30px 30px;
+  background: linear-gradient(135deg, #111d39 0%, #24345c 58%, #344c7d 100%);
+  color: white;
+  box-shadow: 0 14px 32px rgba(20, 32, 61, .18);
+}
+
+.home-hero::before {
+  content: "";
+  position: absolute;
+  width: 210px;
+  height: 210px;
+  border-radius: 50%;
+  right: -65px;
+  top: -85px;
+  background: rgba(255, 122, 0, .22);
+}
+
+.home-hero::after {
+  content: "";
+  position: absolute;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  left: -105px;
+  bottom: -105px;
+  background: rgba(73, 194, 255, .12);
+}
+
+.home-hero-copy { position: relative; z-index: 2; width: 61%; }
+.home-brand-row { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 800; letter-spacing: -.4px; }
+.home-logo-mark {
+  width: 29px; height: 29px; border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #ff7a00, #ffb347);
+  color: #17233d; font-weight: 900;
+  box-shadow: 0 5px 14px rgba(255,122,0,.28);
+}
+.home-eyebrow { margin: 17px 0 6px; font-size: 9px; letter-spacing: 1.5px; color: #cbd6ef; font-weight: 800; }
+.home-hero h1 { font-size: 27px; line-height: 1.08; letter-spacing: -.8px; }
+.home-hero h1 span { color: #ff9a2e; }
+.home-hero-text { color: #d9e2f3; font-size: 11.5px; line-height: 1.5; margin: 10px 0 12px; max-width: 205px; }
+.home-trust-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.home-trust-row span {
+  font-size: 8.5px; padding: 5px 7px; border-radius: 99px;
+  background: rgba(255,255,255,.10); color: #eef4ff;
+  border: 1px solid rgba(255,255,255,.12);
+}
+.home-hero-visual { position: absolute; z-index: 1; right: -10px; bottom: -3px; width: 47%; }
+.home-hero-visual img { width: 100%; display: block; filter: drop-shadow(0 15px 18px rgba(0,0,0,.20)); }
+.hero-float-card {
+  position: absolute; left: -18px; bottom: 14px; min-width: 125px;
+  padding: 8px 10px; border-radius: 12px;
+  background: rgba(255,255,255,.95); color: #17233d;
+  box-shadow: 0 10px 24px rgba(0,0,0,.18);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.hero-float-card strong { font-size: 10px; }
+.hero-float-card span { font-size: 8px; color: #68738b; }
+
+.home-section-heading { display: flex; align-items: flex-end; justify-content: space-between; margin: 0 2px 10px; }
+.home-section-heading h2 { font-family: 'Lora', serif; font-size: 20px; margin: 2px 0 0; color: #17233d; }
+.home-section-heading.compact { margin-bottom: 10px; }
+.section-kicker { display: block; color: #ff7a00; font-size: 8px; letter-spacing: 1.4px; font-weight: 900; }
+.live-dot { font-size: 9px; color: #0d9c78; background: #e6faf3; padding: 5px 8px; border-radius: 99px; font-weight: 800; }
+
+.home-category-switch {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 11px;
+}
+.home-category-switch button {
+  border: 1px solid #e2e6ef; background: white; color: #6e7890;
+  border-radius: 14px; padding: 11px 8px; font-size: 12px; font-weight: 700;
+  box-shadow: 0 4px 12px rgba(23,35,61,.04);
+}
+.home-category-switch button span { margin-right: 5px; }
+.home-category-switch button.active {
+  color: #17233d; border-color: #ff9a2e;
+  background: linear-gradient(135deg,#fff8ef,#fff);
+  box-shadow: 0 7px 18px rgba(255,122,0,.10);
+}
+
+.visual-type-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-bottom: 15px; }
+.visual-type-grid:has(.visual-type-card:nth-child(2):last-child) { grid-template-columns: repeat(2, 1fr); }
+.visual-type-card {
+  position: relative; min-width: 0; overflow: hidden; padding: 0 0 11px;
+  border: 1px solid #e5e8ef; border-radius: 17px; background: white;
+  text-align: left; cursor: pointer; box-shadow: 0 5px 16px rgba(23,35,61,.05);
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+.visual-type-card:active { transform: scale(.98); }
+.visual-type-card.selected { border: 2px solid #ff8a18; box-shadow: 0 9px 24px rgba(255,122,0,.15); }
+.visual-type-card.green.selected { border-color: #13b981; }
+.visual-type-card.blue.selected { border-color: #5a7ff0; }
+.visual-type-card img { display: block; width: 100%; aspect-ratio: 1.55; object-fit: cover; }
+.visual-type-name { display: block; padding: 7px 9px 1px; color: #17233d; font-size: 12px; font-weight: 800; }
+.visual-type-sub { display: block; padding: 0 9px; color: #7a8499; font-size: 8.5px; line-height: 1.3; }
+.selected-check {
+  position: absolute; right: 7px; top: 7px; width: 22px; height: 22px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: #ff7a00; color: white; font-size: 12px; font-weight: 900;
+  box-shadow: 0 4px 10px rgba(255,122,0,.3);
+}
+.visual-type-card.green .selected-check { background: #13b981; }
+.visual-type-card.blue .selected-check { background: #5a7ff0; }
+
+.popular-services { margin: 1px 0 15px; }
+.mini-section-title { color: #17233d; font-size: 11px; font-weight: 800; margin-bottom: 7px; }
+.service-pills { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 3px; scrollbar-width: none; }
+.service-pills::-webkit-scrollbar { display: none; }
+.service-pills button {
+  flex: 0 0 auto; border: 1px solid #e7e9ef; background: white; color: #46526a;
+  padding: 8px 10px; border-radius: 99px; font-size: 9.5px; font-weight: 700;
+  box-shadow: 0 3px 10px rgba(23,35,61,.04);
+}
+.service-pills button span { margin-right: 4px; }
+
+.booking-panel {
+  background: rgba(255,255,255,.92); border: 1px solid #e3e7ef;
+  border-radius: 22px; padding: 16px; box-shadow: 0 10px 28px rgba(23,35,61,.07);
+}
+.booking-panel-head { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; margin-bottom: 11px; }
+.booking-panel-head h2 { font-family: 'Lora',serif; font-size: 18px; margin: 2px 0 0; color: #17233d; }
+.secure-badge { background: #eef8f5; color: #0d9075; border-radius: 99px; padding: 5px 8px; font-size: 8px; font-weight: 800; }
+
+.location-card {
+  width: 100%; display: flex; align-items: center; gap: 10px; text-align: left;
+  border: 1px solid #e1e6ee; background: #f8fafc; border-radius: 15px; padding: 11px;
+  cursor: pointer; color: #17233d;
+}
+.location-icon {
+  width: 34px; height: 34px; flex: 0 0 34px; border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff0df; color: #ff7a00; font-size: 22px; font-weight: 800;
+}
+.location-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.location-copy strong { font-size: 10.5px; }
+.location-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #7a8499; font-size: 8.5px; }
+.location-arrow { margin-left: auto; font-size: 22px; color: #9ba5b8; }
+
+.map-shell .map-box { margin: 10px 0 4px; border-radius: 15px; }
+
+.home-screen label { font-size: 9px; margin: 10px 0 4px; color: #667189; }
+.premium-find-row { gap: 6px; }
+.premium-find-row input { min-width: 0; }
+.premium-find-row button {
+  border-radius: 11px; background: #17233d; min-width: 52px; font-weight: 700; font-size: 10px;
+}
+.home-screen input {
+  border-color: #e1e6ee; background: #fbfcfe; border-radius: 11px;
+  padding: 10px; font-size: 11px; color: #17233d;
+}
+.home-screen input:focus { outline: 2px solid rgba(255,122,0,.22); border-color: #ff9a2e; }
+.input-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+.destination-block { margin-top: 7px; padding-top: 11px; border-top: 1px dashed #e2e6ee; }
+.ride-summary {
+  display: flex; justify-content: space-between; align-items: center; margin-top: 9px;
+  padding: 10px 11px; border-radius: 12px; background: #e9f8f3; color: #087f68; font-size: 9.5px;
+}
+.ride-summary strong { color: #17233d; font-size: 17px; }
+.service-request-field { margin-top: 3px; }
+
+.home-cta {
+  margin-top: 13px !important; padding: 13px !important; border-radius: 13px !important;
+  display: flex; justify-content: center; align-items: center; gap: 14px;
+  background: linear-gradient(135deg,#ff7a00,#ff9f2f) !important;
+  box-shadow: 0 9px 20px rgba(255,122,0,.23);
+}
+.home-cta span:last-child { font-size: 18px; }
+.booking-note { text-align: center; color: #8992a4; font-size: 8px; margin: 8px 0 0; }
+
+.why-gofixo { margin-top: 22px; }
+.trust-cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 7px; }
+.trust-cards > div {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: 11px 5px; border: 1px solid #e6e9ef; background: white; border-radius: 14px;
+}
+.trust-cards span { width: 28px; height: 28px; border-radius: 9px; display:flex; align-items:center; justify-content:center; background:#fff0df; color:#ff7a00; font-weight:900; margin-bottom:5px; }
+.trust-cards strong { color:#17233d; font-size:10px; }
+.trust-cards small { color:#8992a4; font-size:7.5px; margin-top:2px; }
+
+@media (min-width: 430px) {
+  .home-screen { padding-left: 20px; padding-right: 20px; }
+  .home-hero { margin-left:-20px; margin-right:-20px; padding-left:22px; padding-right:22px; }
+  .home-hero h1 { font-size: 30px; }
+}
