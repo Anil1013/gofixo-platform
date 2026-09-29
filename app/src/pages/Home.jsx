@@ -265,9 +265,9 @@ export default function Home({ onBooked }) {
             <span className="home-logo-mark">G</span>
             <span>Gofixo</span>
           </div>
-          <p className="home-eyebrow">RIDE · HOME SERVICES</p>
-          <h1>Move easy.<br /><span>Live easy.</span></h1>
-          <p className="home-hero-text">Book a ride or get a trusted professional at your doorstep — all in one simple app.</p>
+          <p className="home-eyebrow">YOUR CITY · YOUR SERVICES</p>
+          <h1>Your City<br /><span>Your Services</span></h1>
+          <p className="home-hero-text">Rides, home services and more — all in one simple app.</p>
           <div className="home-trust-row">
             <span>✓ Verified</span>
             <span>✓ Fair pricing</span>
@@ -288,10 +288,10 @@ export default function Home({ onBooked }) {
 
       <div className="home-section-heading">
         <div>
-          <span className="section-kicker">QUICK BOOK</span>
-          <h2>What do you need?</h2>
+          <span className="section-kicker">{category === 'ride' ? 'GOFIXO RIDES' : 'GOFIXO SERVICES'}</span>
+          <h2>{category === 'ride' ? 'Book a Ride' : 'Home Services'}</h2>
         </div>
-        <span className="live-dot">● Live</span>
+        <span className="live-dot">● Available</span>
       </div>
 
       <div className="home-category-switch">
@@ -299,7 +299,7 @@ export default function Home({ onBooked }) {
           <span>🚕</span> Rides
         </button>
         <button type="button" className={category === 'services' ? 'active' : ''} onClick={() => { setCategory('services'); setProviderType('general_worker'); }}>
-          <span>🏠</span> Home Services
+          <span>🏠</span> Services
         </button>
       </div>
 
