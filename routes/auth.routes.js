@@ -47,18 +47,18 @@ router.post('/:role/login', async (req, res, next) => {
     const result = await pool.query(`SELECT * FROM ${table} WHERE phone = $1`, [phone]);
     if (result.rows.length === 0) {
       recordFailedLogin(req.ip, role, phone);
-      return res.status(404).json({ error: 'No account found with this phone number' });
+      return res.status(401).json({ error: 'Invalid phone number or password' });
     }
     const user = result.rows[0];
     if (!user.password_hash) {
       recordFailedLogin(req.ip, role, phone);
-      return res.status(401).json({ error: 'No password set on this account yet' });
+      return res.status(401).json({ error: 'Invalid phone number or password' });
     }
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
       recordFailedLogin(req.ip, role, phone);
-      return res.status(401).json({ error: 'Incorrect password' });
+      return res.status(401).json({ error: 'Invalid phone number or password' });
     }
 
     clearLoginFailures(req.ip, role, phone);
