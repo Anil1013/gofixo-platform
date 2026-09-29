@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
+const { promises: fsp } = fs;
 const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
@@ -20,18 +21,17 @@ const ALLOWED_UPLOAD_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'applicati
 const ALLOWED_UPLOAD_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.pdf']);
 
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      const dir = path.join(__dirname, '..', 'uploads', 'providers', String(req.params.id));
-      require('fs').mkdirSync(dir, { recursive: true });
-      cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-      const random = crypto.randomBytes(8).toString('hex'); // avoids guessable URLs
-      cb(null, `${req.body.doc_type || 'doc'}-${random}${path.extname(file.originalname)}`);
-    },
-  }),
-  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB
+  // Keep the upload in memory until authentication, ownership, and doc_type validation pass.
+  // This prevents unauthorized requests from writing files to another provider's directory.
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 8 * 1024 * 1024,
+    files: 1,
+    fields: 2,
+    parts: 3,
+    fieldNameSize: 100,
+    fieldSize: 200,
+  },
   fileFilter: (req, file, cb) => {
     const extension = path.extname(file.originalname || '').toLowerCase();
     if (!ALLOWED_UPLOAD_MIME_TYPES.has(file.mimetype) || !ALLOWED_UPLOAD_EXTENSIONS.has(extension)) {
@@ -40,6 +40,13 @@ const upload = multer({
     cb(null, true);
   },
 });
+
+function requireOwnProvider(req, res, next) {
+  if (req.user.id !== parseInt(req.params.id, 10)) {
+    return res.status(403).json({ error: 'You can only access your own provider account' });
+  }
+  next();
+}
 
 // Register a new provider (driver/worker) — KYC starts as 'pending'
 router.post('/register', async (req, res, next) => {
@@ -181,22 +188,32 @@ router.get('/:id/documents/:documentId', requireAuth(['provider']), async (req, 
 });
 
 // Provider uploads a KYC document (doc_type: aadhar / driving_license / vehicle_rc / vehicle_photo / profile_photo / police_verification)
-router.post('/:id/documents', requireAuth(['provider']), upload.single('file'), async (req, res, next) => {
+router.post('/:id/documents', requireAuth(['provider']), requireOwnProvider, upload.single('file'), async (req, res, next) => {
   try {
-    if (req.user.id !== parseInt(req.params.id, 10)) {
-      return res.status(403).json({ error: 'You can only upload your own documents' });
-    }
     if (!req.file) return res.status(400).json({ error: 'file is required' });
-    if (!ALLOWED_DOCUMENT_TYPES.has(req.body.doc_type)) {
-      fs.unlink(req.file.path, () => {});
+    const docType = req.body.doc_type;
+    if (!ALLOWED_DOCUMENT_TYPES.has(docType)) {
       return res.status(400).json({ error: 'Invalid document type' });
     }
-    const fileUrl = `/uploads/providers/${req.params.id}/${req.file.filename}`;
-    const result = await pool.query(
-      'INSERT INTO provider_documents (provider_id, doc_type, file_url) VALUES ($1, $2, $3) RETURNING *',
-      [req.params.id, req.body.doc_type, fileUrl]
-    );
-    res.status(201).json(result.rows[0]);
+
+    const dir = path.join(__dirname, '..', 'uploads', 'providers', String(req.params.id));
+    await fsp.mkdir(dir, { recursive: true });
+    const extension = path.extname(req.file.originalname || '').toLowerCase();
+    const filename = `${docType}-${crypto.randomBytes(16).toString('hex')}${extension}`;
+    const filePath = path.join(dir, filename);
+    await fsp.writeFile(filePath, req.file.buffer, { flag: 'wx' });
+
+    const fileUrl = `/uploads/providers/${req.params.id}/${filename}`;
+    try {
+      const result = await pool.query(
+        'INSERT INTO provider_documents (provider_id, doc_type, file_url) VALUES ($1, $2, $3) RETURNING id, provider_id, doc_type, file_url, uploaded_at',
+        [req.params.id, docType, fileUrl]
+      );
+      res.status(201).json(result.rows[0]);
+    } catch (err) {
+      await fsp.unlink(filePath).catch(() => {});
+      throw err;
+    }
   } catch (err) {
     next(err);
   }
@@ -233,7 +250,7 @@ router.patch('/:id/kyc', requireAdmin, async (req, res, next) => {
     }
 
     const result = await pool.query(
-      'UPDATE service_providers SET kyc_status = $1 WHERE id = $2 RETURNING *',
+      'UPDATE service_providers SET kyc_status = $1 WHERE id = $2 RETURNING id, generated_id, name, phone, type, kyc_status, avg_rating, is_available, created_at',
       [status, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
@@ -305,7 +322,7 @@ router.patch('/:id/availability', requireAuth(['provider']), async (req, res, ne
              WHERE b.provider_id = service_providers.id
                AND b.status IN ('requested', 'accepted', 'ongoing')
            )
-         RETURNING *`,
+         RETURNING id, generated_id, name, phone, type, kyc_status, avg_rating, is_available, current_lat, current_lng, location_updated_at`,
         [req.params.id]
       );
       if (result.rows.length === 0) {
@@ -318,7 +335,7 @@ router.patch('/:id/availability', requireAuth(['provider']), async (req, res, ne
       }
     } else {
       result = await pool.query(
-        'UPDATE service_providers SET is_available = false WHERE id = $1 RETURNING *',
+        'UPDATE service_providers SET is_available = false WHERE id = $1 RETURNING id, generated_id, name, phone, type, kyc_status, avg_rating, is_available, current_lat, current_lng, location_updated_at',
         [req.params.id]
       );
       if (result.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
@@ -345,7 +362,7 @@ router.patch('/:id/location', requireAuth(['provider']), async (req, res, next) 
       return res.status(400).json({ error: 'lat or lng is out of range' });
     }
     const result = await pool.query(
-      'UPDATE service_providers SET current_lat = $1, current_lng = $2, location_updated_at = NOW() WHERE id = $3 RETURNING *',
+      'UPDATE service_providers SET current_lat = $1, current_lng = $2, location_updated_at = NOW() WHERE id = $3 RETURNING id, generated_id, name, type, kyc_status, is_available, current_lat, current_lng, location_updated_at',
       [latitude, longitude, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
@@ -359,7 +376,9 @@ router.patch('/:id/location', requireAuth(['provider']), async (req, res, next) 
 router.get('/me', requireAuth(['provider']), async (req, res, next) => {
   try {
     const result = await pool.query(
-      `SELECT sp.*,
+      `SELECT sp.id, sp.generated_id, sp.name, sp.phone, sp.type, sp.kyc_status,
+        sp.bank_upi_id, sp.avg_rating, sp.is_available, sp.current_lat, sp.current_lng,
+        sp.location_updated_at, sp.created_at,
         sub.plan_name,
         sub.earning_cap,
         sub.total_earned_this_cycle,
@@ -378,7 +397,7 @@ router.get('/me', requireAuth(['provider']), async (req, res, next) => {
         ORDER BY ps.start_date DESC LIMIT 1
       ) sub ON true
       LEFT JOIN LATERAL (
-        SELECT json_agg(json_build_object('doc_type', doc_type, 'file_url', file_url) ORDER BY uploaded_at DESC) AS documents
+        SELECT json_agg(json_build_object('id', id, 'doc_type', doc_type) ORDER BY uploaded_at DESC) AS documents
         FROM provider_documents pd WHERE pd.provider_id = sp.id
       ) docs ON true
       WHERE sp.id = $1`,
