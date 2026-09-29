@@ -43,7 +43,7 @@ export default function ProviderHome() {
 
   useEffect(() => {
     loadAll();
-    const interval = setInterval(loadAll, 4000);
+    const interval = setInterval(loadAll, 2000);
     return () => clearInterval(interval);
   }, []);
 
