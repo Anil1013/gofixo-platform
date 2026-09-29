@@ -27,7 +27,7 @@ Phone + password login for both customers and providers — no SMS/OTP needed:
 - `POST /api/auth/customer/register` — body: `{ name?, phone, password }`. Creates a customer account.
 - Providers get their password set as part of `POST /api/providers/register` — body: `{ name, phone, type, password }`.
 - `POST /api/auth/:role/login` (role = `customer` or `provider`) — body: `{ phone, password }`. Returns `{ token, user }`.
-- `POST /api/auth/:role/reset-password` — body: `{ phone, new_password }`. Self-service, no verification step (by design, for now — anyone who knows the phone number could reset that account; revisit before a wider public launch).
+- `POST /api/auth/:role/reset-password` — body: `{ phone, current_password, new_password }`. Requires the current password; there is no SMS/OTP recovery flow.
 - Send the token as `Authorization: Bearer <token>` on protected routes. Creating a booking requires a customer token; starting/confirming a booking requires the assigned provider's token.
 
 ## Ride-request matching (buzzer, Accept/Decline)
@@ -39,7 +39,7 @@ Phone + password login for both customers and providers — no SMS/OTP needed:
 - If every nearby provider of that type is exhausted, the booking's status becomes `no_provider` and the customer sees a "try again" screen.
 - Booking status flow: `requested` → `accepted` → `ongoing` (PIN entered) → `completed`.
 - Privacy: the customer only sees the provider's name/phone/live location once status is `accepted` or later. The provider only sees the customer's phone once they've accepted. The customer's `start_pin` is never sent to the provider's own bookings endpoint — they must get it verbally.
-- Run `config/migration_005_offers.sql` once against `gofixo-db` (adds `provider_type`, `offered_at`, `declined_providers` to `bookings`).
+- Run migrations `config/migration_001_location.sql` through `config/migration_007_location_freshness.sql` once against the existing `gofixo-db` in order.
 
 ## Maps & location (free, no API key)
 
@@ -52,7 +52,7 @@ Phone + password login for both customers and providers — no SMS/OTP needed:
 Replaces OTP verification for starting a booking:
 - When a booking is created (`POST /api/bookings`), the response includes a `start_pin` (4 digits) — this is what the customer's app/dashboard shows them.
 - The customer reads this PIN out to the provider in person when the provider arrives.
-- `POST /api/bookings/:id/start` (provider auth) — body: `{ pin }`. If it matches, the booking moves from `requested` to `ongoing`. Wrong PIN or wrong provider is rejected.
+- `POST /api/bookings/:id/start` (provider auth) — body: `{ pin }`. If it matches, an `accepted` booking moves to `ongoing` and the one-time PIN is cleared. Wrong PIN or wrong provider is rejected.
 - Payment confirmation (`/api/bookings/:id/confirm-payment`) still happens separately at the end, same as before.
 
 ## Matching & location
@@ -60,7 +60,7 @@ Replaces OTP verification for starting a booking:
 - `PATCH /api/providers/:id/location` (provider auth) — body: `{ lat, lng }`. The driver/worker app should call this periodically while online.
 - `PATCH /api/providers/:id/availability` (provider auth) — body: `{ is_available }`. Blocked if the provider's subscription isn't active.
 - `POST /api/bookings` — if `provider_id` is omitted, pass `provider_type` + `pickup_lat`/`pickup_lng` instead; the nearest available, KYC-approved provider of that type is auto-matched (Haversine distance in SQL) and marked busy.
-- Run `config/migration_001_location.sql` once against `gofixo-db` to add the lat/lng columns this depends on.
+- Provider location is considered fresh for 5 minutes. The provider app refreshes GPS every 15 seconds while online; the customer refreshes the assigned provider location every 15 seconds during an active booking.
 
 ## Admin auth
 
@@ -68,16 +68,15 @@ The admin panel now requires a login key before showing any data. Set `ADMIN_SEC
 
 ## KYC documents
 
-- `POST /api/providers/:id/documents` (provider auth, multipart form: `doc_type` + `file`) — uploads a document. `doc_type` is one of `aadhar`, `driving_license`, `vehicle_rc`, `vehicle_photo`, `profile_photo`, `police_verification`.
-- Files are stored on the EC2 disk under `uploads/providers/:id/` with randomized filenames (not guessable), served at `/uploads/...`. Move to S3 once volume grows — disk storage is fine for this stage and avoids extra AWS cost/setup.
+- `POST /api/providers/:id/documents` (provider auth, multipart form: `doc_type` + `file`) — uploads JPG/PNG/PDF documents. Ride providers require Aadhar front/back, driving license, RC, and vehicle photos; home-service workers require Aadhar front/back, profile photo, and police verification.
+- Files are stored on the backend disk under `uploads/providers/:id/` with randomized filenames. They are not publicly served; the authenticated provider document endpoint streams them.
 - `GET /api/providers` now also returns each provider's active `plan_name`, `earning_cap`, `total_earned_this_cycle`, `pending_amount` (cap remaining), and their uploaded `documents` — all shown directly in the admin panel's Providers table.
 - Run `config/migration_002_documents.sql` once against `gofixo-db`.
 
-## Next steps not yet wired up
+## Remaining product work
 
-- Reset-password flow has no verification step yet (see Authentication section note above)
 - Notify the matched provider (push notification) that a booking was assigned to them
 - Expand matching radius/fallback if no provider is found nearby
-- Run `config/migration_003_password_pin.sql` once against `gofixo-db` for the password_hash and start_pin columns
+- For true background GPS tracking when the provider app is backgrounded, use a native location service; browser timers can be throttled by mobile OSes
 
 Auto-deploy via GitHub Actions is now active for backend changes.
