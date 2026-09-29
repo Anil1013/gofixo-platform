@@ -235,7 +235,7 @@ router.patch('/:id/availability', requireAuth(['provider']), async (req, res, ne
         [req.params.id]
       );
       const sub = await pool.query(
-        `SELECT sp.kyc_status, sp.current_lat, sp.current_lng,
+        `SELECT sp.kyc_status, sp.current_lat, sp.current_lng, sp.location_updated_at,
                 ps.status, ps.expiry_date
          FROM service_providers sp
          LEFT JOIN provider_subscriptions ps
@@ -256,8 +256,11 @@ router.patch('/:id/availability', requireAuth(['provider']), async (req, res, ne
       if (!sub.rows[0].status || !sub.rows[0].expiry_date) {
         return res.status(403).json({ error: 'No active subscription — renew your plan to go available' });
       }
-      if (sub.rows[0].current_lat === null || sub.rows[0].current_lng === null) {
+      if (sub.rows[0].current_lat === null || sub.rows[0].current_lng === null || !sub.rows[0].location_updated_at) {
         return res.status(400).json({ error: 'Share your current location before going available' });
+      }
+      if (new Date(sub.rows[0].location_updated_at).getTime() <= Date.now() - 5 * 60 * 1000) {
+        return res.status(400).json({ error: 'Your location is stale. Update your current location before going available.' });
       }
     }
 
