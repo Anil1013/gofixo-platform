@@ -44,10 +44,12 @@ export default function Home({ onBooked }) {
   const [providerType, setProviderType] = useState('bike');
   const [location, setLocation] = useState('');
   const [work, setWork] = useState('');
-  const [coords, setCoords] = useState(null);\n  const [pickupPincode, setPickupPincode] = useState('');
+  const [coords, setCoords] = useState(null);
+  const [pickupPincode, setPickupPincode] = useState('');
   const [pickupArea, setPickupArea] = useState('');
   const [pickupStreet, setPickupStreet] = useState('');
-  const [pickupHouse, setPickupHouse] = useState('');\n  const [dropPincode, setDropPincode] = useState('');
+  const [pickupHouse, setPickupHouse] = useState('');
+  const [dropPincode, setDropPincode] = useState('');
   const [dropArea, setDropArea] = useState('');
   const [dropStreet, setDropStreet] = useState('');
   const [dropHouse, setDropHouse] = useState('');
