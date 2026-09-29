@@ -47,9 +47,22 @@ const upload = multer({
   },
   fileFilter: (req, file, cb) => {
     const extension = path.extname(file.originalname || '').toLowerCase();
-    if (!ALLOWED_UPLOAD_MIME_TYPES.has(file.mimetype) || !ALLOWED_UPLOAD_EXTENSIONS.has(extension)) {
+    if (!ALLOWED_UPLOAD_EXTENSIONS.has(extension)) {
       return cb(Object.assign(new Error('Only JPG, PNG, WEBP, and PDF files are allowed'), { status: 400 }));
     }
+
+    // Some Android file pickers report application/octet-stream (or an empty MIME)
+    // even when the filename has a valid image/PDF extension. Do not reject those
+    // valid files solely because the picker supplied a generic MIME.
+    const mimeAllowed =
+      !file.mimetype ||
+      file.mimetype === 'application/octet-stream' ||
+      ALLOWED_UPLOAD_MIME_TYPES.has(file.mimetype);
+
+    if (!mimeAllowed) {
+      return cb(Object.assign(new Error('Only JPG, PNG, WEBP, and PDF files are allowed'), { status: 400 }));
+    }
+
     cb(null, true);
   },
 });
