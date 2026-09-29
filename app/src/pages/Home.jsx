@@ -21,15 +21,26 @@ const FARE_RULES = {
 };
 
 const RIDE_VISUALS = {
-  bike: { image: '/illustrations/bike.svg', title: 'Bike', sub: 'Fast & affordable', tone: 'orange' },
-  auto: { image: '/illustrations/auto.svg', title: 'Auto', sub: 'Comfortable rides', tone: 'green' },
-  car: { image: '/illustrations/car.svg', title: 'Car', sub: 'Premium & safe', tone: 'blue' },
+  bike: { image: 'https://images.unsplash.com/photo-1733565823567-ca12618dec46?auto=format&fit=crop&w=900&q=82', title: 'Bike', sub: 'Fast & affordable', tone: 'orange' },
+  auto: { image: 'https://images.unsplash.com/photo-1703142488992-72018a83fd8a?auto=format&fit=crop&w=900&q=82', title: 'Auto', sub: 'Comfortable rides', tone: 'green' },
+  car: { image: 'https://images.unsplash.com/photo-1558594924-32c0320a116e?auto=format&fit=crop&w=900&q=82', title: 'Car', sub: 'Premium & safe', tone: 'blue' },
 };
 
 const SERVICE_VISUALS = {
-  general_worker: { image: '/illustrations/worker.svg', title: 'Home Help', sub: 'Cleaning & everyday help', tone: 'orange' },
-  skilled_worker: { image: '/illustrations/electrician.svg', title: 'Skilled Expert', sub: 'Electrician, plumber & more', tone: 'blue' },
+  general_worker: { image: 'https://www.trueprocleaners.com/imgs/oc-house-cleaning-european-01.webp', title: 'Home Help', sub: 'Cleaning & everyday help', tone: 'orange' },
+  skilled_worker: { image: 'https://gigswala.com/assets/electrician-india-CsTyPjpS.png', title: 'Skilled Expert', sub: 'Electrician, plumber & more', tone: 'blue' },
 };
+
+const HOME_SERVICE_CARDS = [
+  { label: 'Electrician', type: 'skilled_worker', image: 'https://eletricistagravatai.com.br/images/eletricista-24h-perto-de-voce-em-gravatai-rs.jpeg' },
+  { label: 'Plumber', type: 'skilled_worker', image: 'https://handymanpalmbayfl.com/images/plumbing_service_2.webp' },
+  { label: 'AC Service', type: 'skilled_worker', image: 'https://imagedelivery.net/xaKlCos5cTg_1RWzIu_h-A/63023f11-6fa4-41a7-ca68-748ee14fc600/public' },
+  { label: 'Cleaning', type: 'general_worker', image: 'https://www.trueprocleaners.com/imgs/oc-house-cleaning-european-01.webp' },
+  { label: 'Carpenter', type: 'skilled_worker', image: 'https://images.unsplash.com/photo-1756736668332-e921516c1305?auto=format&fit=crop&w=700&q=82' },
+  { label: 'Home Repair', type: 'skilled_worker', image: 'https://manitasenbarcelona.com/images/sobre-nosotros-manitas-barcelona.jpg' },
+  { label: 'Appliance Repair', type: 'skilled_worker', image: 'https://www.trueprocleaners.com/imgs/oc-house-cleaning-european-01.webp' },
+  { label: 'More', type: 'general_worker', image: 'https://allhomerepairs247.com/images/woman-ipad-red.webp' },
+];
 
 const LOCATION_PROMPTED_KEY = 'gofixo_location_prompted';
 
@@ -353,14 +364,10 @@ export default function Home({ onBooked }) {
         <div className="popular-services">
           <div className="mini-section-title">Popular services</div>
           <div className="service-pills">
-            {[
-              ['🧹', 'Deep cleaning', 'general_worker'],
-              ['💡', 'Electrician', 'skilled_worker'],
-              ['🔧', 'Plumber', 'skilled_worker'],
-              ['🪚', 'Carpenter', 'skilled_worker'],
-            ].map(([icon, label, type]) => (
-              <button type="button" key={label} onClick={() => { setProviderType(type); setWork(label); }}>
-                <span>{icon}</span>{label}
+            {HOME_SERVICE_CARDS.map((item) => (
+              <button type="button" key={item.label} onClick={() => { setProviderType(item.type); setWork(item.label); }}>
+                <img src={item.image} alt="" loading="lazy" />
+                <span>{item.label}</span>
               </button>
             ))}
           </div>
