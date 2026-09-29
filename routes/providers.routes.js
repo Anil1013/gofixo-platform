@@ -235,16 +235,25 @@ router.patch('/:id/availability', requireAuth(['provider']), async (req, res, ne
         [req.params.id]
       );
       const sub = await pool.query(
-        `SELECT status, current_lat, current_lng
-         FROM provider_subscriptions
-         JOIN service_providers ON service_providers.id = provider_subscriptions.provider_id
-         WHERE provider_subscriptions.provider_id = $1
-           AND provider_subscriptions.status = 'active'
-           AND provider_subscriptions.expiry_date > NOW()
-         ORDER BY provider_subscriptions.start_date DESC LIMIT 1`,
+        `SELECT sp.kyc_status, sp.current_lat, sp.current_lng,
+                ps.status, ps.expiry_date
+         FROM service_providers sp
+         LEFT JOIN provider_subscriptions ps
+           ON ps.provider_id = sp.id
+          AND ps.status = 'active'
+          AND ps.expiry_date > NOW()
+         WHERE sp.id = $1
+         ORDER BY ps.start_date DESC NULLS LAST
+         LIMIT 1`,
         [req.params.id]
       );
       if (sub.rows.length === 0) {
+        return res.status(404).json({ error: 'Provider not found' });
+      }
+      if (sub.rows[0].kyc_status !== 'approved') {
+        return res.status(403).json({ error: 'KYC approval is required before going available' });
+      }
+      if (!sub.rows[0].status || !sub.rows[0].expiry_date) {
         return res.status(403).json({ error: 'No active subscription — renew your plan to go available' });
       }
       if (sub.rows[0].current_lat === null || sub.rows[0].current_lng === null) {
