@@ -259,6 +259,33 @@ export default function Home({ onBooked }) {
 
   return (
     <div className="screen home-screen">
+      <header className="customer-app-header">
+        <div className="customer-logo"><span className="customer-logo-pin" /><strong>Gofi<span>xo</span></strong></div>
+        <div className="customer-header-actions"><span className="notification-dot">●</span><span className="customer-avatar-mini">👤</span></div>
+      </header>
+
+      <section className="customer-reference-hero">
+        <div>
+          <span className="customer-hero-kicker">RIDE · DELIVERY · HOME SERVICES</span>
+          <h1>Your City<br /><span>Your Services</span></h1>
+          <p>Rides, Home Services<br />and more — All in One App</p>
+        </div>
+        <div className="reference-vehicle-strip">
+          {RIDE_TYPES.map((t) => {
+            const visual = RIDE_VISUALS[t.value];
+            return (
+              <button type="button" key={t.value} onClick={() => { setCategory('ride'); setProviderType(t.value); }}>
+                <img src={visual.image} alt="" />
+                <b>{visual.title}</b>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <button type="button" className="reference-location-search" onClick={useMyLocation}>
+        <span>⌖</span><strong>{location || 'Where are you going?'}</strong><i>◎</i>
+      </button>
       <section className="home-hero">
         <div className="home-hero-copy">
           <div className="home-brand-row">
