@@ -222,6 +222,9 @@ router.patch('/:id/availability', requireAuth(['provider']), async (req, res, ne
       return res.status(403).json({ error: 'You can only update your own availability' });
     }
     const { is_available } = req.body;
+    if (typeof is_available !== 'boolean') {
+      return res.status(400).json({ error: 'is_available must be a boolean' });
+    }
 
     // Block going available if the provider has no non-expired active subscription.
     if (is_available) {
@@ -266,12 +269,17 @@ router.patch('/:id/location', requireAuth(['provider']), async (req, res, next) 
       return res.status(403).json({ error: 'You can only update your own location' });
     }
     const { lat, lng } = req.body;
-    if (lat === undefined || lng === undefined) {
-      return res.status(400).json({ error: 'lat and lng are required' });
+    const latitude = Number(lat);
+    const longitude = Number(lng);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return res.status(400).json({ error: 'lat and lng must be valid numbers' });
+    }
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      return res.status(400).json({ error: 'lat or lng is out of range' });
     }
     const result = await pool.query(
       'UPDATE service_providers SET current_lat = $1, current_lng = $2 WHERE id = $3 RETURNING *',
-      [lat, lng, req.params.id]
+      [latitude, longitude, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
     res.json(result.rows[0]);
