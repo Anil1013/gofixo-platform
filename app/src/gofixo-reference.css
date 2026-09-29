@@ -1890,3 +1890,31 @@ button,input{font-family:inherit}
   .role-customer .reference-vehicle-strip img{height:91px!important}
   .role-customer .trusted-professionals-banner{min-height:104px}
 }
+
+.role-customer .bottom-nav button:nth-child(1)::before{content:'⌂'}
+.role-customer .bottom-nav button:nth-child(2)::before{content:'▣'}
+.role-customer .bottom-nav button:nth-child(3)::before{content:'▦'}
+.role-customer .bottom-nav button:nth-child(4)::before{content:'▢'}
+.role-customer .bottom-nav button:nth-child(5)::before{content:'♙'}
+.role-provider .bottom-nav button:nth-child(1)::before{content:'⌂'}
+.role-provider .bottom-nav button:nth-child(2)::before{content:'₹'}
+.role-provider .bottom-nav button:nth-child(3)::before{content:'≡'}
+.role-provider .bottom-nav button:nth-child(4)::before{content:'♙'}
+.role-customer .bottom-nav button::before,.role-provider .bottom-nav button::before{
+  display:block;
+  margin:0 auto 2px;
+  font-size:16px;
+  line-height:16px;
+  font-weight:900;
+}
+.profile-secondary-cta{
+  width:100%;
+  margin-top:16px;
+  padding:12px;
+  border:1px solid #dce6f1;
+  border-radius:14px;
+  background:#fff;
+  color:#10213f;
+  font-size:10px;
+  font-weight:900;
+}
