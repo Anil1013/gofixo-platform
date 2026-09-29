@@ -12,6 +12,7 @@ self.addEventListener('push', (event) => {
       tag: data.tag || 'gofixo-request',
       renotify: true,
       requireInteraction: true,
+      silent: false,
       vibrate: [500, 200, 500, 200, 800],
       icon: '/favicon.ico',
       data: { url: data.url || '/' }
