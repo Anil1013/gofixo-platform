@@ -26,6 +26,41 @@ async function findNearestProvider(providerType, lat, lng, excludeIds = []) {
   return result.rows[0] || null;
 }
 
+// Atomically claim the nearest available provider on the supplied transaction.
+// FOR UPDATE SKIP LOCKED prevents two simultaneous bookings from selecting the same provider.
+async function claimNearestProvider(client, providerType, lat, lng, excludeIds = []) {
+  const result = await client.query(
+    `WITH candidate AS (
+       SELECT id
+       FROM service_providers
+       WHERE type = $3
+         AND is_available = true
+         AND kyc_status = 'approved'
+         AND current_lat IS NOT NULL AND current_lng IS NOT NULL
+         AND NOT (id = ANY($4::int[]))
+       ORDER BY
+         ( 6371 * acos(
+             LEAST(1, GREATEST(-1,
+               cos(radians($1)) * cos(radians(current_lat)) *
+               cos(radians(current_lng) - radians($2)) +
+               sin(radians($1)) * sin(radians(current_lat))
+             ))
+           )
+         ) ASC,
+         id ASC
+       LIMIT 1
+       FOR UPDATE SKIP LOCKED
+     )
+     UPDATE service_providers sp
+     SET is_available = false
+     FROM candidate
+     WHERE sp.id = candidate.id
+     RETURNING sp.id`,
+    [lat, lng, providerType, excludeIds]
+  );
+  return result.rows[0] || null;
+}
+
 // Offers the booking to the next nearest provider (skipping those who already declined/timed out).
 // The offered provider is marked busy while the offer is open. If nobody is left, the booking becomes 'no_provider'.
 async function offerToNextProvider(booking) {
@@ -75,4 +110,4 @@ async function handleDeclineOrTimeout(bookingId, timedOut = false) {
   await offerToNextProvider(claim.rows[0]);
 }
 
-module.exports = { findNearestProvider, offerToNextProvider, handleDeclineOrTimeout };
+module.exports = { findNearestProvider, claimNearestProvider, offerToNextProvider, handleDeclineOrTimeout };
