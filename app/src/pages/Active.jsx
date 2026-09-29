@@ -27,6 +27,7 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
   // this authenticated customer.
   useEffect(() => {
     if (booking.status === 'completed' || booking.status === 'no_provider') return;
+    onRefresh();
     const interval = setInterval(onRefresh, 15 * 1000);
     return () => clearInterval(interval);
   }, [booking.status]);
