@@ -222,6 +222,7 @@ router.post('/:id/cancel', requireAuth(['customer']), async (req, res, next) => 
            AND sp.kyc_status = 'approved'
            AND sp.current_lat IS NOT NULL
            AND sp.current_lng IS NOT NULL
+           AND sp.location_updated_at > NOW() - INTERVAL '5 minutes'
            AND NOT EXISTS (
              SELECT 1 FROM bookings b
              WHERE b.provider_id = sp.id
