@@ -52,7 +52,36 @@ router.post('/customer/register', async (req, res, next) => {
   }
 });
 
-// Customer profile photo upload and authenticated image access.\nrouter.post('/customer/profile-photo', requireAuth(['customer']), profileUpload.single('file'), async (req, res, next) => {\n  try {\n    if (!req.file) return res.status(400).json({ error: 'file is required' });\n    const dir = path.join(__dirname, '..', 'uploads', 'customers', String(req.user.id));\n    await fsp.mkdir(dir, { recursive: true });\n    const ext = path.extname(req.file.originalname || '').toLowerCase();\n    const filename = 'profile-' + crypto.randomBytes(16).toString('hex') + ext;\n    const filePath = path.join(dir, filename);\n    await fsp.writeFile(filePath, req.file.buffer, { flag: 'wx' });\n    const fileUrl = '/uploads/customers/' + req.user.id + '/' + filename;\n    await pool.query('UPDATE customers SET profile_photo_url = $1 WHERE id = $2', [fileUrl, req.user.id]);\n    res.status(201).json({ profile_photo_url: fileUrl });\n  } catch (err) { next(err); }\n});\n\nrouter.get('/customer/profile-photo', requireAuth(['customer']), async (req, res, next) => {\n  try {\n    const result = await pool.query('SELECT profile_photo_url FROM customers WHERE id = $1', [req.user.id]);\n    if (result.rows.length === 0 || !result.rows[0].profile_photo_url) return res.status(404).json({ error: 'Profile photo not set' });\n    const relativePath = result.rows[0].profile_photo_url.replace(/^\\/uploads\\//, '');\n    const filePath = path.resolve(__dirname, '..', 'uploads', relativePath);\n    const uploadsRoot = path.resolve(__dirname, '..', 'uploads') + path.sep;\n    if (!filePath.startsWith(uploadsRoot)) return res.status(400).json({ error: 'Invalid photo path' });\n    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Profile photo file not found' });\n    res.sendFile(filePath);\n  } catch (err) { next(err); }\n});\n\n// Login (customer or provider) — phone + password
+// Customer profile photo upload and authenticated image access.
+router.post('/customer/profile-photo', requireAuth(['customer']), profileUpload.single('file'), async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'file is required' });
+    const dir = path.join(__dirname, '..', 'uploads', 'customers', String(req.user.id));
+    await fsp.mkdir(dir, { recursive: true });
+    const ext = path.extname(req.file.originalname || '').toLowerCase();
+    const filename = 'profile-' + crypto.randomBytes(16).toString('hex') + ext;
+    const filePath = path.join(dir, filename);
+    await fsp.writeFile(filePath, req.file.buffer, { flag: 'wx' });
+    const fileUrl = '/uploads/customers/' + req.user.id + '/' + filename;
+    await pool.query('UPDATE customers SET profile_photo_url = $1 WHERE id = $2', [fileUrl, req.user.id]);
+    res.status(201).json({ profile_photo_url: fileUrl });
+  } catch (err) { next(err); }
+});
+
+router.get('/customer/profile-photo', requireAuth(['customer']), async (req, res, next) => {
+  try {
+    const result = await pool.query('SELECT profile_photo_url FROM customers WHERE id = $1', [req.user.id]);
+    if (result.rows.length === 0 || !result.rows[0].profile_photo_url) return res.status(404).json({ error: 'Profile photo not set' });
+    const relativePath = result.rows[0].profile_photo_url.replace(/^\\/uploads\\//, '');
+    const filePath = path.resolve(__dirname, '..', 'uploads', relativePath);
+    const uploadsRoot = path.resolve(__dirname, '..', 'uploads') + path.sep;
+    if (!filePath.startsWith(uploadsRoot)) return res.status(400).json({ error: 'Invalid photo path' });
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Profile photo file not found' });
+    res.sendFile(filePath);
+  } catch (err) { next(err); }
+});
+
+// Login (customer or provider) — phone + password
 router.post('/:role/login', async (req, res, next) => {
   try {
     const { role } = req.params;
