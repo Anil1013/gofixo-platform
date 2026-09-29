@@ -13,7 +13,7 @@ function pinIcon(emoji, color) {
 }
 
 // markers: [{ lat, lng, emoji, color }]   line: [[lat, lng], ...]
-export default function MapView({ markers = [], line = null, height = 200 }) {
+export default function MapView({ markers = [], line = null, height = 200, draggableMarkers = false, onMarkerDragEnd = null }) {
   const el = useRef(null);
   const mapRef = useRef(null);
   const groupRef = useRef(null);
@@ -42,7 +42,13 @@ export default function MapView({ markers = [], line = null, height = 200 }) {
     group.clearLayers();
     const points = [];
     markers.forEach((m) => {
-      L.marker([m.lat, m.lng], { icon: pinIcon(m.emoji, m.color) }).addTo(group);
+      const marker = L.marker([m.lat, m.lng], { icon: pinIcon(m.emoji, m.color), draggable: draggableMarkers }).addTo(group);
+      if (draggableMarkers && onMarkerDragEnd && m.id) {
+        marker.on('dragend', () => {
+          const p = marker.getLatLng();
+          onMarkerDragEnd(m.id, { lat: p.lat, lng: p.lng });
+        });
+      }
       points.push([m.lat, m.lng]);
     });
     if (line && line.length > 1) {
@@ -51,7 +57,7 @@ export default function MapView({ markers = [], line = null, height = 200 }) {
     }
     if (points.length === 1) map.setView(points[0], 16);
     else if (points.length > 1) map.fitBounds(points, { padding: [36, 36], maxZoom: 16 });
-  }, [JSON.stringify(markers), line]);
+  }, [JSON.stringify(markers), line, draggableMarkers, onMarkerDragEnd]);
 
   return <div ref={el} className="map-box" style={{ height }} />;
 }
