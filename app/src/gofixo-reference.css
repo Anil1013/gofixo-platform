@@ -1918,3 +1918,83 @@ button,input{font-family:inherit}
   font-size:10px;
   font-weight:900;
 }
+
+
+/* Customer destination search: editable directly from the home screen */
+.role-customer .reference-destination-search{
+  position:relative!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:9px!important;
+  padding:0 14px!important;
+  cursor:text!important;
+  overflow:visible!important;
+  z-index:30!important;
+}
+.role-customer .reference-destination-search input{
+  flex:1!important;
+  min-width:0!important;
+  height:49px!important;
+  border:0!important;
+  outline:0!important;
+  background:transparent!important;
+  color:#10213f!important;
+  font-family:Lora,serif!important;
+  font-size:11px!important;
+  font-weight:700!important;
+  padding:0!important;
+}
+.role-customer .reference-destination-search input::placeholder{
+  color:#718096!important;
+  opacity:1!important;
+}
+.role-customer .reference-destination-search>i{
+  flex:0 0 auto!important;
+  font-size:19px!important;
+  color:#10213f!important;
+  font-style:normal!important;
+}
+.role-customer .destination-search-status{
+  flex:0 0 auto!important;
+  font-size:16px!important;
+  color:#ff7a00!important;
+  font-weight:900!important;
+}
+.role-customer .destination-suggestions{
+  position:absolute!important;
+  top:55px!important;
+  left:0!important;
+  right:0!important;
+  max-height:210px!important;
+  overflow:auto!important;
+  padding:5px!important;
+  border:1px solid #e5eaf0!important;
+  border-radius:15px!important;
+  background:#fff!important;
+  box-shadow:0 14px 30px rgba(16,33,63,.16)!important;
+  z-index:100!important;
+}
+.role-customer .destination-suggestions button{
+  display:block!important;
+  width:100%!important;
+  border:0!important;
+  border-bottom:1px solid #eef2f6!important;
+  background:#fff!important;
+  text-align:left!important;
+  padding:10px 9px!important;
+  color:#10213f!important;
+}
+.role-customer .destination-suggestions button:last-child{
+  border-bottom:0!important;
+}
+.role-customer .destination-suggestions strong{
+  display:block!important;
+  font-family:Inter,sans-serif!important;
+  font-size:9px!important;
+  line-height:1.35!important;
+  font-weight:700!important;
+}
+.role-customer .reference-destination-search:focus-within{
+  box-shadow:0 7px 20px rgba(255,122,0,.16)!important;
+  border-color:#ffd1a3!important;
+}
