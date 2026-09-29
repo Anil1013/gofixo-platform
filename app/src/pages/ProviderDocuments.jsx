@@ -37,6 +37,18 @@ export default function ProviderDocuments() {
 
   async function upload() {
     if (!file) return;
+
+    const maxBytes = 15 * 1024 * 1024;
+    const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
+    if (file.size > maxBytes) {
+      setError('File is too large. Maximum size is 15 MB.');
+      return;
+    }
+    if (!allowedTypes.has(file.type)) {
+      setError('Please select a JPG, PNG, WEBP, or PDF file.');
+      return;
+    }
+
     setUploading(true);
     setError('');
     try {
@@ -47,7 +59,7 @@ export default function ProviderDocuments() {
       setFile(null);
       load();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Profile upload failed. Please try again.');
     } finally {
       setUploading(false);
     }
