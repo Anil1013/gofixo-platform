@@ -144,7 +144,30 @@ async function handleDeclineOrTimeout(bookingId, timedOut = false) {
   );
   if (claim.rows.length === 0) return;
 
-  await pool.query('UPDATE service_providers SET is_available = $1 WHERE id = $2', [!timedOut, booking.provider_id]);
+  if (timedOut) {
+    await pool.query('UPDATE service_providers SET is_available = false WHERE id = $1', [booking.provider_id]);
+  } else {
+    // A declined provider can return to the queue only when their subscription is
+    // still valid and they still have a usable location.
+    const eligibility = await pool.query(
+      `SELECT 1
+       FROM service_providers sp
+       WHERE sp.id = $1
+         AND sp.current_lat IS NOT NULL
+         AND sp.current_lng IS NOT NULL
+         AND EXISTS (
+           SELECT 1 FROM provider_subscriptions ps
+           WHERE ps.provider_id = sp.id
+             AND ps.status = 'active'
+             AND ps.expiry_date > NOW()
+         )`,
+      [booking.provider_id]
+    );
+    await pool.query(
+      'UPDATE service_providers SET is_available = $1 WHERE id = $2',
+      [eligibility.rows.length > 0, booking.provider_id]
+    );
+  }
   await offerToNextProvider(claim.rows[0]);
 }
 
