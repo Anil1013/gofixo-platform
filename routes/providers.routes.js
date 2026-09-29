@@ -223,32 +223,40 @@ router.post('/:id/documents', requireAuth(['provider']), requireOwnProvider, upl
         [req.params.id, docType, fileUrl]
       );
 
-      // A new upload means the provider is actively correcting KYC. Clear any
-      // previous review note and put the account back into pending until the
-      // required-document check below decides whether it is complete.
-      await pool.query(
-        'UPDATE service_providers SET kyc_status = \'pending\', kyc_review_note = NULL WHERE id = $1',
-        [req.params.id]
-      );
-
-      // Auto-approve only when every required document for this provider
-      // type has been uploaded. Admin can always override the status later.
+      // Admin approval is final: provider document uploads must never revoke an
+      // already-approved KYC status. Profile-photo replacement is also independent
+      // of KYC, so an approved provider can change it whenever they want.
       const provider = await pool.query(
         'SELECT type, kyc_status FROM service_providers WHERE id = $1',
         [req.params.id]
       );
+
       if (provider.rows.length > 0) {
-        const required = REQUIRED_DOCS[provider.rows[0].type] || [];
-        const docs = await pool.query(
-          'SELECT DISTINCT doc_type FROM provider_documents WHERE provider_id = $1',
-          [req.params.id]
-        );
-        const uploaded = new Set(docs.rows.map((d) => d.doc_type));
-        if (required.length > 0 && required.every((doc) => uploaded.has(doc))) {
+        const currentStatus = provider.rows[0].kyc_status;
+
+        if (docType !== 'profile_photo' && currentStatus !== 'approved') {
+          // A corrected KYC document clears the previous review note and returns
+          // the provider to pending until all required documents are present.
           await pool.query(
-            'UPDATE service_providers SET kyc_status = \'approved\' WHERE id = $1',
+            'UPDATE service_providers SET kyc_status = \'pending\', kyc_review_note = NULL WHERE id = $1',
             [req.params.id]
           );
+
+          // Auto-approve when all required documents for this provider type
+          // are present. This is a completeness/file-validation rule; admin
+          // approval remains the final override.
+          const required = REQUIRED_DOCS[provider.rows[0].type] || [];
+          const docs = await pool.query(
+            'SELECT DISTINCT doc_type FROM provider_documents WHERE provider_id = $1',
+            [req.params.id]
+          );
+          const uploaded = new Set(docs.rows.map((d) => d.doc_type));
+          if (required.length > 0 && required.every((doc) => uploaded.has(doc))) {
+            await pool.query(
+              'UPDATE service_providers SET kyc_status = \'approved\', kyc_review_note = NULL WHERE id = $1',
+              [req.params.id]
+            );
+          }
         }
       }
 
