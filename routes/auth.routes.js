@@ -1,10 +1,27 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const crypto = require('crypto');
+const fs = require('fs');
+const { promises: fsp } = fs;
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
 const { isValidPassword, PASSWORD_ERROR } = require('../utils/password');
 const { checkLoginRateLimit, recordFailedLogin, clearLoginFailures } = require('../utils/loginRateLimit');
+const { requireAuth } = require('../middleware/auth');
+
+const profileUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024, files: 1, fields: 0, parts: 1 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (!['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) return cb(Object.assign(new Error('Only JPG, PNG, and WEBP profile photos are allowed'), { status: 400 }));
+    if (file.mimetype && !['image/jpeg', 'image/png', 'image/webp', 'application/octet-stream'].includes(file.mimetype)) return cb(Object.assign(new Error('Only JPG, PNG, and WEBP profile photos are allowed'), { status: 400 }));
+    cb(null, true);
+  },
+});
 
 function normalizeIndianPhone(value) {
   const digits = String(value ?? '').replace(/\D/g, '');
@@ -35,7 +52,7 @@ router.post('/customer/register', async (req, res, next) => {
   }
 });
 
-// Login (customer or provider) — phone + password
+// Customer profile photo upload and authenticated image access.\nrouter.post('/customer/profile-photo', requireAuth(['customer']), profileUpload.single('file'), async (req, res, next) => {\n  try {\n    if (!req.file) return res.status(400).json({ error: 'file is required' });\n    const dir = path.join(__dirname, '..', 'uploads', 'customers', String(req.user.id));\n    await fsp.mkdir(dir, { recursive: true });\n    const ext = path.extname(req.file.originalname || '').toLowerCase();\n    const filename = 'profile-' + crypto.randomBytes(16).toString('hex') + ext;\n    const filePath = path.join(dir, filename);\n    await fsp.writeFile(filePath, req.file.buffer, { flag: 'wx' });\n    const fileUrl = '/uploads/customers/' + req.user.id + '/' + filename;\n    await pool.query('UPDATE customers SET profile_photo_url = $1 WHERE id = $2', [fileUrl, req.user.id]);\n    res.status(201).json({ profile_photo_url: fileUrl });\n  } catch (err) { next(err); }\n});\n\nrouter.get('/customer/profile-photo', requireAuth(['customer']), async (req, res, next) => {\n  try {\n    const result = await pool.query('SELECT profile_photo_url FROM customers WHERE id = $1', [req.user.id]);\n    if (result.rows.length === 0 || !result.rows[0].profile_photo_url) return res.status(404).json({ error: 'Profile photo not set' });\n    const relativePath = result.rows[0].profile_photo_url.replace(/^\\/uploads\\//, '');\n    const filePath = path.resolve(__dirname, '..', 'uploads', relativePath);\n    const uploadsRoot = path.resolve(__dirname, '..', 'uploads') + path.sep;\n    if (!filePath.startsWith(uploadsRoot)) return res.status(400).json({ error: 'Invalid photo path' });\n    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Profile photo file not found' });\n    res.sendFile(filePath);\n  } catch (err) { next(err); }\n});\n\n// Login (customer or provider) — phone + password
 router.post('/:role/login', async (req, res, next) => {
   try {
     const { role } = req.params;
