@@ -9,7 +9,7 @@ const TYPE_LABELS = {
   skilled_worker: 'Skilled professional',
 };
 
-export default function Profile({ onLogout }) {
+export default function Profile({ onLogout, onOpenKyc }) {
   const role = getRole();
   const user = getUser() || {};
   const isProvider = role === 'provider';
@@ -42,6 +42,12 @@ export default function Profile({ onLogout }) {
         <strong>Use a clear real photo</strong>
         <p>Your profile photo helps customers or partners recognise who they are meeting.</p>
       </section>
+
+      {isProvider && onOpenKyc && (
+        <button type="button" className="profile-secondary-cta" onClick={onOpenKyc}>
+          KYC & documents →
+        </button>
+      )}
 
       <button type="button" className="profile-logout-cta" onClick={onLogout}>
         Log out
