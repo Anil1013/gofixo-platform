@@ -3,6 +3,7 @@ import { apiGet, apiPatch, apiPost } from '../api';
 import MapView from '../components/MapView';
 import { getRoute } from '../utils/geo';
 import { startBuzzer, stopBuzzer } from '../utils/buzzer';
+import ProfilePhoto from '../components/ProfilePhoto';
 
 const TYPE_ICON = { bike: '🏍', auto: '🛺', car: '🚗', general_worker: '🧹', skilled_worker: '🔧' };
 const OFFER_SECONDS = 60;
@@ -355,7 +356,7 @@ export default function ProviderHome({ onLogout }) {
 
       <section className="partner-profile-card">
         <div className="partner-avatar">
-          <img src="https://c.pxhere.com/images/64/ef/faf188f19c99987917cacd834095-1708340.jpg!d" alt="" />
+          <ProfilePhoto role="provider" userId={profile.id} size="compact" />
           <b />
         </div>
         <div className="partner-profile-copy">
