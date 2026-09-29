@@ -79,6 +79,20 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
   useEffect(() => {
     setCategory(initialCategory);
   }, [initialCategory]);
+
+  useEffect(() => {
+    const query = destination.trim();
+    if (query.length < 3) {
+      setDestinationSuggestions([]);
+      return undefined;
+    }
+    const timer = setTimeout(async () => {
+      const suggestions = await searchAddressSuggestions(query, coords);
+      setDestinationSuggestions(suggestions);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [destination, coords]);
+
   const locationRequestRef = useRef(false);
   const destinationResolvedRef = useRef('');
 
@@ -331,11 +345,6 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
             destinationResolvedRef.current = '';
             setDestCoords(null);
             setRoute(null);
-            if (value.trim().length >= 3) {
-              setDestinationSuggestions(await searchAddressSuggestions(value, coords));
-            } else {
-              setDestinationSuggestions([]);
-            }
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
@@ -481,11 +490,6 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                     destinationResolvedRef.current = '';
                     setDestCoords(null);
                     setRoute(null);
-                    if (value.trim().length >= 3) {
-                      setDestinationSuggestions(await searchAddressSuggestions(value, coords));
-                    } else {
-                      setDestinationSuggestions([]);
-                    }
                   }}
                   onBlur={() => setTimeout(() => {
                     setDestinationSuggestions([]);
