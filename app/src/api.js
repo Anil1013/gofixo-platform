@@ -27,7 +27,10 @@ export function getRole() {
 
 async function handle(res) {
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401) clearSession();
+  if (res.status === 401) {
+    clearSession();
+    window.dispatchEvent(new Event('gofixo:session-expired'));
+  }
   if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
   return data;
 }
