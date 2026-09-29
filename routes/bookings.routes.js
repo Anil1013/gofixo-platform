@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
 const { findNearestProvider, claimNearestProvider, handleDeclineOrTimeout } = require('../services/matching');
+const { sendProviderPush } = require('../services/push');
 
 const SERVICE_TYPES = new Set(['ride', 'services']);
 const PROVIDER_TYPES = new Set(['bike', 'auto', 'car', 'general_worker', 'skilled_worker']);
@@ -192,6 +193,36 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
 
     await client.query('COMMIT');
     inTransaction = false;
+
+    // Send a background push after the booking is committed. This wakes the
+    // provider's browser/OS even when the app tab is sleeping or backgrounded.
+    // Foreground polling + buzzer remains as the fast path.
+    pool.query(
+      `SELECT endpoint, p256dh, auth
+       FROM provider_push_subscriptions
+       WHERE provider_id = $1`,
+      [nearest.id]
+    ).then(async (pushRows) => {
+      for (const row of pushRows.rows) {
+        const resultPush = await sendProviderPush(
+          { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
+          {
+            title: 'Gofixo — New service request',
+            body: `Pickup: ${pickup_location || 'Customer location'}`,
+            tag: `gofixo-booking-${result.rows[0].id}`,
+            booking_id: result.rows[0].id,
+            url: '/?provider=request'
+          }
+        );
+        if (resultPush && resultPush.expired) {
+          await pool.query(
+            'DELETE FROM provider_push_subscriptions WHERE provider_id = $1 AND endpoint = $2',
+            [nearest.id, row.endpoint]
+          );
+        }
+      }
+    }).catch((err) => console.error('Provider push dispatch error:', err.message));
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     if (inTransaction) await client.query('ROLLBACK').catch(() => {});
