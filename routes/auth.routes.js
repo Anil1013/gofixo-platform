@@ -63,7 +63,7 @@ router.post('/:role/login', async (req, res, next) => {
 
     clearLoginFailures(req.ip, role, phone);
 
-    const token = jwt.sign({ id: user.id, role, phone }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign({ id: user.id, role, phone, password_changed_at: user.password_changed_at?.toISOString?.() || user.password_changed_at || null }, process.env.JWT_SECRET, { expiresIn: '30d' });
     delete user.password_hash;
     res.json({ token, user });
   } catch (err) {
@@ -100,7 +100,7 @@ router.post('/:role/reset-password', async (req, res, next) => {
     if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
 
     const password_hash = await bcrypt.hash(new_password, 10);
-    await pool.query(`UPDATE ${table} SET password_hash = $1 WHERE id = $2`, [password_hash, result.rows[0].id]);
+    await pool.query(`UPDATE ${table} SET password_hash = $1, password_changed_at = NOW() WHERE id = $2`, [password_hash, result.rows[0].id]);
 
     res.json({ message: 'Password changed successfully — please log in with your new password' });
   } catch (err) {
