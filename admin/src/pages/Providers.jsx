@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { apiGet, apiPatch } from '../api';
+import { apiGet, apiGetBlob, apiPatch } from '../api';
 
 const DOC_LABELS = {
-  aadhar: 'Aadhar',
+  aadhar_front: 'Aadhar front',
+  aadhar_back: 'Aadhar back',
   driving_license: 'DL',
   vehicle_rc: 'RC',
-  vehicle_photo: 'Vehicle photo',
+  vehicle_photo_front: 'Vehicle front',
+  vehicle_photo_back: 'Vehicle back',
   profile_photo: 'Profile photo',
   police_verification: 'Police verif.',
 };
@@ -25,6 +27,23 @@ export default function Providers() {
   }
 
   useEffect(load, []);
+
+  async function viewDocument(providerId, documentId) {
+    const tab = window.open('about:blank', '_blank', 'noopener,noreferrer');
+    if (!tab) {
+      alert('Please allow pop-ups to view KYC documents.');
+      return;
+    }
+    try {
+      const blob = await apiGetBlob(`/providers/admin/${providerId}/documents/${documentId}`);
+      const url = URL.createObjectURL(blob);
+      tab.location.href = url;
+      window.setTimeout(() => URL.revokeObjectURL(url), 60 * 1000);
+    } catch (e) {
+      tab.close();
+      alert(`Failed to open document: ${e.message}`);
+    }
+  }
 
   async function updateKyc(id, status) {
     setUpdatingId(id);
@@ -78,10 +97,15 @@ export default function Providers() {
               <td>
                 {p.documents && p.documents.length > 0 ? (
                   <div className="doc-links">
-                    {p.documents.map((d, i) => (
-                      <a key={i} href={`https://gofixo.mob13r.com${d.file_url}`} target="_blank" rel="noreferrer">
+                    {p.documents.map((d) => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        className="btn"
+                        onClick={() => viewDocument(p.id, d.id)}
+                      >
                         {DOC_LABELS[d.doc_type] || d.doc_type}
-                      </a>
+                      </button>
                     ))}
                   </div>
                 ) : (
