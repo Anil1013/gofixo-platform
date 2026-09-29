@@ -52,7 +52,8 @@ function requireOwnProvider(req, res, next) {
 router.post('/register', async (req, res, next) => {
   try {
     const { name, phone, type, password } = req.body;
-    if (!name || !phone || !type || !password) {
+    const normalizedPhone = String(phone ?? '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '');
+    if (!name || !normalizedPhone || !type || !password) {
       return res.status(400).json({ error: 'name, phone, type and password are required' });
     }
     if (!PROVIDER_TYPES.includes(type)) {
@@ -85,7 +86,7 @@ router.post('/register', async (req, res, next) => {
       const result = await client.query(
         `INSERT INTO service_providers (generated_id, name, phone, type, password_hash)
          VALUES ($1, $2, $3, $4, $5) RETURNING id, generated_id, name, phone, type, kyc_status, created_at`,
-        [generatedId, name, phone, type, passwordHash]
+        [generatedId, name, normalizedPhone, type, passwordHash]
       );
 
       await client.query('COMMIT');
