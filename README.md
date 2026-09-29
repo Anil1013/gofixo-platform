@@ -39,7 +39,7 @@ Phone + password login for both customers and providers — no SMS/OTP needed:
 - If every nearby provider of that type is exhausted, the booking's status becomes `no_provider` and the customer sees a "try again" screen.
 - Booking status flow: `requested` → `accepted` → `ongoing` (PIN entered) → `completed`.
 - Privacy: the customer only sees the provider's name/phone/live location once status is `accepted` or later. The provider only sees the customer's phone once they've accepted. The customer's `start_pin` is never sent to the provider's own bookings endpoint — they must get it verbally.
-- Run migrations `config/migration_001_location.sql` through `config/migration_007_location_freshness.sql` once against the existing `gofixo-db` in order.
+- Run migrations `config/migration_001_location.sql` through `config/migration_008_password_sessions.sql` once against the existing `gofixo-db` in order. Do not blindly rerun non-idempotent older migrations.
 
 ## Maps & location (free, no API key)
 
@@ -70,7 +70,7 @@ The admin panel now requires a login key before showing any data. Set `ADMIN_SEC
 
 - `POST /api/providers/:id/documents` (provider auth, multipart form: `doc_type` + `file`) — uploads JPG/PNG/PDF documents. Ride providers require Aadhar front/back, driving license, RC, and vehicle photos; home-service workers require Aadhar front/back, profile photo, and police verification.
 - Files are stored on the backend disk under `uploads/providers/:id/` with randomized filenames. They are not publicly served; provider and admin document endpoints stream them only after authorization.
-- `GET /api/providers` returns provider KYC/plan metadata and document metadata (ID + type) for the admin panel; document files are fetched through the protected admin document endpoint.
+- `GET /api/providers` returns provider KYC/plan metadata and document metadata (ID + type) for the admin panel; `GET /api/providers/admin/:id/documents/:documentId` streams a document only with the admin key.
 - Run `config/migration_002_documents.sql` once against `gofixo-db`.
 
 ## Remaining product work
