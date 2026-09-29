@@ -1,5 +1,44 @@
 const pool = require('../config/db');
 
+
+// Return every eligible provider within the customer's 3 km pickup radius.
+async function findNearbyProviders(providerType, lat, lng, excludeIds = [], radiusKm = 3) {
+  const result = await pool.query(
+    `SELECT id,
+            ( 6371 * acos(
+                LEAST(1, GREATEST(-1,
+                  cos(radians($1)) * cos(radians(current_lat)) *
+                  cos(radians(current_lng) - radians($2)) +
+                  sin(radians($1)) * sin(radians(current_lat))
+                ))
+              )
+            ) AS distance_km
+     FROM service_providers
+     WHERE type = $3
+       AND is_available = true
+       AND kyc_status = 'approved'
+       AND current_lat IS NOT NULL AND current_lng IS NOT NULL
+       AND location_updated_at > NOW() - INTERVAL '5 minutes'
+       AND EXISTS (
+         SELECT 1 FROM provider_subscriptions ps
+         WHERE ps.provider_id = service_providers.id
+           AND ps.status = 'active'
+           AND ps.expiry_date > NOW()
+       )
+       AND NOT (id = ANY($4::int[]))
+       AND (6371 * acos(
+         LEAST(1, GREATEST(-1,
+           cos(radians($1)) * cos(radians(current_lat)) *
+           cos(radians(current_lng) - radians($2)) +
+           sin(radians($1)) * sin(radians(current_lat))
+         ))
+       )) <= $5
+     ORDER BY distance_km ASC, id ASC`,
+    [lat, lng, providerType, excludeIds, radiusKm]
+  );
+  return result.rows;
+}
+
 // Nearest available, KYC-approved provider of the requested type (Haversine distance in km),
 // skipping anyone who already declined / missed this booking.
 async function findNearestProvider(providerType, lat, lng, excludeIds = []) {
@@ -175,4 +214,4 @@ async function handleDeclineOrTimeout(bookingId, timedOut = false) {
   await offerToNextProvider(claim.rows[0]);
 }
 
-module.exports = { findNearestProvider, claimNearestProvider, offerToNextProvider, handleDeclineOrTimeout };
+module.exports = { findNearestProvider, findNearbyProviders, claimNearestProvider, offerToNextProvider, handleDeclineOrTimeout };
