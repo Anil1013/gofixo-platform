@@ -175,7 +175,7 @@ router.get('/:id/documents/:documentId', requireAuth(['provider']), async (req, 
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Document not found' });
 
-    const relativePath = result.rows[0].file_url.replace(/^\\/uploads\\//, '');
+    const relativePath = result.rows[0].file_url.replace(/^\/uploads\//, '');
     const filePath = path.resolve(__dirname, '..', 'uploads', relativePath);
     const uploadsRoot = path.resolve(__dirname, '..', 'uploads') + path.sep;
     if (!filePath.startsWith(uploadsRoot)) return res.status(400).json({ error: 'Invalid document path' });
