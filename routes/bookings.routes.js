@@ -384,17 +384,25 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
       await client.query('ROLLBACK');
       return res.status(403).json({ error: 'This booking does not belong to you' });
     }
-    if (existing.rows[0].status !== 'ongoing') {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Start the ride/job with the customer\'s PIN before confirming payment' });
-    }
 
+    // Complete only an ongoing booking. The status predicate makes payment
+    // confirmation idempotent under concurrent requests: exactly one request
+    // can transition ongoing -> completed and create the earning.
     const booking = await client.query(
       `UPDATE bookings SET status = 'completed', payment_confirmed_by_provider = true,
        fare_amount = $1, completed_at = NOW() WHERE id = $2
+       AND provider_id = $3 AND status = 'ongoing'
        RETURNING id, service_type, customer_id, provider_id, pickup_location, fare_amount, status, completed_at`,
-      [fare, id]
+      [fare, id, req.user.id]
     );
+    if (booking.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: existing.rows[0].status === 'ongoing'
+          ? 'Payment is already being confirmed'
+          : 'Start the ride/job with the customer\'s PIN before confirming payment'
+      });
+    }
     const providerId = booking.rows[0].provider_id;
 
     // Log the earning
