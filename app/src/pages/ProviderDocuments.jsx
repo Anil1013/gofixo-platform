@@ -44,13 +44,15 @@ export default function ProviderDocuments() {
     if (!file) return;
 
     const maxBytes = 15 * 1024 * 1024;
-    const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
+    const extension = (file.name || '').toLowerCase().match(/\\.[^.]+$/)?.[0] || '';
+    const allowedExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp', '.pdf']);
+    const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/octet-stream', '']);
     if (file.size > maxBytes) {
       setError('File is too large. Maximum size is 15 MB.');
       return;
     }
-    if (!allowedTypes.has(file.type)) {
-      setError('Please select a JPG, PNG, WEBP, or PDF file.');
+    if (!allowedExtensions.has(extension) || !allowedTypes.has(file.type)) {
+      setError('Please select a valid JPG, PNG, WEBP, or PDF file.');
       return;
     }
 
