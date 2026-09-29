@@ -20,7 +20,8 @@ app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : '*' }));
 app.use(express.json());
 
 // Uploaded KYC documents (Aadhar, DL, RC, photos) — filenames include a random token so URLs aren't guessable
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// KYC documents are served only through the authenticated provider document route.
+// Do not expose the uploads directory as a public static folder.
 
 app.get('/', (req, res) => {
   res.json({ status: 'ok', service: 'gofixo-backend' });
