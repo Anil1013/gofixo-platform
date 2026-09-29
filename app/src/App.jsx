@@ -7,6 +7,7 @@ import ProviderHome from './pages/ProviderHome';
 import ProviderPlans from './pages/ProviderPlans';
 import ProviderDocuments from './pages/ProviderDocuments';
 import ProviderHistory from './pages/ProviderHistory';
+import Profile from './pages/Profile';
 import { apiGet, getToken, getUser, getRole, clearSession } from './api';
 import './App.css';
 import './gofixo-reference.css';
@@ -99,14 +100,16 @@ export default function App() {
   }
 
   const customerTabs = [
-    { key: 'home', label: '🏠 Book' },
-    { key: 'history', label: '📋 History' },
+    { key: 'home', label: 'Home' },
+    { key: 'history', label: 'My Bookings' },
+    { key: 'profile', label: 'Profile' },
   ];
   const providerTabs = [
-    { key: 'home', label: '🏠 Dashboard' },
-    { key: 'plans', label: '💳 Plans' },
-    { key: 'docs', label: '📄 KYC' },
-    { key: 'history', label: '📋 History' },
+    { key: 'home', label: 'Home' },
+    { key: 'plans', label: 'Plans' },
+    { key: 'docs', label: 'KYC' },
+    { key: 'history', label: 'Rides' },
+    { key: 'profile', label: 'Profile' },
   ];
   const tabs = role === 'customer' ? customerTabs : providerTabs;
 
@@ -122,11 +125,13 @@ export default function App() {
           />
         );
       }
+      if (tab === 'profile') return <Profile onLogout={logout} />;
       return tab === 'home' ? <Home onBooked={(b) => setActiveBooking(b)} /> : <History />;
     }
     if (tab === 'home') return <ProviderHome onLogout={logout} />;
     if (tab === 'plans') return <ProviderPlans />;
     if (tab === 'docs') return <ProviderDocuments />;
+    if (tab === 'profile') return <Profile onLogout={logout} />;
     return <ProviderHistory />;
   }
 
