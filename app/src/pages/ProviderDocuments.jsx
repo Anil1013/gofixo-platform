@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiGet, apiUpload, getUser } from '../api';
+import { API_BASE, apiGet, apiUpload, getToken, getUser } from '../api';
 
 const RIDE_DOCS = [
   { value: 'aadhar_front', label: 'Aadhar card (front)' },
@@ -53,6 +53,22 @@ export default function ProviderDocuments() {
     }
   }
 
+  async function openDocument(documentId) {
+    setError('');
+    try {
+      const res = await fetch(`${API_BASE}/providers/${user.id}/documents/${documentId}`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok) throw new Error('Unable to open document');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      setTimeout(() => URL.revokeObjectURL(url), 60 * 1000);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   const uploadedTypes = new Set(uploaded.map((d) => d.doc_type));
   const remaining = docTypes.filter((d) => !uploadedTypes.has(d.value));
   const allDone = remaining.length === 0;
@@ -95,7 +111,7 @@ export default function ProviderDocuments() {
       {uploaded.map((d, i) => (
         <div key={d.id || i} className="history-item">
           <p className="history-title">{docTypes.find((t) => t.value === d.doc_type)?.label || d.doc_type}</p>
-          {d.id && <a href={`https://gofixo.mob13r.com/api/providers/${user.id}/documents/${d.id}`} target="_blank" rel="noreferrer" style={{ color: 'var(--violet)', fontSize: 13 }}>View</a>}
+          {d.id && <button type="button" onClick={() => openDocument(d.id)} style={{ width: 'auto', margin: 0, padding: '6px 10px' }}>View</button>}
         </div>
       ))}
     </div>
