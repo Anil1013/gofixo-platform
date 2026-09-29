@@ -117,8 +117,8 @@ export default function Home({ onBooked }) {
         <button className={category === 'ride' ? 'active' : ''} onClick={() => { setCategory('ride'); setProviderType('bike'); }}>
           🏍 Ride
         </button>
-        <button className={category === 'pronto' ? 'active' : ''} onClick={() => { setCategory('pronto'); setProviderType('general_worker'); }}>
-          🔧 Pronto (home service)
+        <button className={category === 'services' ? 'active' : ''} onClick={() => { setCategory('services'); setProviderType('general_worker'); }}>
+          🔧 Home Services
         </button>
       </div>
 
@@ -154,7 +154,7 @@ export default function Home({ onBooked }) {
         </>
       )}
 
-      {category === 'pronto' && (
+      {category === 'services' && (
         <>
           <label>What do you need done?</label>
           <input value={work} onChange={(e) => setWork(e.target.value)} placeholder="e.g. Deep cleaning, 2BHK" />
