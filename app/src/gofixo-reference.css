@@ -1300,3 +1300,116 @@ button,input{font-family:inherit}
   .role-customer .service-pills{grid-template-columns:repeat(4,1fr)!important}
   .role-customer .service-pills button img{height:50px!important}
 }
+
+
+/* Account + CTA polish */
+@import url('https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&display=swap');
+
+.logout-link{
+  border:1px solid #e6eaf1!important;
+  background:#fff!important;
+  color:#344054!important;
+  padding:8px 12px!important;
+  border-radius:11px!important;
+  font-size:11px!important;
+  font-weight:800!important;
+  box-shadow:0 4px 12px rgba(16,33,63,.06);
+}
+.logout-link:active,.profile-logout-cta:active,.home-cta:active,.accept-reference:active,.reject-reference:active{
+  transform:translateY(1px);
+}
+.topbar-actions{display:flex!important;align-items:center!important;gap:8px!important}
+.topbar-role{font-size:10px!important;font-weight:800!important;color:#667085!important}
+
+.bottom-nav{
+  display:grid!important;
+  grid-auto-flow:column;
+  grid-auto-columns:1fr;
+  gap:2px;
+}
+.bottom-nav button{min-height:48px;border-radius:12px!important}
+.bottom-nav button.active{background:#fff6eb}
+
+.cta,.home-cta,.provider-main-cta,.accept-reference,.reject-reference,.availability-toggle{
+  min-height:46px;
+  font-weight:800!important;
+  cursor:pointer;
+  transition:transform .15s ease,box-shadow .15s ease,opacity .15s ease;
+}
+.cta:disabled,.accept-reference:disabled,.reject-reference:disabled,.availability-toggle:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+.profile-screen{
+  min-height:calc(100vh - 58px);
+  padding:24px 16px 30px;
+  background:linear-gradient(180deg,#fbfdff 0,#f5f7fb 100%);
+}
+.profile-page-head{margin:4px 2px 16px}
+.profile-page-head h1{font-family:'Lora',serif;font-size:28px;line-height:1.1;margin:3px 0 5px;color:var(--gf-navy)}
+.profile-page-head p{font-size:11px;color:#7b8495;margin:0}
+.profile-card{
+  display:flex;align-items:center;gap:15px;padding:17px;
+  background:#fff;border:1px solid var(--gf-line);border-radius:22px;
+  box-shadow:var(--gf-shadow);
+}
+.profile-identity{min-width:0}
+.profile-identity h2{font-size:18px;margin:0 0 4px;color:var(--gf-navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.profile-identity p{font-size:10px;color:#7a8494;margin:0 0 8px}
+.profile-role-badge{display:inline-flex;padding:6px 9px;border-radius:99px;background:#edf9f4;color:#0d9075;font-size:8px;font-weight:900}
+.profile-role-badge.customer{background:#fff3e7;color:#d66b00}
+.profile-photo-editor{display:flex;flex-direction:column;align-items:center;gap:7px;flex:0 0 auto}
+.profile-photo-editor.large .profile-photo-frame{width:88px;height:88px;border-radius:25px}
+.profile-photo-editor.compact .profile-photo-frame{width:47px;height:47px;border-radius:15px}
+.profile-photo-frame{
+  position:relative;overflow:hidden;background:linear-gradient(135deg,#e9eff8,#f8fafc);
+  border:2px solid rgba(255,255,255,.8);box-shadow:0 7px 18px rgba(16,33,63,.13);
+  display:flex;align-items:center;justify-content:center;
+}
+.profile-photo-frame img{width:100%;height:100%;object-fit:cover;display:block}
+.profile-photo-frame>span{font-size:25px;font-weight:900;color:#9aa6b8}
+.profile-photo-camera{
+  position:absolute;right:-1px;bottom:-1px;width:25px;height:25px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;background:var(--gf-orange);color:#fff;
+  border:2px solid #fff;font-size:12px;font-weight:900;cursor:pointer;box-shadow:0 3px 9px rgba(255,122,0,.3);
+}
+.profile-photo-camera input,.profile-photo-change input{display:none}
+.profile-photo-change{
+  padding:7px 10px;border-radius:10px;background:#fff3e7;color:#d66b00;border:1px solid #ffe0bd;
+  font-size:8px;font-weight:900;cursor:pointer;white-space:nowrap;
+}
+.profile-photo-editor.compact .profile-photo-change,
+.profile-photo-editor.compact .profile-photo-error{display:none}
+.profile-photo-error{max-width:210px;color:#d63c4a;font-size:8px;text-align:center}
+.profile-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.profile-info-grid>div{background:#fff;border:1px solid var(--gf-line);border-radius:15px;padding:12px}
+.profile-info-grid small{display:block;color:#98a1b2;font-size:7px;font-weight:900;letter-spacing:1px;margin-bottom:4px}
+.profile-info-grid strong{display:block;color:var(--gf-navy);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.profile-photo-help{margin-top:12px;padding:14px;border-radius:16px;background:#eef7ff;border:1px solid #dcecff}
+.profile-photo-help strong{display:block;color:var(--gf-navy);font-size:11px}
+.profile-photo-help p{margin:4px 0 0;color:#6f7d91;font-size:9px;line-height:1.45}
+.profile-logout-cta{
+  width:100%;margin-top:18px;padding:13px;border:1px solid #ffd5d9;border-radius:14px;
+  background:#fff4f5;color:#d63c4a;font-size:11px;font-weight:900;box-shadow:0 5px 14px rgba(243,77,89,.07);
+}
+.partner-avatar .profile-photo-editor{width:47px;height:47px}
+.partner-avatar .profile-photo-frame{border:1px solid rgba(255,255,255,.2);box-shadow:none}
+.partner-avatar .profile-photo-frame>span{font-size:15px;color:#dce6f5}
+.partner-profile-logout{
+  flex:0 0 39px!important;width:39px!important;height:39px!important;border-radius:13px!important;
+  border:1px solid #ffe0e4!important;background:#fff4f5!important;color:#d63c4a!important;
+  font-size:18px!important;font-weight:900!important;box-shadow:0 5px 13px rgba(243,77,89,.08);
+}
+.reference-request-actions{display:grid!important;grid-template-columns:1fr 1.35fr!important;gap:9px!important}
+.reject-reference{background:#fff1f2!important;color:#d63c4a!important;border:1px solid #ffd7db!important}
+.accept-reference{background:linear-gradient(135deg,#ff7a00,#ff9f2f)!important;color:#fff!important;border:0!important;box-shadow:0 7px 16px rgba(255,122,0,.22)}
+.reference-online-footer button{
+  min-height:40px!important;padding:0 13px!important;border:0!important;border-radius:11px!important;
+  background:#fff1f2!important;color:#d63c4a!important;font-weight:900!important;
+}
+@media (max-width:380px){
+  .topbar-role{display:none!important}
+  .bottom-nav button{font-size:9px!important}
+  .profile-card{gap:11px;padding:14px}
+}
