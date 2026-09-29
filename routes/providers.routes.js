@@ -252,10 +252,37 @@ router.patch('/:id/availability', requireAuth(['provider']), async (req, res, ne
       }
     }
 
-    const result = await pool.query(
-      'UPDATE service_providers SET is_available = $1 WHERE id = $2 RETURNING *',
-      [is_available, req.params.id]
-    );
+    let result;
+    if (is_available) {
+      // Atomically refuse to go online while this provider already owns
+      // an active booking. This closes the check-then-update race.
+      result = await pool.query(
+        `UPDATE service_providers
+         SET is_available = true
+         WHERE id = $1
+           AND NOT EXISTS (
+             SELECT 1 FROM bookings b
+             WHERE b.provider_id = service_providers.id
+               AND b.status IN ('requested', 'accepted', 'ongoing')
+           )
+         RETURNING *`,
+        [req.params.id]
+      );
+      if (result.rows.length === 0) {
+        const provider = await pool.query(
+          'SELECT id FROM service_providers WHERE id = $1',
+          [req.params.id]
+        );
+        if (provider.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
+        return res.status(409).json({ error: 'Finish the current booking before going available' });
+      }
+    } else {
+      result = await pool.query(
+        'UPDATE service_providers SET is_available = false WHERE id = $1 RETURNING *',
+        [req.params.id]
+      );
+      if (result.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
+    }
     res.json(result.rows[0]);
   } catch (err) {
     next(err);
