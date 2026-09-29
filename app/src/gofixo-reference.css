@@ -1251,3 +1251,18 @@ button,input{font-family:inherit}
 .role-customer .booking-panel-head h2{
   font-size:18px!important;
 }
+
+.partner-profile-logout{
+  width:32px;height:32px;
+  flex:0 0 32px;
+  border:1px solid #e5eaf0;
+  border-radius:50%;
+  background:#fff;
+  color:#10213f;
+  font-size:17px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
+.partner-profile-logout:hover{background:#fff5ea;color:#ff7a00;border-color:#ffd7ad}
