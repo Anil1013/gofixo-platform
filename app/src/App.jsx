@@ -109,8 +109,7 @@ export default function App() {
   ];
   const providerTabs = [
     { key: 'home', label: 'Home' },
-    { key: 'plans', label: 'Plans' },
-    { key: 'docs', label: 'KYC' },
+    { key: 'plans', label: 'Earnings' },
     { key: 'history', label: 'Rides' },
     { key: 'profile', label: 'Profile' },
   ];
@@ -128,7 +127,7 @@ export default function App() {
           />
         );
       }
-      if (tab === 'profile') return <Profile onLogout={logout} />;
+      if (tab === 'profile') return <Profile onLogout={logout} onOpenKyc={() => setTab('docs')} />;
       if (tab === 'services') return <Home initialCategory="services" onBooked={(b) => setActiveBooking(b)} />;
       if (tab === 'wallet') return <Wallet />;
       return <Home initialCategory="ride" onBooked={(b) => setActiveBooking(b)} />;
