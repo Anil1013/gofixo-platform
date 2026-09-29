@@ -10,6 +10,7 @@ const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
 const { isValidPassword, PASSWORD_ERROR } = require('../utils/password');
+const { getVapidPublicKey } = require('../services/push');
 
 const PROVIDER_TYPES = ['bike', 'auto', 'car', 'general_worker', 'skilled_worker'];
 
@@ -350,6 +351,53 @@ router.patch('/:id/availability', requireAuth(['provider']), async (req, res, ne
       if (result.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
     }
     res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Browser push setup for background/locked-screen provider alerts.
+router.get('/push/public-key', requireAuth(['provider']), async (req, res) => {
+  const publicKey = getVapidPublicKey();
+  if (!publicKey) return res.status(503).json({ error: 'Background notifications are not configured' });
+  res.json({ public_key: publicKey });
+});
+
+router.post('/push-subscription', requireAuth(['provider']), async (req, res, next) => {
+  try {
+    const { endpoint, keys } = req.body || {};
+    if (
+      typeof endpoint !== 'string' ||
+      !endpoint.startsWith('https://') ||
+      !keys ||
+      typeof keys.p256dh !== 'string' ||
+      typeof keys.auth !== 'string'
+    ) {
+      return res.status(400).json({ error: 'Invalid push subscription' });
+    }
+
+    await pool.query(
+      `INSERT INTO provider_push_subscriptions (provider_id, endpoint, p256dh, auth, updated_at)
+       VALUES ($1, $2, $3, $4, NOW())
+       ON CONFLICT (provider_id, endpoint)
+       DO UPDATE SET p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth, updated_at = NOW()`,
+      [req.user.id, endpoint, keys.p256dh, keys.auth]
+    );
+    res.status(201).json({ subscribed: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/push-subscription', requireAuth(['provider']), async (req, res, next) => {
+  try {
+    const { endpoint } = req.body || {};
+    if (typeof endpoint !== 'string') return res.status(400).json({ error: 'endpoint is required' });
+    await pool.query(
+      'DELETE FROM provider_push_subscriptions WHERE provider_id = $1 AND endpoint = $2',
+      [req.user.id, endpoint]
+    );
+    res.json({ subscribed: false });
   } catch (err) {
     next(err);
   }
