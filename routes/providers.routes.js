@@ -9,6 +9,8 @@ const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
 const { isValidPassword, PASSWORD_ERROR } = require('../utils/password');
 
+const PROVIDER_TYPES = ['bike', 'auto', 'car', 'general_worker', 'skilled_worker'];
+
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
@@ -30,6 +32,9 @@ router.post('/register', async (req, res, next) => {
     const { name, phone, type, password } = req.body;
     if (!name || !phone || !type || !password) {
       return res.status(400).json({ error: 'name, phone, type and password are required' });
+    }
+    if (!PROVIDER_TYPES.includes(type)) {
+      return res.status(400).json({ error: 'Invalid provider type' });
     }
     if (!isValidPassword(password)) return res.status(400).json({ error: PASSWORD_ERROR });
 
