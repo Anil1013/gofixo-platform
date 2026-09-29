@@ -126,9 +126,11 @@ export default function ProviderHome() {
   useEffect(() => {
     if (!profile?.is_available) return undefined;
 
+    // Refresh GPS every 15 seconds while online so customers receive a recent
+    // provider position. The backend still rejects stale locations after 5 minutes.
     const id = setInterval(() => {
       updateCurrentLocation(false).catch(() => {});
-    }, 60 * 1000);
+    }, 15 * 1000);
 
     return () => clearInterval(id);
   }, [profile?.is_available, profile?.id]);
