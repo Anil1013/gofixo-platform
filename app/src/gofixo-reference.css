@@ -105,3 +105,19 @@ body{background:#f3f6fa;color:var(--gf-ink)}
 @media (min-width:700px){
   .app-shell{margin:20px auto;height:calc(100vh - 40px);border-radius:28px;overflow:hidden}
 }
+
+.topbar-actions{display:flex;align-items:center;gap:9px}
+.topbar-role{font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--gf-muted);padding:6px 9px;border-radius:999px;background:#f2f5f9}
+.hero-availability-toggle{cursor:pointer!important;min-width:88px;justify-content:center;border:0!important;padding:8px 11px!important;font-size:11px!important;font-weight:800!important}
+.hero-availability-toggle.online{background:#dff9e9!important;color:#079447!important}
+.hero-availability-toggle:not(.online){background:#eef2f7!important;color:var(--gf-navy)!important}
+.partner-motivation{margin:0 0 13px;color:var(--gf-muted);font-size:12px;line-height:1.45}
+.provider-benefits .benefit-grid{gap:8px!important}
+.provider-benefits .benefit-grid>div{padding:11px 8px!important;text-align:center}
+@media (max-width:390px){
+ .home-hero{min-height:250px}
+ .home-hero-copy{max-width:58%}
+ .home-hero h1{font-size:27px}
+ .home-hero-visual{width:45%;height:150px}
+ .provider-stat-card strong{font-size:16px!important}
+}
