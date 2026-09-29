@@ -14,6 +14,17 @@ const { getVapidPublicKey } = require('../services/push');
 
 const PROVIDER_TYPES = ['bike', 'auto', 'car', 'general_worker', 'skilled_worker'];
 
+const DOC_LABELS = {
+  aadhar_front: 'Aadhar card (front)',
+  aadhar_back: 'Aadhar card (back)',
+  driving_license: 'Driving license',
+  vehicle_rc: 'Vehicle RC',
+  vehicle_photo_front: 'Vehicle photo (front)',
+  vehicle_photo_back: 'Vehicle photo (back)',
+  profile_photo: 'Profile photo',
+  police_verification: 'Police verification',
+};
+
 const ALLOWED_DOCUMENT_TYPES = new Set([
   'aadhar_front', 'aadhar_back', 'driving_license', 'vehicle_rc',
   'vehicle_photo_front', 'vehicle_photo_back', 'profile_photo', 'police_verification',
@@ -108,7 +119,7 @@ router.post('/register', async (req, res, next) => {
 router.get('/', requireAdmin, async (req, res, next) => {
   try {
     const result = await pool.query(`
-      SELECT sp.id, sp.generated_id, sp.name, sp.phone, sp.type, sp.kyc_status, sp.bank_upi_id,
+      SELECT sp.id, sp.generated_id, sp.name, sp.phone, sp.type, sp.kyc_status, sp.kyc_review_note, sp.bank_upi_id,
         sp.avg_rating, sp.is_available, sp.created_at, sp.current_lat, sp.current_lng,
         sub.plan_name,
         sub.earning_cap,
@@ -212,6 +223,14 @@ router.post('/:id/documents', requireAuth(['provider']), requireOwnProvider, upl
         [req.params.id, docType, fileUrl]
       );
 
+      // A new upload means the provider is actively correcting KYC. Clear any
+      // previous review note and put the account back into pending until the
+      // required-document check below decides whether it is complete.
+      await pool.query(
+        'UPDATE service_providers SET kyc_status = \'pending\', kyc_review_note = NULL WHERE id = $1',
+        [req.params.id]
+      );
+
       // Auto-approve only when every required document for this provider
       // type has been uploaded. Admin can always override the status later.
       const provider = await pool.query(
@@ -254,16 +273,60 @@ const REQUIRED_DOCS = {
 // Update KYC status (admin approve/reject)
 router.patch('/:id/kyc', requireAdmin, async (req, res, next) => {
   try {
-    const { status } = req.body; // 'approved' or 'rejected'
+    const providerId = parseInt(req.params.id, 10);
+    const { status } = req.body;
+    const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
+
+    if (!Number.isInteger(providerId)) {
+      return res.status(400).json({ error: 'Invalid provider ID' });
+    }
     if (!['approved', 'rejected', 'pending'].includes(status)) {
       return res.status(400).json({ error: 'status must be approved, rejected, or pending' });
     }
+    if (reason.length > 500) {
+      return res.status(400).json({ error: 'Review reason must be 500 characters or less' });
+    }
+
+    const provider = await pool.query(
+      'SELECT id, generated_id, name, phone, type, kyc_status FROM service_providers WHERE id = $1',
+      [providerId]
+    );
+    if (provider.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
+
+    let reviewNote = reason || null;
+
+    if (status === 'approved') {
+      const required = REQUIRED_DOCS[provider.rows[0].type] || [];
+      const docs = await pool.query(
+        'SELECT DISTINCT doc_type FROM provider_documents WHERE provider_id = $1',
+        [providerId]
+      );
+      const uploaded = new Set(docs.rows.map((d) => d.doc_type));
+      const missing = required.filter((doc) => !uploaded.has(doc));
+
+      if (missing.length > 0) {
+        reviewNote = `Approval blocked. Missing required documents: ${missing.map((doc) => DOC_LABELS[doc] || doc).join(', ')}. Upload the missing documents and submit for approval again.`;
+        await pool.query(
+          'UPDATE service_providers SET kyc_status = \'pending\', kyc_review_note = $1 WHERE id = $2',
+          [reviewNote, providerId]
+        );
+        return res.status(422).json({
+          error: reviewNote,
+          code: 'KYC_DOCUMENTS_INCOMPLETE',
+          missing_documents: missing,
+          kyc_status: 'pending',
+        });
+      }
+      reviewNote = null;
+    } else if (status === 'rejected' && !reviewNote) {
+      reviewNote = 'KYC rejected by admin. Please review your documents and upload corrected documents.';
+    }
 
     const result = await pool.query(
-      'UPDATE service_providers SET kyc_status = $1 WHERE id = $2 RETURNING id, generated_id, name, phone, type, kyc_status, avg_rating, is_available, created_at',
-      [status, req.params.id]
+      'UPDATE service_providers SET kyc_status = $1, kyc_review_note = $2 WHERE id = $3 RETURNING id, generated_id, name, phone, type, kyc_status, kyc_review_note, avg_rating, is_available, created_at',
+      [status, reviewNote, providerId]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
+
     res.json(result.rows[0]);
   } catch (err) {
     next(err);
@@ -433,7 +496,7 @@ router.patch('/:id/location', requireAuth(['provider']), async (req, res, next) 
 router.get('/me', requireAuth(['provider']), async (req, res, next) => {
   try {
     const result = await pool.query(
-      `SELECT sp.id, sp.generated_id, sp.name, sp.phone, sp.type, sp.kyc_status,
+      `SELECT sp.id, sp.generated_id, sp.name, sp.phone, sp.type, sp.kyc_status, sp.kyc_review_note,
         sp.bank_upi_id, sp.avg_rating, sp.is_available, sp.current_lat, sp.current_lng,
         sp.location_updated_at, sp.created_at,
         sub.plan_name,
