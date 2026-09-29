@@ -424,6 +424,12 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
       });
     }
 
+    // The winner is busy for this booking; all other broadcast recipients stay online.
+    await client.query(
+      'UPDATE service_providers SET is_available = false WHERE id = $1',
+      [req.user.id]
+    );
+
     await client.query('COMMIT');
     inTransaction = false;
     res.json(result.rows[0]);
