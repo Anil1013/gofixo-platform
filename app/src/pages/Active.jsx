@@ -110,7 +110,7 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
         </button>
       )}
 
-      {booking.status !== 'completed' && (
+      {booking.status === 'accepted' && booking.start_pin && (
         <div className="pin-card" onClick={copyPin}>
           <p className="pin-label">Share this PIN with your provider on arrival</p>
           <p className="pin-value">{booking.start_pin}</p>
