@@ -70,6 +70,17 @@ export default function App() {
     else setChecking(false);
   }, [user, role]);
 
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setUserState(null);
+      setRoleState(null);
+      setActiveBooking(null);
+      setTab('home');
+    };
+    window.addEventListener('gofixo:session-expired', handleSessionExpired);
+    return () => window.removeEventListener('gofixo:session-expired', handleSessionExpired);
+  }, []);
+
   function logout() {
     clearSession();
     setUserState(null);
