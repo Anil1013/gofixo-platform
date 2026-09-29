@@ -18,18 +18,71 @@ export async function reverseGeocode(lat, lng) {
 }
 
 export async function searchAddress(query) {
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=in&q=${encodeURIComponent(query)}`,
-      { headers: { 'Accept-Language': 'en' } }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!data.length) return null;
-    return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), label: data[0].display_name };
-  } catch {
-    return null;
+  const raw = String(query || '').trim();
+  if (!raw) return null;
+
+  // Nominatim is good for addresses, but exact spelling can be fragile.
+  // Try the user's text first, then a few safe India/Gurgaon variants.
+  const normalized = raw
+    .replace(/\\s*,\\s*/g, ', ')
+    .replace(/\\s+/g, ' ')
+    .trim();
+
+  const variants = [];
+  const add = (value) => {
+    const v = String(value || '').trim();
+    if (v && !variants.includes(v)) variants.push(v);
+  };
+
+  add(normalized);
+  add(normalized.replace(/\\bakshneem\\b/gi, 'Akashneem'));
+  add(normalized.replace(/\\bakashneem\\b/gi, 'Akshneem'));
+  add(normalized.replace(/\\bgurgaon\\b/gi, 'Gurugram'));
+  add(normalized.replace(/\\bgurugram\\b/gi, 'Gurgaon'));
+  add(normalized.replace(/\\bakshneem\\b/gi, 'Akashneem').replace(/\\bgurgaon\\b/gi, 'Gurugram'));
+  add(normalized.replace(/\\bakashneem\\b/gi, 'Akshneem').replace(/\\bgurgaon\\b/gi, 'Gurgaon'));
+
+  // If the user gives a Gurgaon-style short address, explicitly add India.
+  if (/\\b(gurgaon|gurugram)\\b/i.test(normalized) && !/\\bindia\\b/i.test(normalized)) {
+    add(normalized + ', India');
   }
+
+  for (let i = 0; i < variants.length; i += 1) {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&addressdetails=1&countrycodes=in&q=${encodeURIComponent(variants[i])}`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      if (!res.ok) continue;
+
+      const data = await res.json();
+      if (Array.isArray(data) && data.length) {
+        // Prefer a result that contains the requested road/place words.
+        const words = normalized.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
+        const best = [...data].sort((a, b) => {
+          const aText = String(a.display_name || '').toLowerCase();
+          const bText = String(b.display_name || '').toLowerCase();
+          const score = (text) => words.reduce((n, word) => n + (text.includes(word) ? 1 : 0), 0);
+          return score(bText) - score(aText);
+        })[0];
+
+        const lat = Number(best.lat);
+        const lng = Number(best.lon);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          return { lat, lng, label: best.display_name };
+        }
+      }
+    } catch {
+      // Try the next normalized variant.
+    }
+
+    // Nominatim's public service asks clients to keep request rates low.
+    if (i < variants.length - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+    }
+  }
+
+  return null;
 }
 
 export async function getRoute(from, to) {
