@@ -1,7 +1,7 @@
 {
   "name": "gofixo-backend",
   "version": "1.0.0",
-  "description": "Gofixo backend API — Ride + Pronto (home services) platform",
+  "description": "Gofixo backend API — Ride + Home Services platform",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
