@@ -53,7 +53,7 @@ router.post('/:role/login', async (req, res, next) => {
     }
 
     const table = role === 'customer' ? 'customers' : 'service_providers';
-    const result = await pool.query(`SELECT * FROM ${table} WHERE phone = $1`, [normalizedPhone]);
+    const result = await pool.query(`SELECT * FROM ${table} WHERE phone = $1 OR RIGHT(regexp_replace(phone, '[^0-9]', '', 'g'), 10) = $1 LIMIT 1`, [normalizedPhone]);
     if (result.rows.length === 0) {
       recordFailedLogin(req.ip, role, normalizedPhone);
       return res.status(401).json({ error: 'Invalid phone number or password' });
