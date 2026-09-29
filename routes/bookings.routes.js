@@ -601,8 +601,8 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
 
         await client.query(
           `UPDATE provider_subscriptions
-           SET total_earned_this_cycle = $1,
-               status = CASE WHEN $1 >= $2 THEN 'exhausted' ELSE 'active' END
+           SET total_earned_this_cycle = $1::numeric,
+               status = CASE WHEN $1::numeric >= $2::numeric THEN 'exhausted' ELSE 'active' END
            WHERE id = $3`,
           [newTotal, earningCap, sub.rows[0].id]
         );
