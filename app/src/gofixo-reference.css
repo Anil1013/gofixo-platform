@@ -121,3 +121,8 @@ body{background:#f3f6fa;color:var(--gf-ink)}
  .home-hero-visual{width:45%;height:150px}
  .provider-stat-card strong{font-size:16px!important}
 }
+
+.provider-home-screen>.availability-panel{display:none!important}
+.provider-benefits{position:relative;overflow:hidden}
+.provider-benefits::before{content:"🏆";position:absolute;right:16px;top:15px;font-size:26px;opacity:.9}
+.provider-benefits h2{color:var(--gf-navy)!important}
