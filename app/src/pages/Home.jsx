@@ -286,7 +286,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
         <div className="customer-header-actions">
           <button type="button" className="customer-notification" aria-label="Notifications">●<i /></button>
           <div className="customer-avatar-mini">
-            <ProfilePhoto role="customer" userId={currentUser.id} size="compact" />
+            <ProfilePhoto role="customer" userId={currentUser.id} size="compact" fallbackImage="https://images.unsplash.com/photo-1669555354650-02227bc6c811?auto=format&fit=crop&w=240&q=80" />
           </div>
         </div>
       </header>
