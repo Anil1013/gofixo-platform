@@ -17,6 +17,20 @@ export async function reverseGeocode(lat, lng) {
   }
 }
 
+export async function reverseGeocodeDetails(lat, lng) {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+      { headers: { 'Accept-Language': 'en-IN,en' } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return { label: data.display_name || '', address: data.address || {} };
+  } catch {
+    return null;
+  }
+}
+
 export async function searchAddressSuggestions(query, near = null) {
   const raw = String(query || '').trim();
   if (!raw) return [];
