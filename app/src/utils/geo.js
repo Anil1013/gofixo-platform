@@ -17,6 +17,47 @@ export async function reverseGeocode(lat, lng) {
   }
 }
 
+export async function searchAddressSuggestions(query, near = null) {
+  const raw = String(query || '').trim();
+  if (!raw) return [];
+  const url = new URL('https://nominatim.openstreetmap.org/search');
+  url.searchParams.set('format', 'jsonv2');
+  url.searchParams.set('limit', '6');
+  url.searchParams.set('addressdetails', '1');
+  url.searchParams.set('countrycodes', 'in');
+  url.searchParams.set('q', raw);
+  if (near && Number.isFinite(near.lat) && Number.isFinite(near.lng)) {
+    url.searchParams.set('viewbox', [near.lng - 0.35, near.lat + 0.35, near.lng + 0.35, near.lat - 0.35].join(','));
+  }
+  try {
+    const res = await fetch(url.toString(), { headers: { 'Accept-Language': 'en-IN,en' } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data.map((item) => {
+      const lat = Number(item.lat);
+      const lng = Number(item.lon);
+      return Number.isFinite(lat) && Number.isFinite(lng)
+        ? { lat, lng, label: item.display_name, address: item.address || {} } : null;
+    }).filter(Boolean) : [];
+  } catch { return []; }
+}
+
+export function getAddressParts(address = {}) {
+  return {
+    houseNumber: address.house_number || address.house || '',
+    street: address.road || address.pedestrian || address.footway || '',
+    area: address.neighbourhood || address.suburb || address.quarter || '',
+    locality: address.city_district || address.city || address.town || address.village || '',
+    pincode: address.postcode || '',
+    state: address.state || '',
+    landmark: address.amenity || address.building || address.shop || '',
+  };
+}
+
+export function formatStructuredAddress(parts = {}) {
+  return [parts.houseNumber, parts.street, parts.area, parts.locality, parts.pincode, parts.state].filter(Boolean).join(', ');
+}
+
 export async function searchAddress(query) {
   const raw = String(query || '').trim();
   if (!raw) return null;
