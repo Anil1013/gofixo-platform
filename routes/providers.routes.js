@@ -304,27 +304,9 @@ router.patch('/:id/kyc', requireAdmin, async (req, res, next) => {
     let reviewNote = reason || null;
 
     if (status === 'approved') {
-      const required = REQUIRED_DOCS[provider.rows[0].type] || [];
-      const docs = await pool.query(
-        'SELECT DISTINCT doc_type FROM provider_documents WHERE provider_id = $1',
-        [providerId]
-      );
-      const uploaded = new Set(docs.rows.map((d) => d.doc_type));
-      const missing = required.filter((doc) => !uploaded.has(doc));
-
-      if (missing.length > 0) {
-        reviewNote = `Approval blocked. Missing required documents: ${missing.map((doc) => DOC_LABELS[doc] || doc).join(', ')}. Upload the missing documents and submit for approval again.`;
-        await pool.query(
-          'UPDATE service_providers SET kyc_status = \'pending\', kyc_review_note = $1 WHERE id = $2',
-          [reviewNote, providerId]
-        );
-        return res.status(422).json({
-          error: reviewNote,
-          code: 'KYC_DOCUMENTS_INCOMPLETE',
-          missing_documents: missing,
-          kyc_status: 'pending',
-        });
-      }
+      // Admin approval is the final authority. Do not block it because a
+      // provider is missing a document; the admin has explicitly reviewed
+      // and approved this account.
       reviewNote = null;
     } else if (status === 'rejected' && !reviewNote) {
       reviewNote = 'KYC rejected by admin. Please review your documents and upload corrected documents.';
