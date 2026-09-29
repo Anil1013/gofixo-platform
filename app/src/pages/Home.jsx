@@ -171,10 +171,37 @@ export default function Home({ onBooked }) {
     }
     setLoading(true);
     try {
-      if (category === 'ride' && (!destCoords || !route)) {
+      let resolvedDestination = destCoords;
+      let resolvedRoute = route;
+
+      // If the user types a drop address and immediately taps Book,
+      // resolve it here as well so booking never depends on the blur event finishing first.
+      if (category === 'ride' && (!resolvedDestination || !resolvedRoute)) {
+        const query = destination.trim();
+        if (!query) {
+          setError('Please enter a drop location.');
+          return;
+        }
+        setFinding(true);
+        const found = await searchAddress(query);
+        setFinding(false);
+        if (!found) {
+          setError('Could not find that place — try adding the area or city name.');
+          return;
+        }
+        resolvedDestination = { lat: found.lat, lng: found.lng };
+        resolvedRoute = await getRoute(coords, found);
+        setDestination(found.label);
+        destinationResolvedRef.current = query;
+        setDestCoords(resolvedDestination);
+        setRoute(resolvedRoute);
+      }
+
+      if (category === 'ride' && (!resolvedDestination || !resolvedRoute)) {
         setError('Please enter a valid drop location so we can calculate the fare.');
         return;
       }
+
       const body = {
         service_type: category,
         provider_type: providerType,
@@ -182,10 +209,10 @@ export default function Home({ onBooked }) {
         drop_or_service_address: category === 'services' ? work : destination,
         pickup_lat: coords.lat,
         pickup_lng: coords.lng,
-        drop_lat: category === 'ride' ? destCoords.lat : undefined,
-        drop_lng: category === 'ride' ? destCoords.lng : undefined,
-        route_distance_km: category === 'ride' ? route.distanceKm : undefined,
-        estimated_fare: category === 'ride' ? calculateFare(providerType, route.distanceKm) : undefined,
+        drop_lat: category === 'ride' ? resolvedDestination.lat : undefined,
+        drop_lng: category === 'ride' ? resolvedDestination.lng : undefined,
+        route_distance_km: category === 'ride' ? resolvedRoute.distanceKm : undefined,
+        estimated_fare: category === 'ride' ? calculateFare(providerType, resolvedRoute.distanceKm) : undefined,
       };
       const booking = await apiPost('/bookings', body, true);
       onBooked(booking);
