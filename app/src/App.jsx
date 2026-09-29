@@ -127,7 +127,7 @@ export default function App() {
           />
         );
       }
-      if (tab === 'profile') return <Profile onLogout={logout} onOpenKyc={() => setTab('docs')} />;
+      if (tab === 'profile') return <Profile onLogout={logout} />;
       if (tab === 'services') return <Home initialCategory="services" onBooked={(b) => setActiveBooking(b)} />;
       if (tab === 'wallet') return <Wallet />;
       return <Home initialCategory="ride" onBooked={(b) => setActiveBooking(b)} />;
@@ -135,7 +135,7 @@ export default function App() {
     if (tab === 'home') return <ProviderHome onLogout={logout} />;
     if (tab === 'plans') return <ProviderPlans />;
     if (tab === 'docs') return <ProviderDocuments />;
-    if (tab === 'profile') return <Profile onLogout={logout} />;
+    if (tab === 'profile') return <Profile onLogout={logout} onOpenKyc={() => setTab('docs')} />;
     return <ProviderHistory />;
   }
 
