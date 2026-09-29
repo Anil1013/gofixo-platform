@@ -155,6 +155,7 @@ async function handleDeclineOrTimeout(bookingId, timedOut = false) {
       `SELECT 1
        FROM service_providers sp
        WHERE sp.id = $1
+         AND sp.kyc_status = 'approved'
          AND sp.current_lat IS NOT NULL
          AND sp.current_lng IS NOT NULL
          AND sp.location_updated_at > NOW() - INTERVAL '5 minutes'
