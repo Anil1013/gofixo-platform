@@ -5,7 +5,7 @@ const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
 const { findNearestProvider, handleDeclineOrTimeout } = require('../services/matching');
 
-const SERVICE_TYPES = new Set(['ride', 'pronto']);
+const SERVICE_TYPES = new Set(['ride', 'services']);
 const PROVIDER_TYPES = new Set(['bike', 'auto', 'car', 'general_worker', 'skilled_worker']);
 
 function generatePin() {
@@ -80,7 +80,7 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
   }
 });
 
-// Create a booking (ride or pronto) — customer must be logged in.
+// Create a booking (ride or home service) — customer must be logged in.
 // The request is offered to the NEAREST on-duty, KYC-approved provider of the requested type
 // (their app buzzes). If they decline or don't respond in time, it moves to the next nearest.
 router.post('/', requireAuth(['customer']), async (req, res, next) => {
