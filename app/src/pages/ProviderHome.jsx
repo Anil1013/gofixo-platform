@@ -46,6 +46,9 @@ export default function ProviderHome() {
   }, []);
 
   useEffect(() => {
+    if (activeBooking?.status === 'ongoing' && activeBooking.fare_amount) {
+      setFareAmount(String(Number(activeBooking.fare_amount)));
+    }
     if (!activeBooking || activeBooking.status !== 'accepted') {
       setPickupRoute(null);
       return;
@@ -298,7 +301,8 @@ export default function ProviderHome() {
           <p className="job-label">In progress</p>
           <p className="pickup-line">📍 {activeBooking.pickup_location}</p>
           <label>Fare amount (₹)</label>
-          <input value={fareAmount} onChange={(e) => setFareAmount(e.target.value)} placeholder="e.g. 120" inputMode="numeric" />
+          <input value={fareAmount} onChange={(e) => setFareAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Calculated fare" inputMode="decimal" />
+          {activeBooking.fare_amount && <p className="route-info">Customer estimate: ₹{Number(activeBooking.fare_amount).toLocaleString('en-IN')}</p>}
           <label>Rate the customer</label>
           <div className="stars">
             {[1, 2, 3, 4, 5].map((n) => (
