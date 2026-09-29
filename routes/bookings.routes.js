@@ -4,7 +4,7 @@ const pool = require('../config/db');
 const crypto = require('crypto');
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
-const { findNearestProvider, claimNearestProvider, handleDeclineOrTimeout } = require('../services/matching');
+const { findNearestProvider, findNearbyProviders, claimNearestProvider, handleDeclineOrTimeout } = require('../services/matching');
 const { sendProviderPush } = require('../services/push');
 
 const SERVICE_TYPES = new Set(['ride', 'services']);
@@ -72,7 +72,39 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
               CASE WHEN b.status IN ('accepted', 'ongoing', 'completed') THEN c.phone END AS customer_phone
        FROM bookings b
        LEFT JOIN customers c ON b.customer_id = c.id
-       WHERE b.provider_id = $1
+       LEFT JOIN service_providers target_sp ON target_sp.id = $1
+       WHERE (
+         b.provider_id = $1
+         OR (
+           b.status = 'requested'
+           AND b.provider_id IS NULL
+           AND b.provider_type = target_sp.type
+           AND target_sp.is_available = true
+           AND target_sp.kyc_status = 'approved'
+           AND target_sp.current_lat IS NOT NULL
+           AND target_sp.current_lng IS NOT NULL
+           AND target_sp.location_updated_at > NOW() - INTERVAL '5 minutes'
+           AND NOT (target_sp.id = ANY(COALESCE(b.declined_providers, '{}')))
+           AND NOT EXISTS (
+             SELECT 1 FROM bookings active_b
+             WHERE active_b.provider_id = target_sp.id
+               AND active_b.status IN ('accepted', 'ongoing')
+           )
+           AND EXISTS (
+             SELECT 1 FROM provider_subscriptions ps
+             WHERE ps.provider_id = target_sp.id
+               AND ps.status = 'active'
+               AND ps.expiry_date > NOW()
+           )
+           AND (6371 * acos(
+             LEAST(1, GREATEST(-1,
+               cos(radians(b.pickup_lat)) * cos(radians(target_sp.current_lat)) *
+               cos(radians(target_sp.current_lng) - radians(b.pickup_lng)) +
+               sin(radians(b.pickup_lat)) * sin(radians(target_sp.current_lat))
+             ))
+           )) <= 3
+         )
+       )
        ORDER BY b.created_at DESC`,
       [req.user.id]
     );
@@ -154,20 +186,37 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       return res.status(409).json({ error: 'You already have an active booking' });
     }
 
-    // Claim the provider inside the same transaction as the booking insert.
-    // This prevents another booking from selecting the same provider between
-    // "find nearest" and "mark unavailable".
-    const nearest = await claimNearestProvider(
-      client,
-      provider_type,
-      pickupLatitude,
-      pickupLongitude,
-      []
+    // Broadcast the request to every eligible provider within 3 km.
+    // Providers remain online; the first provider to accept atomically wins.
+    const nearby = await client.query(
+      `SELECT id
+       FROM service_providers sp
+       WHERE sp.type = $1
+         AND sp.is_available = true
+         AND sp.kyc_status = 'approved'
+         AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
+         AND sp.location_updated_at > NOW() - INTERVAL '5 minutes'
+         AND EXISTS (
+           SELECT 1 FROM provider_subscriptions ps
+           WHERE ps.provider_id = sp.id
+             AND ps.status = 'active'
+             AND ps.expiry_date > NOW()
+         )
+         AND (6371 * acos(
+           LEAST(1, GREATEST(-1,
+             cos(radians($2)) * cos(radians(sp.current_lat)) *
+             cos(radians(sp.current_lng) - radians($3)) +
+             sin(radians($2)) * sin(radians(sp.current_lat))
+           ))
+         )) <= 3
+       ORDER BY sp.id
+       FOR UPDATE SKIP LOCKED`,
+      [provider_type, pickupLatitude, pickupLongitude]
     );
-    if (!nearest) {
+    if (nearby.rows.length === 0) {
       await client.query('ROLLBACK');
       inTransaction = false;
-      return res.status(404).json({ error: 'No available provider found nearby. Try again shortly.' });
+      return res.status(404).json({ error: 'No available provider found within 3 km. Try again shortly.' });
     }
 
     const result = await client.query(
@@ -175,10 +224,10 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
          service_type, provider_type, customer_id, provider_id, pickup_location, drop_or_service_address,
          pickup_lat, pickup_lng, fare_amount, start_pin, status, offered_at, declined_providers
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'requested', NOW(), '{}')
+       VALUES ($1, $2, $3, NULL, $4, $5, $6, $7, $8, $9, 'requested', NOW(), '{}')
        RETURNING *`,
       [
-        service_type, provider_type, customer_id, nearest.id, pickup_location, drop_or_service_address,
+        service_type, provider_type, customer_id, pickup_location, drop_or_service_address,
         pickupLatitude, pickupLongitude, estimatedFare, generatePin()
       ]
     );
@@ -190,10 +239,11 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
     // provider's browser/OS even when the app tab is sleeping or backgrounded.
     // Foreground polling + buzzer remains as the fast path.
     pool.query(
-      `SELECT endpoint, p256dh, auth
-       FROM provider_push_subscriptions
-       WHERE provider_id = $1`,
-      [nearest.id]
+      `SELECT p.id AS provider_id, pps.endpoint, pps.p256dh, pps.auth
+       FROM service_providers p
+       JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
+       WHERE p.id = ANY($1::int[])`,
+      [nearby.rows.map((row) => row.id)]
     ).then(async (pushRows) => {
       for (const row of pushRows.rows) {
         const resultPush = await sendProviderPush(
@@ -209,11 +259,11 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
         if (resultPush && resultPush.expired) {
           await pool.query(
             'DELETE FROM provider_push_subscriptions WHERE provider_id = $1 AND endpoint = $2',
-            [nearest.id, row.endpoint]
+            [row.provider_id, row.endpoint]
           );
         }
       }
-    }).catch((err) => console.error('Provider push dispatch error:', err.message));
+    }).catch((err) => console.error('Provider broadcast push error:', err.message));
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
