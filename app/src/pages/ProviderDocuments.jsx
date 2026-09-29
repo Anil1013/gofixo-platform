@@ -127,7 +127,6 @@ export default function ProviderDocuments() {
             Profile photo is optional and can be replaced anytime without changing KYC approval.
           </p>
         )}
-        </div>
       </div>
 
       <label>Document type</label>
@@ -150,7 +149,7 @@ export default function ProviderDocuments() {
       {uploaded.length === 0 && <p style={{ color: 'var(--text-dim)' }}>No documents uploaded yet.</p>}
       {uploaded.map((d, i) => (
         <div key={d.id || i} className="history-item">
-          <p className="history-title">{docTypes.find((t) => t.value === d.doc_type)?.label || d.doc_type}</p>
+          <p className="history-title">{selectableDocs.find((t) => t.value === d.doc_type)?.label || d.doc_type}</p>
           {d.id && <button type="button" onClick={() => openDocument(d.id)} style={{ width: 'auto', margin: 0, padding: '6px 10px' }}>View</button>}
         </div>
       ))}
