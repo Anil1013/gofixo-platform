@@ -63,7 +63,7 @@ router.post('/:role/login', async (req, res, next) => {
 
     clearLoginFailures(req.ip, role, phone);
 
-    const token = jwt.sign({ id: user.id, role, phone }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign({ id: user.id, role }, process.env.JWT_SECRET, { expiresIn: '30d' });
     delete user.password_hash;
     res.json({ token, user });
   } catch (err) {
