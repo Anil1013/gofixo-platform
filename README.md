@@ -1,6 +1,6 @@
 # Gofixo Backend
 
-Ride (Bike/Auto/Cab) + Pronto (home services) platform — subscription-based provider model.
+Ride (Bike/Auto/Cab) + Home Services platform — subscription-based provider model.
 
 ## Setup
 
