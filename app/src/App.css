@@ -601,6 +601,19 @@ button.cta:disabled { opacity: 0.5; }
 
 .route-info { font-size: 13px; color: var(--text-dim); margin: 8px 0 0; }
 
+.fare-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--teal-bg);
+  color: #0D8F7F;
+  border-radius: 12px;
+  padding: 13px 15px;
+  margin-top: 10px;
+  font-size: 14px;
+}
+.fare-card strong { font-size: 20px; }
+
 /* ---- Buzzer / offer card ---- */
 .buzz-card {
   background: white;
