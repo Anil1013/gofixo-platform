@@ -76,6 +76,29 @@ async function ensureRuntimeSchema() {
       UNIQUE (provider_id, endpoint)
     )
   `);
+
+  // Keep additive booking/payment fields present on older production databases.
+  // These are safe no-op changes when the columns/table already exist.
+  await pool.query(`
+    ALTER TABLE bookings
+      ADD COLUMN IF NOT EXISTS payment_confirmed_by_provider BOOLEAN DEFAULT false,
+      ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS earnings_log (
+      id SERIAL PRIMARY KEY,
+      booking_id INT REFERENCES bookings(id),
+      provider_id INT REFERENCES service_providers(id),
+      amount NUMERIC(10,2) NOT NULL,
+      added_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS booking_ratings_one_per_side
+      ON booking_ratings (booking_id, rated_by)
+  `);
 }
 
 const PORT = process.env.PORT || 4000;
