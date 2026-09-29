@@ -20,6 +20,7 @@ export default function ProviderHome() {
   const [secondsLeft, setSecondsLeft] = useState(null);
 
   const buzzingRef = useRef(false);
+  const buzzedBookingRef = useRef(null);
 
   async function loadAll() {
     try {
@@ -43,16 +44,20 @@ export default function ProviderHome() {
     return () => clearInterval(interval);
   }, []);
 
-  // Buzzer + countdown while a request is waiting for this provider's response
+  // Polling continues for live status, but the same requested booking must
+  // never restart the buzzer every 4 seconds. Buzz only for a newly detected ride.
   useEffect(() => {
     const isRequested = activeBooking && activeBooking.status === 'requested';
-    if (isRequested && !buzzingRef.current) {
-      startBuzzer();
+    if (isRequested && buzzedBookingRef.current !== activeBooking.id) {
+      stopBuzzer();
+      startBuzzer(6000);
+      buzzedBookingRef.current = activeBooking.id;
       buzzingRef.current = true;
     }
-    if (!isRequested && buzzingRef.current) {
+    if (!isRequested) {
       stopBuzzer();
       buzzingRef.current = false;
+      if (!activeBooking) buzzedBookingRef.current = null;
     }
     if (isRequested && activeBooking.offered_at) {
       const tick = () => {
@@ -140,6 +145,7 @@ export default function ProviderHome() {
     setError('');
     try {
       await apiPost(`/bookings/${activeBooking.id}/accept`, {}, true);
+      stopBuzzer();
       loadAll();
     } catch (err) {
       setError(err.message);
@@ -154,6 +160,7 @@ export default function ProviderHome() {
     setError('');
     try {
       await apiPost(`/bookings/${activeBooking.id}/decline`, {}, true);
+      stopBuzzer();
       loadAll();
     } catch (err) {
       setError(err.message);
