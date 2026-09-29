@@ -209,7 +209,7 @@ router.post('/:id/cancel', requireAuth(['customer']), async (req, res, next) => 
 
     await client.query(
       `UPDATE bookings
-       SET status = 'cancelled', provider_id = NULL, offered_at = NULL
+       SET status = 'cancelled', offered_at = NULL
        WHERE id = $1`,
       [id]
     );
