@@ -161,13 +161,20 @@ router.patch('/:id/availability', requireAuth(['provider']), async (req, res, ne
         [req.params.id]
       );
       const sub = await pool.query(
-        `SELECT status FROM provider_subscriptions
-         WHERE provider_id = $1 AND status = 'active' AND expiry_date > NOW()
-         ORDER BY start_date DESC LIMIT 1`,
+        `SELECT status, current_lat, current_lng
+         FROM provider_subscriptions
+         JOIN service_providers ON service_providers.id = provider_subscriptions.provider_id
+         WHERE provider_subscriptions.provider_id = $1
+           AND provider_subscriptions.status = 'active'
+           AND provider_subscriptions.expiry_date > NOW()
+         ORDER BY provider_subscriptions.start_date DESC LIMIT 1`,
         [req.params.id]
       );
       if (sub.rows.length === 0) {
         return res.status(403).json({ error: 'No active subscription — renew your plan to go available' });
+      }
+      if (sub.rows[0].current_lat === null || sub.rows[0].current_lng === null) {
+        return res.status(400).json({ error: 'Share your current location before going available' });
       }
     }
 
