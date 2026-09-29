@@ -11,7 +11,8 @@ const RIDE_DOCS = [
 ];
 
 const WORKER_DOCS = [
-  { value: 'aadhar', label: 'Aadhar card' },
+  { value: 'aadhar_front', label: 'Aadhar card (front)' },
+  { value: 'aadhar_back', label: 'Aadhar card (back)' },
   { value: 'profile_photo', label: 'Profile photo' },
   { value: 'police_verification', label: 'Police verification' },
 ];
@@ -81,7 +82,7 @@ export default function ProviderDocuments() {
       </select>
 
       <label>Upload file</label>
-      <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files[0])} />
+      <input type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" onChange={(e) => setFile(e.target.files[0])} />
 
       {error && <p className="auth-error">{error}</p>}
 
@@ -92,9 +93,9 @@ export default function ProviderDocuments() {
       <h2 style={{ marginTop: 28 }}>Uploaded so far</h2>
       {uploaded.length === 0 && <p style={{ color: 'var(--text-dim)' }}>No documents uploaded yet.</p>}
       {uploaded.map((d, i) => (
-        <div key={i} className="history-item">
+        <div key={d.id || i} className="history-item">
           <p className="history-title">{docTypes.find((t) => t.value === d.doc_type)?.label || d.doc_type}</p>
-          <a href={`https://gofixo.mob13r.com${d.file_url}`} target="_blank" rel="noreferrer" style={{ color: 'var(--violet)', fontSize: 13 }}>View</a>
+          {d.id && <a href={`https://gofixo.mob13r.com/api/providers/${user.id}/documents/${d.id}`} target="_blank" rel="noreferrer" style={{ color: 'var(--violet)', fontSize: 13 }}>View</a>}
         </div>
       ))}
     </div>
