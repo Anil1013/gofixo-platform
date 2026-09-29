@@ -19,7 +19,6 @@ async function findNearestProvider(providerType, lat, lng, excludeIds = []) {
        AND kyc_status = 'approved'
        AND current_lat IS NOT NULL AND current_lng IS NOT NULL
        AND location_updated_at > NOW() - INTERVAL '5 minutes'
-       AND location_updated_at > NOW() - INTERVAL '5 minutes'
        AND EXISTS (
          SELECT 1 FROM provider_subscriptions ps
          WHERE ps.provider_id = service_providers.id
@@ -45,6 +44,7 @@ async function claimNearestProvider(client, providerType, lat, lng, excludeIds =
          AND is_available = true
          AND kyc_status = 'approved'
          AND current_lat IS NOT NULL AND current_lng IS NOT NULL
+         AND location_updated_at > NOW() - INTERVAL '5 minutes'
          AND EXISTS (
            SELECT 1 FROM provider_subscriptions ps
            WHERE ps.provider_id = service_providers.id
