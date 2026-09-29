@@ -10,6 +10,7 @@ CREATE TABLE service_providers (
   password_hash TEXT,
   password_changed_at TIMESTAMP DEFAULT NOW(),
   kyc_status VARCHAR(20) DEFAULT 'pending',        -- pending / approved / rejected
+  kyc_review_note TEXT,
   bank_upi_id VARCHAR(100),
   avg_rating NUMERIC(2,1) DEFAULT 5.0,
   is_available BOOLEAN DEFAULT false,
