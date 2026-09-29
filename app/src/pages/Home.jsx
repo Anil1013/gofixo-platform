@@ -20,6 +20,17 @@ const FARE_RULES = {
   car: { base: 60, perKm: 18, minimum: 70 },
 };
 
+const RIDE_VISUALS = {
+  bike: { image: '/illustrations/bike.svg', title: 'Bike', sub: 'Fast & affordable', tone: 'orange' },
+  auto: { image: '/illustrations/auto.svg', title: 'Auto', sub: 'Comfortable rides', tone: 'green' },
+  car: { image: '/illustrations/car.svg', title: 'Car', sub: 'Premium & safe', tone: 'blue' },
+};
+
+const SERVICE_VISUALS = {
+  general_worker: { image: '/illustrations/worker.svg', title: 'Home Help', sub: 'Cleaning & everyday help', tone: 'orange' },
+  skilled_worker: { image: '/illustrations/electrician.svg', title: 'Skilled Expert', sub: 'Electrician, plumber & more', tone: 'blue' },
+};
+
 const LOCATION_PROMPTED_KEY = 'gofixo_location_prompted';
 
 function calculateFare(type, distanceKm) {
@@ -245,94 +256,195 @@ export default function Home({ onBooked }) {
   if (category === 'ride' && destCoords) markers.push({ lat: destCoords.lat, lng: destCoords.lng, emoji: '🏁', color: '#14B8A6' });
 
   return (
-    <div className="screen">
-      <h2>Book a service</h2>
-
-      <div className="tab-switch">
-        <button className={category === 'ride' ? 'active' : ''} onClick={() => { setCategory('ride'); setProviderType('bike'); }}>
-          🏍 Ride
-        </button>
-        <button className={category === 'services' ? 'active' : ''} onClick={() => { setCategory('services'); setProviderType('general_worker'); }}>
-          🔧 Home Services
-        </button>
-      </div>
-
-      <div className="type-grid">
-        {types.map((t) => (
-          <button key={t.value} className={providerType === t.value ? 'type-chip active' : 'type-chip'} onClick={() => setProviderType(t.value)}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <button type="button" className="secondary" style={{ marginTop: 0 }} onClick={useMyLocation} disabled={locating}>
-        {locating ? 'Getting location...' : coords ? '📍 Current location detected — tap to refresh' : '📍 Use my current location'}
-      </button>
-
-      {coords && <MapView markers={markers} line={route ? route.line : null} height={190} />}
-
-      <label>{category === 'ride' ? 'Pickup address' : 'Service address'}</label>
-      <div className="find-row">
-        <input
-          value={location}
-          onChange={(e) => {
-            setLocation(e.target.value);
-            setCoords(null);
-            setRoute(null);
-          }}
-          onKeyDown={(e) => { if (e.key === 'Enter' && category === 'ride') findPickup(); }}
-          placeholder="Your current location"
-        />
-        {category === 'ride' && <button type="button" onClick={findPickup} disabled={pickupFinding}>{pickupFinding ? '...' : 'Find'}</button>}
-      </div>
-      <input value={pickupPincode} onChange={(e) => setPickupPincode(e.target.value)} placeholder="PIN code" />
-      <input value={pickupArea} onChange={(e) => setPickupArea(e.target.value)} placeholder="Locality / area" />
-      <input value={pickupStreet} onChange={(e) => setPickupStreet(e.target.value)} placeholder="Road / street" />
-      <input value={pickupHouse} onChange={(e) => setPickupHouse(e.target.value)} placeholder="House / building no." />
-
-      {category === 'ride' && (
-        <>
-          <label>Where to?</label>
-          <div className="find-row">
-            <input
-              value={destination}
-              onChange={(e) => {
-                setDestination(e.target.value);
-                destinationResolvedRef.current = '';
-                setDestCoords(null);
-                setRoute(null);
-              }}
-              onBlur={findDestination}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); findDestination(); } }}
-              placeholder="Enter drop location, e.g. Cyber Hub, Gurgaon"
-            />
-            <button type="button" onClick={findDestination} disabled={finding}>{finding ? '...' : 'Find'}</button>
+    <div className="screen home-screen">
+      <section className="home-hero">
+        <div className="home-hero-copy">
+          <div className="home-brand-row">
+            <span className="home-logo-mark">G</span>
+            <span>Gofixo</span>
           </div>
-          <input value={dropPincode} onChange={(e) => setDropPincode(e.target.value)} placeholder="PIN code" />
-          <input value={dropArea} onChange={(e) => setDropArea(e.target.value)} placeholder="Locality / area" />
-          <input value={dropStreet} onChange={(e) => setDropStreet(e.target.value)} placeholder="Road / street" />
-          <input value={dropHouse} onChange={(e) => setDropHouse(e.target.value)} placeholder="House / building no." />
-          {route && (
-            <>
-              <p className="route-info">🛣 {formatDistance(route.distanceKm)} · about {route.durationMin} min</p>
-              <div className="fare-card"><span>Estimated fare</span><strong>₹{estimatedFare}</strong></div>
-            </>
-          )}
-        </>
-      )}
+          <p className="home-eyebrow">RIDE · HOME SERVICES</p>
+          <h1>Move easy.<br /><span>Live easy.</span></h1>
+          <p className="home-hero-text">Book a ride or get a trusted professional at your doorstep — all in one simple app.</p>
+          <div className="home-trust-row">
+            <span>✓ Verified</span>
+            <span>✓ Fair pricing</span>
+            <span>✓ Local experts</span>
+          </div>
+        </div>
+        <div className="home-hero-visual">
+          <img
+            src={(category === 'ride' ? RIDE_VISUALS[providerType] : SERVICE_VISUALS[providerType])?.image || '/illustrations/worker.svg'}
+            alt=""
+          />
+          <div className="hero-float-card">
+            <strong>{category === 'ride' ? 'Nearby rides' : 'Trusted experts'}</strong>
+            <span>{category === 'ride' ? 'Ready when you are' : 'At your doorstep'}</span>
+          </div>
+        </div>
+      </section>
+
+      <div className="home-section-heading">
+        <div>
+          <span className="section-kicker">QUICK BOOK</span>
+          <h2>What do you need?</h2>
+        </div>
+        <span className="live-dot">● Live</span>
+      </div>
+
+      <div className="home-category-switch">
+        <button type="button" className={category === 'ride' ? 'active' : ''} onClick={() => { setCategory('ride'); setProviderType('bike'); }}>
+          <span>🚕</span> Rides
+        </button>
+        <button type="button" className={category === 'services' ? 'active' : ''} onClick={() => { setCategory('services'); setProviderType('general_worker'); }}>
+          <span>🏠</span> Home Services
+        </button>
+      </div>
+
+      <div className="visual-type-grid">
+        {types.map((t) => {
+          const visual = category === 'ride' ? RIDE_VISUALS[t.value] : SERVICE_VISUALS[t.value];
+          return (
+            <button
+              type="button"
+              key={t.value}
+              className={providerType === t.value ? `visual-type-card selected ${visual.tone}` : `visual-type-card ${visual.tone}`}
+              onClick={() => setProviderType(t.value)}
+            >
+              <img src={visual.image} alt="" />
+              <span className="visual-type-name">{visual.title}</span>
+              <span className="visual-type-sub">{visual.sub}</span>
+              {providerType === t.value && <span className="selected-check">✓</span>}
+            </button>
+          );
+        })}
+      </div>
 
       {category === 'services' && (
-        <>
-          <label>What do you need done?</label>
-          <input value={work} onChange={(e) => setWork(e.target.value)} placeholder="e.g. Deep cleaning, 2BHK" />
-        </>
+        <div className="popular-services">
+          <div className="mini-section-title">Popular services</div>
+          <div className="service-pills">
+            {[
+              ['🧹', 'Deep cleaning', 'general_worker'],
+              ['💡', 'Electrician', 'skilled_worker'],
+              ['🔧', 'Plumber', 'skilled_worker'],
+              ['🪚', 'Carpenter', 'skilled_worker'],
+            ].map(([icon, label, type]) => (
+              <button type="button" key={label} onClick={() => { setProviderType(type); setWork(label); }}>
+                <span>{icon}</span>{label}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
-      {error && <p className="auth-error">{error}</p>}
+      <section className="booking-panel">
+        <div className="booking-panel-head">
+          <div>
+            <span className="section-kicker">{category === 'ride' ? 'BOOK A RIDE' : 'BOOK HOME HELP'}</span>
+            <h2>{category === 'ride' ? 'Where are you going?' : 'Tell us what you need'}</h2>
+          </div>
+          <span className="secure-badge">🔒 Safe</span>
+        </div>
 
-      <button className="cta" onClick={book} disabled={loading}>
-        {loading ? 'Finding nearest provider...' : `Book ${category === 'ride' ? 'ride' : 'service'}`}
-      </button>
+        <button type="button" className="location-card" onClick={useMyLocation} disabled={locating}>
+          <span className="location-icon">⌖</span>
+          <span className="location-copy">
+            <strong>{locating ? 'Getting your location…' : coords ? 'Current location detected' : 'Use my current location'}</strong>
+            <small>{location || 'Tap to detect your pickup / service address'}</small>
+          </span>
+          <span className="location-arrow">›</span>
+        </button>
+
+        {coords && (
+          <div className="map-shell">
+            <MapView markers={markers} line={route ? route.line : null} height={180} />
+          </div>
+        )}
+
+        <label>{category === 'ride' ? 'Pickup address' : 'Service address'}</label>
+        <div className="find-row premium-find-row">
+          <input
+            value={location}
+            onChange={(e) => {
+              setLocation(e.target.value);
+              setCoords(null);
+              setRoute(null);
+            }}
+            onKeyDown={(e) => { if (e.key === 'Enter' && category === 'ride') findPickup(); }}
+            placeholder="Search area, street or building"
+          />
+          {category === 'ride' && <button type="button" onClick={findPickup} disabled={pickupFinding}>{pickupFinding ? '…' : 'Find'}</button>}
+        </div>
+        <div className="input-grid-2">
+          <input value={pickupPincode} onChange={(e) => setPickupPincode(e.target.value)} placeholder="PIN code" inputMode="numeric" />
+          <input value={pickupArea} onChange={(e) => setPickupArea(e.target.value)} placeholder="Locality / area" />
+          <input value={pickupStreet} onChange={(e) => setPickupStreet(e.target.value)} placeholder="Road / street" />
+          <input value={pickupHouse} onChange={(e) => setPickupHouse(e.target.value)} placeholder="House / building" />
+        </div>
+
+        {category === 'ride' && (
+          <div className="destination-block">
+            <label>Drop location</label>
+            <div className="find-row premium-find-row">
+              <input
+                value={destination}
+                onChange={(e) => {
+                  setDestination(e.target.value);
+                  destinationResolvedRef.current = '';
+                  setDestCoords(null);
+                  setRoute(null);
+                }}
+                onBlur={findDestination}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); findDestination(); } }}
+                placeholder="Where should we drop you?"
+              />
+              <button type="button" onClick={findDestination} disabled={finding}>{finding ? '…' : 'Find'}</button>
+            </div>
+            <div className="input-grid-2">
+              <input value={dropPincode} onChange={(e) => setDropPincode(e.target.value)} placeholder="PIN code" inputMode="numeric" />
+              <input value={dropArea} onChange={(e) => setDropArea(e.target.value)} placeholder="Locality / area" />
+              <input value={dropStreet} onChange={(e) => setDropStreet(e.target.value)} placeholder="Road / street" />
+              <input value={dropHouse} onChange={(e) => setDropHouse(e.target.value)} placeholder="House / building" />
+            </div>
+            {route && (
+              <div className="ride-summary">
+                <span>🛣 {formatDistance(route.distanceKm)} · ~{route.durationMin} min</span>
+                <strong>₹{estimatedFare}</strong>
+              </div>
+            )}
+          </div>
+        )}
+
+        {category === 'services' && (
+          <div className="service-request-field">
+            <label>What should we help with?</label>
+            <input value={work} onChange={(e) => setWork(e.target.value)} placeholder="e.g. Deep cleaning, fan repair, plumbing…" />
+          </div>
+        )}
+
+        {error && <p className="auth-error">{error}</p>}
+
+        <button className="cta home-cta" onClick={book} disabled={loading}>
+          <span>{loading ? 'Finding the nearest provider…' : `Book my ${category === 'ride' ? 'ride' : 'service'}`}</span>
+          {!loading && <span>→</span>}
+        </button>
+        <p className="booking-note">No hassle · Verified partners · Support when you need it</p>
+      </section>
+
+      <section className="why-gofixo">
+        <div className="home-section-heading compact">
+          <div>
+            <span className="section-kicker">WHY GOFIXO</span>
+            <h2>Made for everyday life</h2>
+          </div>
+        </div>
+        <div className="trust-cards">
+          <div><span>🛡️</span><strong>Verified</strong><small>Trusted partners</small></div>
+          <div><span>₹</span><strong>Fair</strong><small>Clear pricing</small></div>
+          <div><span>⚡</span><strong>Fast</strong><small>Quick matching</small></div>
+        </div>
+      </section>
     </div>
   );
 }
