@@ -365,9 +365,9 @@ export default function ProviderHome() {
       </section>
 
       <div className="provider-stat-grid">
-        <div className="provider-stat-card"><span>PLAN</span><strong>{profile.plan_name || '—'}</strong><small>Current plan</small></div>
-        <div className="provider-stat-card"><span>AVAILABLE</span><strong>{profile.pending_amount !== null ? `₹${Number(profile.pending_amount).toLocaleString('en-IN')}` : '—'}</strong><small>Cycle balance</small></div>
-        <div className="provider-stat-card"><span>RATING</span><strong>{profile.avg_rating} <em>★</em></strong><small>Customer rating</small></div>
+        <div className="provider-stat-card"><span>TODAY RIDES</span><strong>{Number(profile.today_rides || 0)}</strong><small>Completed today</small></div>
+        <div className="provider-stat-card"><span>EARNINGS</span><strong>₹{Number(profile.total_earned_this_cycle || 0).toLocaleString('en-IN')}</strong><small>This cycle</small></div>
+        <div className="provider-stat-card"><span>RATING</span><strong>{profile.avg_rating || '—'} <em>★</em></strong><small>Customer rating</small></div>
       </div>
 
       {error && <p className="auth-error">{error}</p>}
