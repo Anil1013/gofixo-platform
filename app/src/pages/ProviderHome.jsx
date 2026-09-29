@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiGet, apiPatch, apiPost } from '../api';
 import MapView from '../components/MapView';
-import { navigateToCoords, navigateToText } from '../utils/geo';
+import { getRoute } from '../utils/geo';
 import { startBuzzer, stopBuzzer } from '../utils/buzzer';
 
 const TYPE_ICON = { bike: '🏍', auto: '🛺', car: '🚗', general_worker: '🧹', skilled_worker: '🔧' };
@@ -18,6 +18,7 @@ export default function ProviderHome() {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [secondsLeft, setSecondsLeft] = useState(null);
+  const [pickupRoute, setPickupRoute] = useState(null);
 
   const buzzingRef = useRef(false);
   const buzzedBookingRef = useRef(null);
@@ -43,6 +44,24 @@ export default function ProviderHome() {
     const interval = setInterval(loadAll, 4000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!activeBooking || activeBooking.status !== 'accepted') {
+      setPickupRoute(null);
+      return;
+    }
+    const from = profile?.current_lat && profile?.current_lng
+      ? { lat: Number(profile.current_lat), lng: Number(profile.current_lng) }
+      : null;
+    const to = activeBooking.pickup_lat && activeBooking.pickup_lng
+      ? { lat: Number(activeBooking.pickup_lat), lng: Number(activeBooking.pickup_lng) }
+      : null;
+    if (!from || !to) {
+      setPickupRoute(null);
+      return;
+    }
+    getRoute(from, to).then(setPickupRoute).catch(() => setPickupRoute(null));
+  }, [activeBooking?.id, activeBooking?.status, profile?.current_lat, profile?.current_lng]);
 
   // Polling continues for live status, but the same requested booking must
   // never restart the buzzer every 4 seconds. Buzz only for a newly detected ride.
@@ -209,6 +228,12 @@ export default function ProviderHome() {
   const jobMarker = activeBooking
     ? [{ lat: Number(activeBooking.pickup_lat), lng: Number(activeBooking.pickup_lng), emoji: '📍', color: '#EC4899' }]
     : [];
+  const navigationMarkers = activeBooking && profile?.current_lat && profile?.current_lng
+    ? [
+        { lat: Number(profile.current_lat), lng: Number(profile.current_lng), emoji: '🏍', color: '#8B5CF6' },
+        { lat: Number(activeBooking.pickup_lat), lng: Number(activeBooking.pickup_lng), emoji: '📍', color: '#EC4899' },
+      ]
+    : jobMarker;
 
   return (
     <div className="screen">
@@ -257,13 +282,11 @@ export default function ProviderHome() {
       {activeBooking && activeBooking.status === 'accepted' && (
         <div className="job-card">
           <p className="job-label">On the way</p>
-          <MapView markers={jobMarker} height={150} />
+          <MapView markers={navigationMarkers} line={pickupRoute ? pickupRoute.line : null} height={190} />
           <p className="pickup-line">📍 {activeBooking.pickup_location}</p>
+          {pickupRoute && <p className="route-info">🧭 {pickupRoute.distanceKm.toFixed(1)} km · about {pickupRoute.durationMin} min</p>}
           <p className="provider-line">{activeBooking.customer_name || 'Customer'} · {activeBooking.customer_phone}</p>
-          <a className="secondary" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}
-             href={navigateToCoords(activeBooking.pickup_lat, activeBooking.pickup_lng)} target="_blank" rel="noreferrer">
-            🧭 Navigate
-          </a>
+          <p className="route-info">Navigation is running inside Gofixo. Keep this screen open while travelling.</p>
           <label>Enter customer's PIN to start</label>
           <input value={pin} onChange={(e) => setPin(e.target.value)} placeholder="4-digit PIN" inputMode="numeric" />
           <button className="cta" onClick={startBooking} disabled={busy || pin.length < 4}>Start</button>
