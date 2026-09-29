@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { apiPost } from '../api';
+import { apiPost, getUser } from '../api';
+import ProfilePhoto from '../components/ProfilePhoto';
 import MapView from '../components/MapView';
 import { reverseGeocodeDetails, reverseGeocode, searchAddress, getRoute, formatDistance } from '../utils/geo';
 
@@ -50,8 +51,9 @@ function calculateFare(type, distanceKm) {
   return Math.max(rule.minimum, Math.round(rule.base + distanceKm * rule.perKm));
 }
 
-export default function Home({ onBooked }) {
-  const [category, setCategory] = useState('ride'); // ride | services
+export default function Home({ onBooked, initialCategory = 'ride' }) {
+  const [category, setCategory] = useState(initialCategory); // ride | services
+  const [showBooking, setShowBooking] = useState(false);
   const [providerType, setProviderType] = useState('bike');
   const [location, setLocation] = useState('');
   const [work, setWork] = useState('');
@@ -72,6 +74,10 @@ export default function Home({ onBooked }) {
   const [finding, setFinding] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setCategory(initialCategory);
+  }, [initialCategory]);
   const locationRequestRef = useRef(false);
   const destinationResolvedRef = useRef('');
 
@@ -263,30 +269,44 @@ export default function Home({ onBooked }) {
 
   const types = category === 'ride' ? RIDE_TYPES : HOME_SERVICE_TYPES;
   const estimatedFare = category === 'ride' && route ? calculateFare(providerType, route.distanceKm) : null;
+  const currentUser = getUser() || {};
+  const previewServices = HOME_SERVICE_CARDS.slice(0, 4);
 
   const markers = [];
   if (coords) markers.push({ lat: coords.lat, lng: coords.lng, emoji: '📍', color: '#EC4899' });
   if (category === 'ride' && destCoords) markers.push({ lat: destCoords.lat, lng: destCoords.lng, emoji: '🏁', color: '#14B8A6' });
 
   return (
-    <div className="screen home-screen">
+    <div className="screen home-screen customer-reference-screen">
       <header className="customer-app-header">
-        <div className="customer-logo"><span className="customer-logo-pin" /><strong>Gofi<span>xo</span></strong></div>
-        <div className="customer-header-actions"><span className="notification-dot">●</span><span className="customer-avatar-mini">👤</span></div>
+        <div className="customer-logo">
+          <span className="customer-logo-pin" />
+          <div><strong>Gofi<span>xo</span></strong><small>Ride · Delivery · Home Services</small></div>
+        </div>
+        <div className="customer-header-actions">
+          <button type="button" className="customer-notification" aria-label="Notifications">●<i /></button>
+          <div className="customer-avatar-mini">
+            <ProfilePhoto role="customer" userId={currentUser.id} size="compact" />
+          </div>
+        </div>
       </header>
 
       <section className="customer-reference-hero">
-        <div>
-          <span className="customer-hero-kicker">RIDE · DELIVERY · HOME SERVICES</span>
-          <h1>Your City<br /><span>Your Services</span></h1>
+        <div className="customer-hero-copy">
+          <h1>Your City</h1>
+          <h1 className="orange">Your Services</h1>
           <p>Rides, Home Services<br />and more — All in One App</p>
         </div>
         <div className="reference-vehicle-strip">
           {RIDE_TYPES.map((t) => {
             const visual = RIDE_VISUALS[t.value];
             return (
-              <button type="button" key={t.value} onClick={() => { setCategory('ride'); setProviderType(t.value); }}>
-                <img src={visual.image} alt="" />
+              <button type="button" key={t.value} onClick={() => {
+                setCategory('ride');
+                setProviderType(t.value);
+                setShowBooking(true);
+              }}>
+                <img src={visual.image} alt={visual.title} />
                 <b>{visual.title}</b>
               </button>
             );
@@ -294,193 +314,173 @@ export default function Home({ onBooked }) {
         </div>
       </section>
 
-      <button type="button" className="reference-location-search" onClick={useMyLocation}>
-        <span>⌖</span><strong>{location || 'Where are you going?'}</strong><i>◎</i>
+      <button type="button" className="reference-location-search" onClick={() => {
+        setShowBooking(true);
+        useMyLocation();
+      }}>
+        <span className="location-pin-mark">⌖</span>
+        <strong>{location || 'Where are you going?'}</strong>
+        <i>◎</i>
       </button>
-      <section className="home-hero">
-        <div className="home-hero-copy">
-          <div className="home-brand-row">
-            <span className="home-logo-mark">G</span>
-            <span>Gofixo</span>
-          </div>
-          <p className="home-eyebrow">YOUR CITY · YOUR SERVICES</p>
-          <h1>Your City<br /><span>Your Services</span></h1>
-          <p className="home-hero-text">Rides, home services and more — all in one simple app.</p>
-          <div className="home-trust-row">
-            <span>✓ Verified</span>
-            <span>✓ Fair pricing</span>
-            <span>✓ Local experts</span>
-          </div>
+
+      <section className="reference-home-section">
+        <div className="reference-section-title">
+          <h2>Book a Ride</h2>
+          <button type="button" onClick={() => { setCategory('ride'); setShowBooking(true); }}>See all →</button>
         </div>
-        <div className="home-hero-visual">
-          <img
-            src={(category === 'ride' ? RIDE_VISUALS[providerType] : SERVICE_VISUALS[providerType])?.image || '/illustrations/worker.svg'}
-            alt=""
-          />
-          <div className="hero-float-card">
-            <strong>{category === 'ride' ? 'Nearby rides' : 'Trusted experts'}</strong>
-            <span>{category === 'ride' ? 'Ready when you are' : 'At your doorstep'}</span>
-          </div>
+        <div className="reference-ride-cards">
+          {RIDE_TYPES.map((t) => {
+            const visual = RIDE_VISUALS[t.value];
+            return (
+              <button type="button" key={t.value} className="reference-ride-tile" onClick={() => {
+                setCategory('ride');
+                setProviderType(t.value);
+                setShowBooking(true);
+              }}>
+                <div><img src={visual.image} alt="" /></div>
+                <strong>{visual.title}</strong>
+                <small>{visual.sub}</small>
+              </button>
+            );
+          })}
         </div>
       </section>
 
-      <div className="home-section-heading">
-        <div>
-          <span className="section-kicker">{category === 'ride' ? 'GOFIXO RIDES' : 'GOFIXO SERVICES'}</span>
-          <h2>{category === 'ride' ? 'Book a Ride' : 'Home Services'}</h2>
+      <section className="reference-home-section services-reference-section">
+        <div className="reference-section-title">
+          <h2>Home Services</h2>
+          <button type="button" onClick={() => { setCategory('services'); setShowBooking(true); }}>See all →</button>
         </div>
-        <span className="live-dot">● Available</span>
-      </div>
-
-      <div className="home-category-switch">
-        <button type="button" className={category === 'ride' ? 'active' : ''} onClick={() => { setCategory('ride'); setProviderType('bike'); }}>
-          <span>🚕</span> Rides
-        </button>
-        <button type="button" className={category === 'services' ? 'active' : ''} onClick={() => { setCategory('services'); setProviderType('general_worker'); }}>
-          <span>🏠</span> Services
-        </button>
-      </div>
-
-      <div className="visual-type-grid">
-        {types.map((t) => {
-          const visual = category === 'ride' ? RIDE_VISUALS[t.value] : SERVICE_VISUALS[t.value];
-          return (
-            <button
-              type="button"
-              key={t.value}
-              className={providerType === t.value ? `visual-type-card selected ${visual.tone}` : `visual-type-card ${visual.tone}`}
-              onClick={() => setProviderType(t.value)}
-            >
-              <img src={visual.image} alt="" />
-              <span className="visual-type-name">{visual.title}</span>
-              <span className="visual-type-sub">{visual.sub}</span>
-              {providerType === t.value && <span className="selected-check">✓</span>}
+        <div className="reference-service-cards">
+          {previewServices.map((item) => (
+            <button type="button" key={item.label} onClick={() => {
+              setCategory('services');
+              setProviderType(item.type);
+              setWork(item.label);
+              setShowBooking(true);
+            }}>
+              <img src={item.image} alt="" loading="lazy" />
+              <strong>{item.label}</strong>
             </button>
-          );
-        })}
-      </div>
-
-      {category === 'services' && (
-        <div className="popular-services">
-          <div className="mini-section-title">Popular services</div>
-          <div className="service-pills">
-            {HOME_SERVICE_CARDS.map((item) => (
-              <button type="button" key={item.label} onClick={() => { setProviderType(item.type); setWork(item.label); }}>
-                <img src={item.image} alt="" loading="lazy" />
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
+      </section>
+
+      <section className="trusted-professionals-banner">
+        <div>
+          <span>GOFIXO HOME SERVICES</span>
+          <h2>Trusted Professionals<br />for Your Home</h2>
+          <p><b>✓</b> Verified &nbsp; <b>✓</b> Affordable &nbsp; <b>✓</b> On-Time</p>
+          <button type="button" onClick={() => { setCategory('services'); setShowBooking(true); }}>Book Now →</button>
+        </div>
+        <img src="https://images.unsplash.com/photo-1756736668332-e921516c1305?auto=format&fit=crop&w=700&q=82" alt="" />
+      </section>
+
+      {showBooking && (
+        <section className="reference-booking-panel">
+          <div className="reference-booking-head">
+            <div>
+              <span>{category === 'ride' ? 'BOOK A RIDE' : 'BOOK HOME SERVICE'}</span>
+              <h2>{category === 'ride' ? 'Where are you going?' : 'Tell us what you need'}</h2>
+            </div>
+            <button type="button" onClick={() => setShowBooking(false)} aria-label="Close booking">×</button>
+          </div>
+
+          <button type="button" className="location-card reference-location-card" onClick={useMyLocation} disabled={locating}>
+            <span className="location-icon">⌖</span>
+            <span className="location-copy">
+              <strong>{locating ? 'Getting your location…' : coords ? 'Current location detected' : 'Use my current location'}</strong>
+              <small>{location || 'Tap to detect your pickup / service address'}</small>
+            </span>
+            <span className="location-arrow">›</span>
+          </button>
+
+          {coords && (
+            <div className="map-shell">
+              <MapView markers={markers} line={route ? route.line : null} height={180} />
+            </div>
+          )}
+
+          <label>{category === 'ride' ? 'Pickup address' : 'Service address'}</label>
+          <div className="find-row premium-find-row">
+            <input
+              value={location}
+              onChange={(e) => {
+                setLocation(e.target.value);
+                setCoords(null);
+                setRoute(null);
+              }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && category === 'ride') findPickup(); }}
+              placeholder="Search area, street or building"
+            />
+            {category === 'ride' && <button type="button" onClick={findPickup} disabled={pickupFinding}>{pickupFinding ? '…' : 'Find'}</button>}
+          </div>
+          <div className="input-grid-2">
+            <input value={pickupPincode} onChange={(e) => setPickupPincode(e.target.value)} placeholder="PIN code" inputMode="numeric" />
+            <input value={pickupArea} onChange={(e) => setPickupArea(e.target.value)} placeholder="Locality / area" />
+            <input value={pickupStreet} onChange={(e) => setPickupStreet(e.target.value)} placeholder="Road / street" />
+            <input value={pickupHouse} onChange={(e) => setPickupHouse(e.target.value)} placeholder="House / building" />
+          </div>
+
+          {category === 'ride' && (
+            <div className="destination-block">
+              <label>Drop location</label>
+              <div className="find-row premium-find-row">
+                <input
+                  value={destination}
+                  onChange={(e) => {
+                    setDestination(e.target.value);
+                    destinationResolvedRef.current = '';
+                    setDestCoords(null);
+                    setRoute(null);
+                  }}
+                  onBlur={findDestination}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); findDestination(); } }}
+                  placeholder="Where should we drop you?"
+                />
+                <button type="button" onClick={findDestination} disabled={finding}>{finding ? '…' : 'Find'}</button>
+              </div>
+              <div className="input-grid-2">
+                <input value={dropPincode} onChange={(e) => setDropPincode(e.target.value)} placeholder="PIN code" inputMode="numeric" />
+                <input value={dropArea} onChange={(e) => setDropArea(e.target.value)} placeholder="Locality / area" />
+                <input value={dropStreet} onChange={(e) => setDropStreet(e.target.value)} placeholder="Road / street" />
+                <input value={dropHouse} onChange={(e) => setDropHouse(e.target.value)} placeholder="House / building" />
+              </div>
+              {route && (
+                <div className="ride-summary">
+                  <span>🛣 {formatDistance(route.distanceKm)} · ~{route.durationMin} min</span>
+                  <strong>₹{estimatedFare}</strong>
+                </div>
+              )}
+            </div>
+          )}
+
+          {category === 'services' && (
+            <div className="service-request-field">
+              <label>What should we help with?</label>
+              <input value={work} onChange={(e) => setWork(e.target.value)} placeholder="e.g. Deep cleaning, fan repair, plumbing…" />
+            </div>
+          )}
+
+          {error && <p className="auth-error">{error}</p>}
+
+          <button className="cta home-cta reference-book-cta" onClick={book} disabled={loading}>
+            <span>{loading ? 'Finding the nearest provider…' : category === 'ride' ? 'Book a Ride' : 'Book Home Service'}</span>
+            {!loading && <span>→</span>}
+          </button>
+          <p className="booking-note">No hassle · Verified partners · Support when you need it</p>
+        </section>
       )}
 
-      <section className="booking-panel">
-        <div className="booking-panel-head">
-          <div>
-            <span className="section-kicker">{category === 'ride' ? 'BOOK A RIDE' : 'BOOK HOME HELP'}</span>
-            <h2>{category === 'ride' ? 'Where are you going?' : 'Tell us what you need'}</h2>
-          </div>
-          <span className="secure-badge">🔒 Safe</span>
-        </div>
-
-        <button type="button" className="location-card" onClick={useMyLocation} disabled={locating}>
-          <span className="location-icon">⌖</span>
-          <span className="location-copy">
-            <strong>{locating ? 'Getting your location…' : coords ? 'Current location detected' : 'Use my current location'}</strong>
-            <small>{location || 'Tap to detect your pickup / service address'}</small>
-          </span>
-          <span className="location-arrow">›</span>
-        </button>
-
-        {coords && (
-          <div className="map-shell">
-            <MapView markers={markers} line={route ? route.line : null} height={180} />
-          </div>
-        )}
-
-        <label>{category === 'ride' ? 'Pickup address' : 'Service address'}</label>
-        <div className="find-row premium-find-row">
-          <input
-            value={location}
-            onChange={(e) => {
-              setLocation(e.target.value);
-              setCoords(null);
-              setRoute(null);
-            }}
-            onKeyDown={(e) => { if (e.key === 'Enter' && category === 'ride') findPickup(); }}
-            placeholder="Search area, street or building"
-          />
-          {category === 'ride' && <button type="button" onClick={findPickup} disabled={pickupFinding}>{pickupFinding ? '…' : 'Find'}</button>}
-        </div>
-        <div className="input-grid-2">
-          <input value={pickupPincode} onChange={(e) => setPickupPincode(e.target.value)} placeholder="PIN code" inputMode="numeric" />
-          <input value={pickupArea} onChange={(e) => setPickupArea(e.target.value)} placeholder="Locality / area" />
-          <input value={pickupStreet} onChange={(e) => setPickupStreet(e.target.value)} placeholder="Road / street" />
-          <input value={pickupHouse} onChange={(e) => setPickupHouse(e.target.value)} placeholder="House / building" />
-        </div>
-
-        {category === 'ride' && (
-          <div className="destination-block">
-            <label>Drop location</label>
-            <div className="find-row premium-find-row">
-              <input
-                value={destination}
-                onChange={(e) => {
-                  setDestination(e.target.value);
-                  destinationResolvedRef.current = '';
-                  setDestCoords(null);
-                  setRoute(null);
-                }}
-                onBlur={findDestination}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); findDestination(); } }}
-                placeholder="Where should we drop you?"
-              />
-              <button type="button" onClick={findDestination} disabled={finding}>{finding ? '…' : 'Find'}</button>
-            </div>
-            <div className="input-grid-2">
-              <input value={dropPincode} onChange={(e) => setDropPincode(e.target.value)} placeholder="PIN code" inputMode="numeric" />
-              <input value={dropArea} onChange={(e) => setDropArea(e.target.value)} placeholder="Locality / area" />
-              <input value={dropStreet} onChange={(e) => setDropStreet(e.target.value)} placeholder="Road / street" />
-              <input value={dropHouse} onChange={(e) => setDropHouse(e.target.value)} placeholder="House / building" />
-            </div>
-            {route && (
-              <div className="ride-summary">
-                <span>🛣 {formatDistance(route.distanceKm)} · ~{route.durationMin} min</span>
-                <strong>₹{estimatedFare}</strong>
-              </div>
-            )}
-          </div>
-        )}
-
-        {category === 'services' && (
-          <div className="service-request-field">
-            <label>What should we help with?</label>
-            <input value={work} onChange={(e) => setWork(e.target.value)} placeholder="e.g. Deep cleaning, fan repair, plumbing…" />
-          </div>
-        )}
-
-        {error && <p className="auth-error">{error}</p>}
-
-        <button className="cta home-cta" onClick={book} disabled={loading}>
-          <span>{loading ? 'Finding the nearest provider…' : `Book my ${category === 'ride' ? 'ride' : 'service'}`}</span>
-          {!loading && <span>→</span>}
-        </button>
-        <p className="booking-note">No hassle · Verified partners · Support when you need it</p>
-      </section>
-
-      <section className="why-gofixo">
-        <div className="home-section-heading compact">
-          <div>
-            <span className="section-kicker">WHY GOFIXO</span>
-            <h2>Made for everyday life</h2>
-          </div>
-        </div>
-        <div className="trust-cards">
-          <div><span>🛡️</span><strong>Verified</strong><small>Trusted partners</small></div>
-          <div><span>₹</span><strong>Fair</strong><small>Clear pricing</small></div>
+      <section className="reference-why">
+        <div className="reference-section-title"><h2>Why Gofixo?</h2></div>
+        <div className="reference-why-grid">
+          <div><span>✓</span><strong>Verified</strong><small>Trusted partners</small></div>
+          <div><span>₹</span><strong>Fair pricing</strong><small>Clear estimates</small></div>
           <div><span>⚡</span><strong>Fast</strong><small>Quick matching</small></div>
         </div>
       </section>
     </div>
   );
+
 }
