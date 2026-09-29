@@ -7,8 +7,10 @@ on:
       - 'server.js'
       - 'config/**'
       - 'routes/**'
+      - 'middleware/**'
+      - 'services/**'
+      - 'utils/**'
       - 'package.json'
-      - 'package-lock.json'
 
 jobs:
   deploy:
