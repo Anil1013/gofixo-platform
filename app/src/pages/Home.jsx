@@ -291,6 +291,7 @@ export default function Home({ onBooked }) {
             />
             <button type="button" onClick={findDestination} disabled={finding}>{finding ? '...' : 'Find'}</button>
           </div>
+          <input value={dropPincode} onChange={(e) => setDropPincode(e.target.value)} placeholder="PIN code" />
           {route && (
             <>
               <p className="route-info">🛣 {formatDistance(route.distanceKm)} · about {route.durationMin} min</p>
