@@ -1,8 +1,9 @@
-// Loud repeating buzzer + vibration for incoming ride requests (no audio files needed — generated with Web Audio).
+// Short incoming-request alert generated with Web Audio. The UI decides when a new booking arrived.
 // Browsers only allow sound after the user has tapped something on the page, so unlockAudio() is called on the
 // first tap/click anywhere (see main.jsx) and again when the provider taps "Go available".
 let audioCtx = null;
 let buzzTimer = null;
+let stopTimer = null;
 
 export function unlockAudio() {
   try {
@@ -39,17 +40,22 @@ function cycle() {
   if (navigator.vibrate) navigator.vibrate([300, 120, 300, 120, 300]);
 }
 
-export function startBuzzer() {
+export function startBuzzer(durationMs = 6000) {
   if (buzzTimer) return;
   unlockAudio();
   cycle();
   buzzTimer = setInterval(cycle, 1800);
+  stopTimer = window.setTimeout(() => stopBuzzer(), durationMs);
 }
 
 export function stopBuzzer() {
   if (buzzTimer) {
     clearInterval(buzzTimer);
     buzzTimer = null;
+  }
+  if (stopTimer) {
+    clearTimeout(stopTimer);
+    stopTimer = null;
   }
   if (navigator.vibrate) navigator.vibrate(0);
 }
