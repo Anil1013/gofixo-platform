@@ -114,33 +114,24 @@ ensureRuntimeSchema()
 // Ride-request timeout: if the provider who is being buzzed doesn't respond within OFFER_TIMEOUT_SECONDS,
 // they're put offline and the request moves to the next nearest on-duty provider.
 // (Single PM2 process, so a simple interval is enough. Claims in handleDeclineOrTimeout are atomic anyway.)
-const OFFER_TIMEOUT_SECONDS = 30;
+const OFFER_TIMEOUT_SECONDS = 60;
 const STALE_LOCATION_SECONDS = 5 * 60;
 setInterval(async () => {
   try {
+    // Broadcast requests stay visible/buzzing for 60 seconds. Do not take
+    // any provider offline on timeout; they remain online for future requests.
     const expired = await pool.query(
-      `SELECT id FROM bookings
-       WHERE status = 'requested' AND offered_at IS NOT NULL
-         AND offered_at < NOW() - ($1 || ' seconds')::interval`,
+      `UPDATE bookings
+       SET status = 'no_provider', offered_at = NULL
+       WHERE status = 'requested'
+         AND provider_id IS NULL
+         AND offered_at IS NOT NULL
+         AND offered_at < NOW() - ($1 || ' seconds')::interval
+       RETURNING id`,
       [String(OFFER_TIMEOUT_SECONDS)]
     );
-    for (const row of expired.rows) {
-      // Coordinate timeout processing across multiple backend instances.
-      // The advisory lock is per booking, so unrelated expired offers can still progress concurrently.
-      const lock = await pool.query(
-        'SELECT pg_try_advisory_lock($1, $2) AS locked',
-        [2147483646, row.id]
-      );
-      if (!lock.rows[0].locked) continue;
-
-      try {
-        await handleDeclineOrTimeout(row.id, true);
-      } finally {
-        await pool.query(
-          'SELECT pg_advisory_unlock($1, $2)',
-          [2147483646, row.id]
-        );
-      }
+    if (expired.rowCount) {
+      console.log(`Closed ${expired.rowCount} expired broadcast booking(s)`);
     }
   } catch (err) {
     console.error('Offer timeout sweeper error:', err.message);
