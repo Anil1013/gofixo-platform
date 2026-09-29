@@ -14,6 +14,10 @@ const { handleDeclineOrTimeout } = require('./services/matching');
 
 const app = express();
 
+// AWS Elastic Beanstalk/reverse-proxy deployments can forward the real client IP.
+// Keep this opt-in so direct deployments do not blindly trust spoofed proxy headers.
+app.set('trust proxy', process.env.TRUST_PROXY === 'true' ? 1 : false);
+
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 const allowedOrigins = (process.env.FRONTEND_BASE_URL || '').split(',').map((s) => s.trim()).filter(Boolean);
 app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : '*' }));
@@ -49,6 +53,7 @@ app.listen(PORT, () => console.log(`Gofixo backend running on port ${PORT}`));
 // they're put offline and the request moves to the next nearest on-duty provider.
 // (Single PM2 process, so a simple interval is enough. Claims in handleDeclineOrTimeout are atomic anyway.)
 const OFFER_TIMEOUT_SECONDS = 30;
+const STALE_LOCATION_SECONDS = 5 * 60;
 setInterval(async () => {
   try {
     const expired = await pool.query(
@@ -79,3 +84,24 @@ setInterval(async () => {
     console.error('Offer timeout sweeper error:', err.message);
   }
 }, 5000);
+
+// Keep provider availability state consistent with the 5-minute matching freshness rule.
+setInterval(async () => {
+  try {
+    await pool.query(
+      `UPDATE service_providers sp
+       SET is_available = false
+       WHERE sp.is_available = true
+         AND (sp.location_updated_at IS NULL
+              OR sp.location_updated_at <= NOW() - ($1 || ' seconds')::interval)
+         AND NOT EXISTS (
+           SELECT 1 FROM bookings b
+           WHERE b.provider_id = sp.id
+             AND b.status IN ('accepted', 'ongoing')
+         )`,
+      [String(STALE_LOCATION_SECONDS)]
+    );
+  } catch (err) {
+    console.error('Stale provider sweeper error:', err.message);
+  }
+}, 60000);
