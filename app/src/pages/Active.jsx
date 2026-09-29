@@ -28,6 +28,18 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
     return () => clearInterval(interval);
   }, [booking.status]);
 
+  async function cancelBooking() {
+    setError('');
+    try {
+      await apiPost(`/bookings/${booking.id}/cancel`, {}, true);
+      onDismiss();
+      onDone();
+    } catch (err) {
+      setError(err.message);
+      onRefresh();
+    }
+  }
+
   async function submitRating() {
     setError('');
     try {
@@ -87,6 +99,16 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
           <p className="provider-line">Looking for the nearest provider...</p>
         )}
       </div>
+
+      {['requested', 'accepted'].includes(booking.status) && (
+        <button
+          className="secondary"
+          onClick={cancelBooking}
+          style={{ marginTop: 10 }}
+        >
+          Cancel booking
+        </button>
+      )}
 
       {booking.status !== 'completed' && (
         <div className="pin-card" onClick={copyPin}>
