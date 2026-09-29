@@ -16,6 +16,7 @@ const app = express();
 
 // AWS Elastic Beanstalk runs the Node process behind its reverse proxy.
 // Trust the single proxy hop so req.ip reflects the real client IP for rate limiting.
+app.set('trust proxy', 1);
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 const allowedOrigins = (process.env.FRONTEND_BASE_URL || '').split(',').map((s) => s.trim()).filter(Boolean);
