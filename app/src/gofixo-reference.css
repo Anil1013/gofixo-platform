@@ -1413,3 +1413,480 @@ button,input{font-family:inherit}
   .bottom-nav button{font-size:9px!important}
   .profile-card{gap:11px;padding:14px}
 }
+
+
+/* =========================================================
+   FINAL REFERENCE MATCH — CUSTOMER + PARTNER MOBILE UI
+   ========================================================= */
+.app-shell.role-customer,
+.app-shell.role-provider{
+  background:#f6f8fb!important;
+}
+.app-shell.role-customer .main,
+.app-shell.role-provider .main{
+  overflow-x:hidden;
+}
+.app-shell.role-customer .bottom-nav,
+.app-shell.role-provider .bottom-nav{
+  background:rgba(255,255,255,.98)!important;
+  border-top:1px solid #e8edf3!important;
+  box-shadow:0 -7px 22px rgba(16,33,63,.06)!important;
+  z-index:40!important;
+}
+.app-shell.role-customer .bottom-nav button{
+  color:#52627a!important;
+  font-size:9px!important;
+  font-weight:800!important;
+}
+.app-shell.role-customer .bottom-nav button.active{
+  color:#ff7a00!important;
+  background:#fff!important;
+}
+
+/* Customer header */
+.role-customer .customer-app-header{
+  margin:0!important;
+  height:61px!important;
+  padding:0 15px!important;
+  background:#fff!important;
+}
+.role-customer .customer-logo{
+  gap:8px!important;
+}
+.role-customer .customer-logo>div{
+  display:flex;
+  flex-direction:column;
+  line-height:1;
+}
+.role-customer .customer-logo strong{
+  font-size:24px!important;
+  line-height:1!important;
+}
+.role-customer .customer-logo small{
+  margin-top:3px;
+  font-family:Arial,sans-serif;
+  font-size:6px;
+  color:#53647b;
+  letter-spacing:.2px;
+}
+.role-customer .customer-logo-pin{
+  width:27px!important;
+  height:34px!important;
+}
+.role-customer .customer-header-actions{gap:11px!important}
+.role-customer .customer-notification{
+  position:relative;
+  width:27px;height:32px;
+  border:0;background:transparent;
+  color:#10213f;
+  font-size:0;
+}
+.role-customer .customer-notification:before{
+  content:'';
+  position:absolute;
+  left:8px;top:6px;
+  width:12px;height:15px;
+  border-radius:8px 8px 4px 4px;
+  background:#10213f;
+}
+.role-customer .customer-notification:after{
+  content:'';
+  position:absolute;
+  left:5px;top:19px;
+  width:18px;height:3px;
+  border-radius:4px;
+  background:#10213f;
+}
+.role-customer .customer-notification i{
+  position:absolute;
+  right:2px;top:2px;
+  width:7px;height:7px;border-radius:50%;
+  background:#ff4d55;
+  border:1px solid #fff;
+}
+.role-customer .customer-avatar-mini{
+  width:35px!important;height:35px!important;
+  padding:0!important;
+  background:#f2e9df!important;
+  overflow:hidden!important;
+  border-radius:50%!important;
+}
+.role-customer .customer-avatar-mini .profile-photo-editor{
+  width:35px!important;height:35px!important;
+}
+.role-customer .customer-avatar-mini .profile-photo-frame{
+  width:35px!important;height:35px!important;
+  border:0!important;box-shadow:none!important;border-radius:50%!important;
+}
+.role-customer .customer-avatar-mini .profile-photo-camera,
+.role-customer .customer-avatar-mini .profile-photo-change,
+.role-customer .customer-avatar-mini .profile-photo-error{display:none!important}
+
+/* Customer hero */
+.role-customer .customer-reference-hero{
+  min-height:254px!important;
+  margin:0!important;
+  padding:13px 15px 0!important;
+  background:
+    linear-gradient(180deg,rgba(237,249,255,.92) 0%,rgba(244,250,255,.78) 45%,rgba(255,255,255,.18) 100%),
+    url('https://images.unsplash.com/photo-1643809107104-5ba8dd0e73ce?auto=format&fit=crop&w=1200&q=80') center 43%/cover!important;
+}
+.role-customer .customer-reference-hero:before{
+  content:'';
+  position:absolute;
+  inset:auto 0 0;
+  height:105px;
+  background:linear-gradient(180deg,transparent,rgba(255,255,255,.9));
+  z-index:1;
+}
+.role-customer .customer-reference-hero:after{display:none!important}
+.role-customer .customer-hero-copy{
+  position:relative;z-index:4;
+}
+.role-customer .customer-reference-hero h1{
+  margin:0!important;
+  font-size:29px!important;
+  line-height:1.04!important;
+  letter-spacing:-.7px!important;
+}
+.role-customer .customer-reference-hero h1.orange{
+  color:#ff7a00!important;
+}
+.role-customer .customer-reference-hero p{
+  margin-top:5px!important;
+  font-size:9px!important;
+  color:#465a73!important;
+}
+.role-customer .reference-vehicle-strip{
+  bottom:0!important;
+  left:7px!important;right:7px!important;
+  gap:5px!important;
+  z-index:5!important;
+}
+.role-customer .reference-vehicle-strip button{
+  height:129px!important;
+  padding-bottom:10px!important;
+}
+.role-customer .reference-vehicle-strip img{
+  height:101px!important;
+  width:100%!important;
+  object-fit:cover!important;
+  border-radius:18px 18px 8px 8px!important;
+  filter:none!important;
+  mix-blend-mode:multiply;
+}
+.role-customer .reference-vehicle-strip b{
+  bottom:4px!important;
+  font-size:9px!important;
+  padding:4px 12px!important;
+}
+
+/* Location pill */
+.role-customer .reference-location-search{
+  height:51px!important;
+  margin:8px 0 11px!important;
+  border-radius:27px!important;
+  box-shadow:0 6px 18px rgba(16,33,63,.09)!important;
+}
+.role-customer .reference-location-search .location-pin-mark{
+  font-size:20px!important;
+}
+.role-customer .reference-location-search strong{
+  font-size:11px!important;
+}
+
+/* Exact reference cards */
+.role-customer .reference-home-section{
+  margin:0 0 12px!important;
+}
+.role-customer .reference-section-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin:0 2px 7px!important;
+}
+.role-customer .reference-section-title h2{
+  margin:0!important;
+  font-family:Lora,serif!important;
+  font-size:19px!important;
+  line-height:1!important;
+  color:#10213f!important;
+}
+.role-customer .reference-section-title button{
+  border:0;background:transparent;color:#ff7a00;
+  font-size:9px;font-weight:900;
+}
+.role-customer .reference-ride-cards{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:7px;
+}
+.role-customer .reference-ride-tile{
+  overflow:hidden;
+  padding:0 0 8px;
+  border:1px solid #e7ebf0;
+  border-radius:15px;
+  background:#fff;
+  box-shadow:0 4px 12px rgba(16,33,63,.06);
+  color:#10213f;
+}
+.role-customer .reference-ride-tile>div{
+  height:75px;
+  background:#f7eee4;
+  overflow:hidden;
+}
+.role-customer .reference-ride-tile:nth-child(2)>div{background:#edf8f1}
+.role-customer .reference-ride-tile:nth-child(3)>div{background:#edf4fb}
+.role-customer .reference-ride-tile img{
+  width:100%;height:100%;
+  object-fit:cover;
+  mix-blend-mode:multiply;
+}
+.role-customer .reference-ride-tile strong{
+  display:block;
+  margin-top:5px;
+  font-size:10px;
+}
+.role-customer .reference-ride-tile small{
+  display:block;
+  margin-top:2px;
+  font-size:7px;
+  color:#65748a;
+}
+
+/* Service photo row */
+.role-customer .services-reference-section{
+  margin-top:2px!important;
+}
+.role-customer .reference-service-cards{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:6px;
+}
+.role-customer .reference-service-cards button{
+  min-width:0;
+  border:0;
+  background:transparent;
+  padding:0;
+  color:#10213f;
+}
+.role-customer .reference-service-cards img{
+  width:100%;height:59px;
+  display:block;
+  object-fit:cover;
+  border-radius:11px;
+  box-shadow:0 3px 9px rgba(16,33,63,.1);
+}
+.role-customer .reference-service-cards strong{
+  display:block;
+  margin-top:4px;
+  font-size:7px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* Trusted banner */
+.role-customer .trusted-professionals-banner{
+  min-height:110px;
+  margin:2px 0 13px;
+  overflow:hidden;
+  display:flex;
+  position:relative;
+  border-radius:15px;
+  background:linear-gradient(105deg,#fff0cc,#fff9e9 63%,#e9f1df);
+  border:1px solid #f4dfb7;
+}
+.role-customer .trusted-professionals-banner>div{
+  position:relative;
+  z-index:2;
+  padding:11px 8px 9px 13px;
+  width:70%;
+}
+.role-customer .trusted-professionals-banner>div>span{
+  font-size:6px;color:#9b6d2c;font-weight:900;letter-spacing:.5px;
+}
+.role-customer .trusted-professionals-banner h2{
+  margin:3px 0 4px;
+  font-family:Lora,serif;
+  color:#10213f;
+  font-size:17px;
+  line-height:1.02;
+}
+.role-customer .trusted-professionals-banner p{
+  margin:0 0 7px;
+  font-size:6px;color:#6e644f;
+}
+.role-customer .trusted-professionals-banner p b{color:#ff7a00}
+.role-customer .trusted-professionals-banner button{
+  border:0;border-radius:18px;
+  background:#ff7a00;color:#fff;
+  padding:7px 11px;
+  font-size:7px;font-weight:900;
+  box-shadow:0 5px 12px rgba(255,122,0,.22);
+}
+.role-customer .trusted-professionals-banner img{
+  position:absolute;
+  right:-2px;bottom:0;
+  width:42%;height:100%;
+  object-fit:cover;
+  object-position:center;
+  mix-blend-mode:multiply;
+}
+
+/* Booking overlay/panel keeps every original function available */
+.role-customer .reference-booking-panel{
+  margin:0 0 14px;
+  padding:13px;
+  border:1px solid #e3e9ef;
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 10px 28px rgba(16,33,63,.09);
+}
+.role-customer .reference-booking-head{
+  display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;
+}
+.role-customer .reference-booking-head>div>span{
+  font-size:7px;color:#ff7a00;font-weight:900;letter-spacing:.6px;
+}
+.role-customer .reference-booking-head h2{
+  margin:2px 0 0;font-family:Lora,serif;color:#10213f;font-size:19px;
+}
+.role-customer .reference-booking-head>button{
+  width:30px;height:30px;border:0;border-radius:50%;background:#f3f6f9;color:#10213f;font-size:21px;line-height:1;
+}
+.role-customer .reference-book-cta{
+  margin-top:11px!important;
+  min-height:48px!important;
+  border-radius:25px!important;
+  background:linear-gradient(135deg,#ff7900,#ff9b2f)!important;
+  box-shadow:0 8px 18px rgba(255,122,0,.22)!important;
+}
+
+/* Why section */
+.role-customer .reference-why{
+  margin:0 0 18px;
+}
+.role-customer .reference-why-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:7px;
+}
+.role-customer .reference-why-grid>div{
+  padding:11px 6px;
+  text-align:center;
+  border:1px solid #e8edf2;
+  border-radius:13px;
+  background:#fff;
+}
+.role-customer .reference-why-grid span{
+  display:flex;width:27px;height:27px;margin:0 auto 5px;
+  border-radius:50%;align-items:center;justify-content:center;
+  background:#fff0df;color:#ff7a00;font-weight:900;
+}
+.role-customer .reference-why-grid strong{display:block;font-size:9px;color:#10213f}
+.role-customer .reference-why-grid small{display:block;margin-top:2px;font-size:6px;color:#738197}
+
+/* Wallet */
+.role-customer .wallet-screen{
+  min-height:calc(100vh - 120px);
+  padding:18px 14px 22px;
+}
+.role-customer .wallet-head h1{
+  margin:3px 0 4px;font-family:Lora,serif;color:#10213f;font-size:28px;
+}
+.role-customer .wallet-head p{font-size:10px;color:#718096}
+.role-customer .wallet-balance-card{
+  margin:15px 0;
+  padding:18px;
+  border-radius:20px;
+  background:linear-gradient(135deg,#10213f,#1d355e);
+  color:#fff;
+  box-shadow:0 12px 24px rgba(16,33,63,.18);
+}
+.role-customer .wallet-balance-card span,.role-customer .wallet-balance-card small{display:block;font-size:8px;opacity:.75}
+.role-customer .wallet-balance-card strong{display:block;margin:5px 0;font-family:Lora,serif;font-size:28px}
+.role-customer .wallet-transactions{background:#fff;border:1px solid #e7ecf1;border-radius:18px;padding:13px}
+.role-customer .wallet-row{display:flex;align-items:center;gap:9px;padding:11px 0;border-top:1px solid #edf1f5}
+.role-customer .wallet-row:first-of-type{border-top:0}
+.role-customer .wallet-row>span{width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#fff0df;color:#ff7a00;font-weight:900}
+.role-customer .wallet-row div{flex:1;min-width:0}
+.role-customer .wallet-row strong,.role-customer .wallet-row small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.role-customer .wallet-row strong{font-size:9px;color:#10213f}
+.role-customer .wallet-row small{font-size:7px;color:#7a8799;margin-top:2px}
+.role-customer .wallet-row>b{font-size:10px;color:#10213f}
+.role-customer .wallet-empty{padding:20px 5px;text-align:center}
+.role-customer .wallet-empty strong,.role-customer .wallet-empty small{display:block}
+.role-customer .wallet-empty strong{font-size:10px;color:#10213f}
+.role-customer .wallet-empty small{margin-top:5px;font-size:8px;color:#7b8798}
+
+/* Provider reference refinements */
+.role-provider .provider-home-screen{
+  background:#f7f9fb;
+}
+.role-provider .partner-app-header{
+  margin:0 -14px!important;
+  height:61px!important;
+  padding:0 15px!important;
+  background:#fff!important;
+}
+.role-provider .partner-logo strong{font-family:Lora,serif!important;font-size:24px!important}
+.role-provider .partner-profile-card{
+  margin-top:8px!important;
+  min-height:82px!important;
+  border-radius:18px!important;
+  padding:9px 11px!important;
+}
+.role-provider .partner-avatar{
+  width:54px!important;height:54px!important;
+  flex:0 0 54px!important;
+  border-radius:50%!important;
+}
+.role-provider .partner-avatar .profile-photo-editor,
+.role-provider .partner-avatar .profile-photo-frame{
+  width:54px!important;height:54px!important;
+}
+.role-provider .partner-avatar .profile-photo-frame{border-radius:50%!important}
+.role-provider .partner-avatar .profile-photo-camera{display:none!important}
+.role-provider .partner-profile-copy h1{font-size:17px!important}
+.role-provider .partner-stat-row{gap:6px!important;margin:8px 0!important}
+.role-provider .partner-stat-row>div{
+  min-height:64px!important;
+  border-radius:14px!important;
+}
+.role-provider .keep-going-card{border-radius:15px!important;margin-bottom:10px!important}
+.role-provider .reference-request-card{border-radius:17px!important}
+.role-provider .reference-request-actions button{
+  height:39px!important;
+  border-radius:22px!important;
+}
+.role-provider .accept-reference{
+  background:linear-gradient(135deg,#0dbb61,#09a954)!important;
+}
+.role-provider .reference-map-card{height:183px!important}
+.role-provider .reference-online-footer{padding:9px 11px!important}
+.role-provider .reference-online-footer button{
+  min-height:39px!important;
+  padding:0 14px!important;
+  border-radius:21px!important;
+  background:#ff4d55!important;
+  color:#fff!important;
+}
+.role-provider .bottom-nav button{
+  font-size:9px!important;
+  color:#52627a!important;
+}
+.role-provider .bottom-nav button.active{color:#ff7a00!important;background:#fff!important}
+
+/* Remove old generic hero/cards from the reference customer surface */
+.role-customer .home-hero,
+.role-customer .home-category-switch,
+.role-customer .visual-type-grid,
+.role-customer .popular-services,
+.role-customer .booking-panel,
+.role-customer .why-gofixo{display:none!important}
+
+@media(max-width:390px){
+  .role-customer .customer-reference-hero{min-height:244px!important}
+  .role-customer .reference-vehicle-strip button{height:119px!important}
+  .role-customer .reference-vehicle-strip img{height:91px!important}
+  .role-customer .trusted-professionals-banner{min-height:104px}
+}
