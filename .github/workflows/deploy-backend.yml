@@ -11,6 +11,8 @@ on:
       - 'services/**'
       - 'utils/**'
       - 'package.json'
+      - '.platform/**'
+      - '.github/workflows/deploy-backend.yml'
 
 jobs:
   deploy:
