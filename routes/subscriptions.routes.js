@@ -38,7 +38,14 @@ router.post('/subscribe', requireAuth(['provider']), async (req, res, next) => {
     await client.query('BEGIN');
     inTransaction = true;
 
-    // Close any older active cycle before creating the new one.
+    // Serialize subscription purchases/renewals per provider so concurrent requests
+    // cannot both close the same cycle and create multiple active subscriptions.
+    await client.query(
+      'SELECT pg_advisory_xact_lock(hashtext($1))',
+      [`gofixo-provider-subscription:${provider_id}`]
+    );
+
+    // Re-check the provider inside the transaction before creating the cycle.
     await client.query(
       `UPDATE provider_subscriptions
        SET status = CASE WHEN expiry_date <= NOW() THEN 'expired' ELSE 'exhausted' END
