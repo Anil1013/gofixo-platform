@@ -39,3 +39,18 @@ export async function apiPatch(path, body) {
   if (!res.ok) throw new Error(data.error || `API error: ${res.status}`);
   return data;
 }
+
+export async function apiGetBlob(path) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { 'x-admin-key': getAdminKey() },
+  });
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new Error('Admin key incorrect — please log in again');
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `API error: ${res.status}`);
+  }
+  return res.blob();
+}
