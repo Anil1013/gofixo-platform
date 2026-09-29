@@ -20,7 +20,7 @@ export default function ProviderHistory() {
       {bookings.map((b) => (
         <div key={b.id} className="history-item">
           <div>
-            <p className="history-title">{b.service_type === 'ride' ? '🏍 Ride' : '🔧 Pronto'} · {b.pickup_location}</p>
+            <p className="history-title">{b.service_type === 'ride' ? '🏍 Ride' : '🔧 Home Services'} · {b.pickup_location}</p>
             <p className="history-sub">{new Date(b.created_at).toLocaleDateString()} {b.customer_name ? `· ${b.customer_name}` : ''}</p>
           </div>
           <div className="history-right">
