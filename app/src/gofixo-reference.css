@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&display=swap');
 /* Gofixo reference UI refresh — layered over the existing functional styles. */
 :root{
   --gf-navy:#10213f;
@@ -1303,7 +1304,6 @@ button,input{font-family:inherit}
 
 
 /* Account + CTA polish */
-@import url('https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&display=swap');
 
 .logout-link{
   border:1px solid #e6eaf1!important;
