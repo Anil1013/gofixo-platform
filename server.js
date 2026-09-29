@@ -41,8 +41,17 @@ app.use('/api/auth', authRoutes);
 // Generic error handler — never leak raw error details in production
 app.use((err, req, res, next) => {
   console.error(err);
+  if (err && err.name === 'MulterError') {
+    const messages = {
+      LIMIT_FILE_SIZE: 'File is too large. Maximum size is 15 MB.',
+      LIMIT_FILE_COUNT: 'Only one file can be uploaded at a time.',
+      LIMIT_UNEXPECTED_FILE: 'Unexpected upload field.',
+      LIMIT_PART_COUNT: 'Too many form parts.',
+    };
+    return res.status(400).json({ error: messages[err.code] || 'File upload failed' });
+  }
   res.status(err.status || 500).json({
-    error: process.env.NODE_ENV === 'production' ? 'Something went wrong' : err.message
+    error: process.env.NODE_ENV === 'production' ? (err.status ? err.message : 'Something went wrong') : err.message
   });
 });
 
