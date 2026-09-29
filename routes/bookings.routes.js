@@ -308,23 +308,60 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
       [id, providerId, fare]
     );
 
-    // Update the running total against the provider's active subscription
-    const sub = await client.query(
+    // Close expired cycles first, then lock exactly one valid active cycle.
+    // The row lock serializes concurrent booking completions for the same provider.
+    await client.query(
       `UPDATE provider_subscriptions
-       SET total_earned_this_cycle = total_earned_this_cycle + $1
-       WHERE provider_id = $2 AND status = 'active'
-       RETURNING *,
-       (SELECT earning_cap FROM subscription_plans WHERE id = provider_subscriptions.plan_id) AS cap`,
-      [fare, providerId]
+       SET status = 'expired'
+       WHERE provider_id = $1 AND status = 'active' AND expiry_date <= NOW()`,
+      [providerId]
     );
 
-    let providerAvailable = true;
-    if (sub.rows.length > 0 && parseFloat(sub.rows[0].total_earned_this_cycle) >= parseFloat(sub.rows[0].cap)) {
-      await client.query(`UPDATE provider_subscriptions SET status = 'exhausted' WHERE id = $1`, [sub.rows[0].id]);
-      providerAvailable = false; // provider must renew before going available again
+    const sub = await client.query(
+      `SELECT ps.id, ps.total_earned_this_cycle, sp.earning_cap AS cap
+       FROM provider_subscriptions ps
+       JOIN subscription_plans sp ON sp.id = ps.plan_id
+       WHERE ps.provider_id = $1
+         AND ps.status = 'active'
+         AND ps.expiry_date > NOW()
+       ORDER BY ps.start_date DESC, ps.id DESC
+       LIMIT 1
+       FOR UPDATE`,
+      [providerId]
+    );
+
+    let providerAvailable = false;
+    if (sub.rows.length > 0) {
+      const currentEarned = Number(sub.rows[0].total_earned_this_cycle || 0);
+      const earningCap = Number(sub.rows[0].cap);
+
+      if (Number.isFinite(earningCap) && earningCap > 0) {
+        const newTotal = currentEarned + fare;
+
+        await client.query(
+          `UPDATE provider_subscriptions
+           SET total_earned_this_cycle = $1,
+               status = CASE WHEN $1 >= $2 THEN 'exhausted' ELSE 'active' END
+           WHERE id = $3`,
+          [newTotal, earningCap, sub.rows[0].id]
+        );
+
+        providerAvailable = newTotal < earningCap;
+      } else {
+        // A malformed plan must never keep a provider available.
+        await client.query(
+          `UPDATE provider_subscriptions SET status = 'exhausted' WHERE id = $1`,
+          [sub.rows[0].id]
+        );
+      }
     }
 
-    await client.query('UPDATE service_providers SET is_available = $1 WHERE id = $2', [providerAvailable, providerId]);
+    // No valid subscription or an exhausted/invalid one means the provider must renew
+    // before becoming available for another booking.
+    await client.query(
+      'UPDATE service_providers SET is_available = $1 WHERE id = $2',
+      [providerAvailable, providerId]
+    );
 
     if (rating) {
       await client.query(
