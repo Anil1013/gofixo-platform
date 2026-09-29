@@ -219,8 +219,8 @@ export default function Home({ onBooked }) {
       const body = {
         service_type: category,
         provider_type: providerType,
-        pickup_location: location,
-        drop_or_service_address: category === 'services' ? work : destination,
+        pickup_location: [location, pickupHouse, pickupStreet, pickupArea, pickupPincode].filter(Boolean).join(', '),
+        drop_or_service_address: category === 'services' ? work : [destination, dropHouse, dropStreet, dropArea, dropPincode].filter(Boolean).join(', '),
         pickup_lat: coords.lat,
         pickup_lng: coords.lng,
         drop_lat: category === 'ride' ? resolvedDestination.lat : undefined,
