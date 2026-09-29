@@ -70,9 +70,13 @@ router.post('/subscribe', requireAuth(['provider']), async (req, res, next) => {
   }
 });
 
-// Check a provider's current subscription status (used before allowing them to go "available")
-router.get('/status/:providerId', async (req, res, next) => {
+// Check a provider's current subscription status. This contains earning/expiry
+// data, so it must never be exposed as a public endpoint.
+router.get('/status/:providerId', requireAuth(['provider']), async (req, res, next) => {
   try {
+    if (Number(req.params.providerId) !== Number(req.user.id)) {
+      return res.status(403).json({ error: 'You can only view your own subscription status' });
+    }
     await pool.query(
       `UPDATE provider_subscriptions
        SET status = 'expired'
