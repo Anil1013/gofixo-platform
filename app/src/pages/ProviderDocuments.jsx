@@ -98,7 +98,7 @@ export default function ProviderDocuments() {
       </select>
 
       <label>Upload file</label>
-      <input type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" onChange={(e) => setFile(e.target.files[0])} />
+      <input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf" onChange={(e) => setFile(e.target.files[0])} />
 
       {error && <p className="auth-error">{error}</p>}
 
