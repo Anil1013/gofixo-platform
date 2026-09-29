@@ -341,8 +341,7 @@ router.get('/plans/:type', async (req, res, next) => {
 router.get('/:generatedId', async (req, res, next) => {
   try {
     const result = await pool.query(
-      `SELECT id, generated_id, name, phone, type, kyc_status, bank_upi_id, avg_rating,
-              is_available, created_at, current_lat, current_lng
+      `SELECT generated_id, name, type, kyc_status, avg_rating
        FROM service_providers WHERE generated_id = $1`,
       [req.params.generatedId]
     );
