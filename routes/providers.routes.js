@@ -18,15 +18,15 @@ const ALLOWED_DOCUMENT_TYPES = new Set([
   'aadhar_front', 'aadhar_back', 'driving_license', 'vehicle_rc',
   'vehicle_photo_front', 'vehicle_photo_back', 'profile_photo', 'police_verification',
 ]);
-const ALLOWED_UPLOAD_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'application/pdf']);
-const ALLOWED_UPLOAD_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.pdf']);
+const ALLOWED_UPLOAD_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
+const ALLOWED_UPLOAD_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.pdf']);
 
 const upload = multer({
   // Keep the upload in memory until authentication, ownership, and doc_type validation pass.
   // This prevents unauthorized requests from writing files to another provider's directory.
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 8 * 1024 * 1024,
+    fileSize: 15 * 1024 * 1024,
     files: 1,
     fields: 2,
     parts: 3,
@@ -36,7 +36,7 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     const extension = path.extname(file.originalname || '').toLowerCase();
     if (!ALLOWED_UPLOAD_MIME_TYPES.has(file.mimetype) || !ALLOWED_UPLOAD_EXTENSIONS.has(extension)) {
-      return cb(Object.assign(new Error('Only JPG, PNG, and PDF files are allowed'), { status: 400 }));
+      return cb(Object.assign(new Error('Only JPG, PNG, WEBP, and PDF files are allowed'), { status: 400 }));
     }
     cb(null, true);
   },
