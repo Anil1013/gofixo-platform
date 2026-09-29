@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const crypto = require('crypto');
+const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
@@ -10,6 +11,13 @@ const { requireAdmin } = require('../middleware/admin');
 const { isValidPassword, PASSWORD_ERROR } = require('../utils/password');
 
 const PROVIDER_TYPES = ['bike', 'auto', 'car', 'general_worker', 'skilled_worker'];
+
+const ALLOWED_DOCUMENT_TYPES = new Set([
+  'aadhar_front', 'aadhar_back', 'driving_license', 'vehicle_rc',
+  'vehicle_photo_front', 'vehicle_photo_back', 'profile_photo', 'police_verification',
+]);
+const ALLOWED_UPLOAD_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'application/pdf']);
+const ALLOWED_UPLOAD_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.pdf']);
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -24,6 +32,13 @@ const upload = multer({
     },
   }),
   limits: { fileSize: 8 * 1024 * 1024 }, // 8MB
+  fileFilter: (req, file, cb) => {
+    const extension = path.extname(file.originalname || '').toLowerCase();
+    if (!ALLOWED_UPLOAD_MIME_TYPES.has(file.mimetype) || !ALLOWED_UPLOAD_EXTENSIONS.has(extension)) {
+      return cb(Object.assign(new Error('Only JPG, PNG, and PDF files are allowed'), { status: 400 }));
+    }
+    cb(null, true);
+  },
 });
 
 // Register a new provider (driver/worker) — KYC starts as 'pending'
@@ -122,6 +137,10 @@ router.post('/:id/documents', requireAuth(['provider']), upload.single('file'), 
       return res.status(403).json({ error: 'You can only upload your own documents' });
     }
     if (!req.file) return res.status(400).json({ error: 'file is required' });
+    if (!ALLOWED_DOCUMENT_TYPES.has(req.body.doc_type)) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(400).json({ error: 'Invalid document type' });
+    }
     const fileUrl = `/uploads/providers/${req.params.id}/${req.file.filename}`;
     const result = await pool.query(
       'INSERT INTO provider_documents (provider_id, doc_type, file_url) VALUES ($1, $2, $3) RETURNING *',
