@@ -376,16 +376,19 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
     );
 
     const result = await client.query(
-      `UPDATE bookings b SET status = 'accepted'
+      `UPDATE bookings b SET provider_id = $2, status = 'accepted', offered_at = NULL
        WHERE b.id = $1
-         AND b.provider_id = $2
          AND b.status = 'requested'
+         AND (b.provider_id IS NULL OR b.provider_id = $2)
          AND NOT ($2 = ANY(COALESCE(b.declined_providers, '{}')))
          AND EXISTS (
            SELECT 1
            FROM service_providers sp
-           WHERE sp.id = b.provider_id
+           WHERE sp.id = $2
+             AND sp.is_available = true
              AND sp.kyc_status = 'approved'
+             AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
+             AND sp.location_updated_at > NOW() - INTERVAL '5 minutes'
              AND EXISTS (
                SELECT 1
                FROM provider_subscriptions ps
@@ -393,11 +396,18 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
                  AND ps.status = 'active'
                  AND ps.expiry_date > NOW()
              )
+             AND (6371 * acos(
+               LEAST(1, GREATEST(-1,
+                 cos(radians(b.pickup_lat)) * cos(radians(sp.current_lat)) *
+                 cos(radians(sp.current_lng) - radians(b.pickup_lng)) +
+                 sin(radians(b.pickup_lat)) * sin(radians(sp.current_lat))
+               ))
+             )) <= 3
          )
          AND NOT EXISTS (
            SELECT 1
            FROM bookings active_b
-           WHERE active_b.provider_id = b.provider_id
+           WHERE active_b.provider_id = $2
              AND active_b.status IN ('accepted', 'ongoing')
              AND active_b.id <> b.id
          )
@@ -428,12 +438,59 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
 // Provider declines — stays on duty; the request goes to the next nearest provider
 router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) => {
   try {
-    const existing = await pool.query('SELECT provider_id, status FROM bookings WHERE id = $1', [req.params.id]);
-    if (existing.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
-    if (existing.rows[0].provider_id !== req.user.id || existing.rows[0].status !== 'requested') {
+    const result = await pool.query(
+      `UPDATE bookings
+       SET declined_providers = array_append(COALESCE(declined_providers, '{}'), $2)
+       WHERE id = $1
+         AND status = 'requested'
+         AND (provider_id IS NULL OR provider_id = $2)
+         AND NOT ($2 = ANY(COALESCE(declined_providers, '{}')))
+       RETURNING id`,
+      [req.params.id, req.user.id]
+    );
+    if (result.rows.length === 0) {
       return res.status(409).json({ error: 'This request is no longer available' });
     }
-    await handleDeclineOrTimeout(req.params.id, false);
+
+    // Keep everyone else online. If nobody eligible within 3 km remains,
+    // the request is closed instead of taking providers offline.
+    const remaining = await pool.query(
+      `SELECT 1
+       FROM bookings b
+       JOIN service_providers sp ON sp.type = b.provider_type
+       WHERE b.id = $1
+         AND b.status = 'requested'
+         AND b.provider_id IS NULL
+         AND sp.is_available = true
+         AND sp.kyc_status = 'approved'
+         AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
+         AND sp.location_updated_at > NOW() - INTERVAL '5 minutes'
+         AND NOT (sp.id = ANY(COALESCE(b.declined_providers, '{}')))
+         AND EXISTS (
+           SELECT 1 FROM provider_subscriptions ps
+           WHERE ps.provider_id = sp.id
+             AND ps.status = 'active'
+             AND ps.expiry_date > NOW()
+         )
+         AND (6371 * acos(
+           LEAST(1, GREATEST(-1,
+             cos(radians(b.pickup_lat)) * cos(radians(sp.current_lat)) *
+             cos(radians(sp.current_lng) - radians(b.pickup_lng)) +
+             sin(radians(b.pickup_lat)) * sin(radians(sp.current_lat))
+           ))
+         )) <= 3
+       LIMIT 1`,
+      [req.params.id]
+    );
+    if (remaining.rows.length === 0) {
+      await pool.query(
+        `UPDATE bookings
+         SET status = 'no_provider', offered_at = NULL
+         WHERE id = $1 AND status = 'requested' AND provider_id IS NULL`,
+        [req.params.id]
+      );
+    }
+
     res.json({ message: 'Request declined' });
   } catch (err) {
     next(err);
