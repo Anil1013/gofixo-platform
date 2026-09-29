@@ -355,7 +355,7 @@ export default function ProviderHome({ onLogout }) {
 
       <section className="partner-profile-card">
         <div className="partner-avatar">
-          <img src={profile.type === 'bike' ? '/illustrations/bike.svg' : profile.type === 'auto' ? '/illustrations/auto.svg' : profile.type === 'car' ? '/illustrations/car.svg' : '/illustrations/worker.svg'} alt="" />
+          <img src="https://c.pxhere.com/images/64/ef/faf188f19c99987917cacd834095-1708340.jpg!d" alt="" />
           <b />
         </div>
         <div className="partner-profile-copy">
