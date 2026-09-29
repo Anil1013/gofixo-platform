@@ -26,4 +26,9 @@ jobs:
             cd ~/gofixo-platform
             git pull origin main
             npm install --omit=dev
+            if command -v nginx >/dev/null 2>&1; then
+              sudo cp .platform/nginx/conf.d/upload.conf /etc/nginx/conf.d/gofixo-upload.conf
+              sudo nginx -t
+              sudo systemctl reload nginx
+            fi
             pm2 restart gofixo-backend
