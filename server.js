@@ -4,6 +4,7 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
+const http = require('http');
 
 const providersRoutes = require('./routes/providers.routes');
 const subscriptionsRoutes = require('./routes/subscriptions.routes');
@@ -11,6 +12,7 @@ const bookingsRoutes = require('./routes/bookings.routes');
 const authRoutes = require('./routes/auth.routes');
 const pool = require('./config/db');
 const { handleDeclineOrTimeout } = require('./services/matching');
+const { attachRealtime } = require('./services/realtime');
 
 const app = express();
 
@@ -102,9 +104,12 @@ async function ensureRuntimeSchema() {
 }
 
 const PORT = process.env.PORT || 4000;
+const httpServer = http.createServer(app);
+attachRealtime(httpServer);
+
 ensureRuntimeSchema()
   .then(() => {
-    app.listen(PORT, () => console.log(`Gofixo backend running on port ${PORT}`));
+    httpServer.listen(PORT, () => console.log(`Gofixo backend running on port ${PORT}`));
   })
   .catch((err) => {
     console.error('Database schema setup failed:', err);
