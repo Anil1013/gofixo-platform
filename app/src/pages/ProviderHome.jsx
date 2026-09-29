@@ -212,16 +212,18 @@ export default function ProviderHome() {
   // Keep an online provider's location fresh so they stop matching after a
   // prolonged disconnect instead of being treated as if they were still nearby.
   useEffect(() => {
-    if (!profile?.is_available) return undefined;
+    const activeTrip = ['accepted', 'ongoing'].includes(activeBooking?.status);
+    if (!profile?.is_available && !activeTrip) return undefined;
 
-    // Refresh GPS every 15 seconds while online so customers receive a recent
-    // provider position. The backend still rejects stale locations after 5 minutes.
+    // Keep GPS flowing while online and throughout an active booking. The
+    // backend broadcasts each update to the customer's live WebSocket.
+    updateCurrentLocation(false).catch(() => {});
     const id = setInterval(() => {
       updateCurrentLocation(false).catch(() => {});
-    }, 15 * 1000);
+    }, 5 * 1000);
 
     return () => clearInterval(id);
-  }, [profile?.is_available, profile?.id]);
+  }, [profile?.is_available, profile?.id, activeBooking?.status]);
 
   async function acceptBooking() {
     setBusy(true);
