@@ -8,6 +8,7 @@ CREATE TABLE service_providers (
   phone VARCHAR(15) UNIQUE NOT NULL,
   type VARCHAR(20) NOT NULL,                       -- bike / auto / car / general_worker / skilled_worker
   password_hash TEXT,
+  password_changed_at TIMESTAMP DEFAULT NOW(),
   kyc_status VARCHAR(20) DEFAULT 'pending',        -- pending / approved / rejected
   bank_upi_id VARCHAR(100),
   avg_rating NUMERIC(2,1) DEFAULT 5.0,
@@ -42,6 +43,7 @@ CREATE TABLE customers (
   name VARCHAR(100),
   phone VARCHAR(15) UNIQUE NOT NULL,
   password_hash TEXT,
+  password_changed_at TIMESTAMP DEFAULT NOW(),
   created_at TIMESTAMP DEFAULT NOW()
 );
 
