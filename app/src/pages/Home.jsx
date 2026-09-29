@@ -271,6 +271,7 @@ export default function Home({ onBooked }) {
         />
         {category === 'ride' && <button type="button" onClick={findPickup} disabled={pickupFinding}>{pickupFinding ? '...' : 'Find'}</button>}
       </div>
+      <input value={pickupPincode} onChange={(e) => setPickupPincode(e.target.value)} placeholder="PIN code" />
 
       {category === 'ride' && (
         <>
