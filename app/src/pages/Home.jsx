@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { apiPost, getUser } from '../api';
 import ProfilePhoto from '../components/ProfilePhoto';
 import MapView from '../components/MapView';
-import { reverseGeocodeDetails, reverseGeocode, searchAddress, getRoute, formatDistance } from '../utils/geo';
+import { reverseGeocodeDetails, reverseGeocode, searchAddress, searchAddressSuggestions, getRoute, formatDistance } from '../utils/geo';
 
 const RIDE_TYPES = [
   { value: 'bike', label: 'Bike' },
@@ -67,6 +67,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
   const [dropStreet, setDropStreet] = useState('');
   const [dropHouse, setDropHouse] = useState('');
   const [destination, setDestination] = useState('');
+  const [destinationSuggestions, setDestinationSuggestions] = useState([]);
   const [destCoords, setDestCoords] = useState(null);
   const [route, setRoute] = useState(null);
   const [pickupFinding, setPickupFinding] = useState(false);
@@ -314,14 +315,60 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
         </div>
       </section>
 
-      <button type="button" className="reference-location-search" onClick={() => {
-        setShowBooking(true);
-        useMyLocation();
-      }}>
+      <div className="reference-location-search reference-destination-search">
         <span className="location-pin-mark">⌖</span>
-        <strong>{location || 'Where are you going?'}</strong>
-        <i>◎</i>
-      </button>
+        <input
+          value={destination}
+          onFocus={() => {
+            setCategory('ride');
+            setShowBooking(true);
+          }}
+          onChange={async (e) => {
+            const value = e.target.value;
+            setCategory('ride');
+            setShowBooking(true);
+            setDestination(value);
+            destinationResolvedRef.current = '';
+            setDestCoords(null);
+            setRoute(null);
+            if (value.trim().length >= 3) {
+              setDestinationSuggestions(await searchAddressSuggestions(value, coords));
+            } else {
+              setDestinationSuggestions([]);
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              findDestination();
+              setDestinationSuggestions([]);
+            }
+          }}
+          placeholder="Where are you going?"
+          aria-label="Where are you going?"
+        />
+        {finding ? <span className="destination-search-status">…</span> : <i>⌕</i>}
+        {destinationSuggestions.length > 0 && (
+          <div className="destination-suggestions">
+            {destinationSuggestions.map((item) => (
+              <button
+                type="button"
+                key={item.lat + ':' + item.lng + ':' + item.label}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setDestination(item.label);
+                  destinationResolvedRef.current = item.label;
+                  setDestCoords({ lat: item.lat, lng: item.lng });
+                  setDestinationSuggestions([]);
+                  if (coords) getRoute(coords, item).then(setRoute);
+                }}
+              >
+                <strong>{item.label}</strong>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <section className="reference-home-section">
         <div className="reference-section-title">
@@ -428,14 +475,29 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
               <div className="find-row premium-find-row">
                 <input
                   value={destination}
-                  onChange={(e) => {
-                    setDestination(e.target.value);
+                  onChange={async (e) => {
+                    const value = e.target.value;
+                    setDestination(value);
                     destinationResolvedRef.current = '';
                     setDestCoords(null);
                     setRoute(null);
+                    if (value.trim().length >= 3) {
+                      setDestinationSuggestions(await searchAddressSuggestions(value, coords));
+                    } else {
+                      setDestinationSuggestions([]);
+                    }
                   }}
-                  onBlur={findDestination}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); findDestination(); } }}
+                  onBlur={() => setTimeout(() => {
+                    setDestinationSuggestions([]);
+                    findDestination();
+                  }, 120)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      setDestinationSuggestions([]);
+                      findDestination();
+                    }
+                  }}
                   placeholder="Where should we drop you?"
                 />
                 <button type="button" onClick={findDestination} disabled={finding}>{finding ? '…' : 'Find'}</button>
