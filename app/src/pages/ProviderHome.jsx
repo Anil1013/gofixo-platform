@@ -96,6 +96,10 @@ export default function ProviderHome() {
 
   useEffect(() => () => stopBuzzer(), []); // stop on unmount
 
+  useEffect(() => {
+    if (profile?.is_available) setupBackgroundNotifications();
+  }, [profile?.is_available]);
+
   async function setupBackgroundNotifications() {
     if (pushSetupRef.current || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
     if (Notification.permission === 'denied') return;
