@@ -850,3 +850,134 @@ button.cta:disabled { opacity: 0.5; }
   .home-hero { margin-left:-20px; margin-right:-20px; padding-left:22px; padding-right:22px; }
   .home-hero h1 { font-size: 30px; }
 }
+
+
+/* =========================================================
+   Gofixo provider app — premium partner dashboard
+   ========================================================= */
+.provider-home-screen {
+  padding: 0 16px 28px;
+  background: linear-gradient(180deg,#f8f9fd 0%,#f5f7fb 100%);
+}
+.provider-hero {
+  margin: -1px -16px 16px;
+  padding: 18px 17px 17px;
+  color: white;
+  background: linear-gradient(135deg,#17233d,#2c3e67);
+  border-radius: 0 0 25px 25px;
+  box-shadow: 0 13px 28px rgba(23,35,61,.18);
+  position: relative;
+  overflow: hidden;
+}
+.provider-hero::after {
+  content:""; position:absolute; width:180px;height:180px;border-radius:50%;
+  right:-80px;top:-90px;background:rgba(255,122,0,.22);
+}
+.provider-hero.online { background:linear-gradient(135deg,#123d37,#126e5d 62%,#159a7b); }
+.provider-hero.online::after { background:rgba(80,230,180,.18); }
+.provider-hero-top,.provider-profile,.provider-hero-bottom { position:relative;z-index:1;display:flex; }
+.provider-hero-top { align-items:center;justify-content:space-between;gap:8px; }
+.provider-profile { align-items:center;gap:10px;min-width:0; }
+.provider-avatar {
+  width:47px;height:47px;border-radius:15px;display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.14);font-size:23px;border:1px solid rgba(255,255,255,.14);
+}
+.provider-greeting { display:block;font-size:7.5px;letter-spacing:1.4px;color:#cdd7ea;font-weight:900; }
+.provider-profile h1 { margin:2px 0 1px;font-size:18px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px; }
+.provider-profile p { margin:0;text-transform:capitalize;font-size:8.5px;color:#cdd7ea; }
+.provider-status-pill {
+  display:flex;align-items:center;gap:5px;padding:6px 8px;border-radius:99px;
+  background:rgba(255,255,255,.12);font-size:7.5px;font-weight:900;letter-spacing:.7px;
+}
+.provider-status-pill i { width:7px;height:7px;border-radius:50%;background:#ffb347; }
+.provider-hero.online .provider-status-pill i { background:#68f1c3;box-shadow:0 0 0 4px rgba(104,241,195,.13); }
+.provider-hero-bottom { align-items:flex-end;justify-content:space-between;gap:8px;margin-top:19px; }
+.provider-hero-label { display:block;color:#bdc9df;font-size:8px;margin-bottom:3px; }
+.provider-hero-bottom strong { display:block;font-size:12px; }
+.provider-type-badge { padding:7px 9px;border-radius:10px;background:rgba(255,255,255,.11);font-size:8px;white-space:nowrap; }
+
+.provider-stat-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:13px; }
+.provider-stat-card {
+  background:#fff;border:1px solid #e4e8ef;border-radius:14px;padding:11px 8px;
+  box-shadow:0 5px 15px rgba(23,35,61,.045);
+}
+.provider-stat-card span { display:block;font-size:7px;color:#8791a5;letter-spacing:.8px;font-weight:800; }
+.provider-stat-card strong { display:block;font-size:14px;color:#17233d;margin:4px 0 1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.provider-stat-card small { color:#9aa3b4;font-size:7px; }
+.provider-stat-card em { color:#f5a524;font-style:normal;font-size:11px; }
+
+.availability-panel,.provider-job-panel,.incoming-job-card {
+  background:#fff;border:1px solid #e2e6ee;border-radius:19px;padding:15px;
+  box-shadow:0 8px 24px rgba(23,35,61,.06);margin-bottom:13px;
+}
+.availability-panel h2,.provider-job-panel h2,.incoming-job-card h2 { font-family:'Lora',serif;font-size:19px;color:#17233d;margin:2px 0 3px; }
+.availability-panel > div p { margin:0;color:#7e889b;font-size:9px;line-height:1.45; }
+.availability-panel .section-kicker,.incoming-head .section-kicker,.job-panel-head .section-kicker { margin-bottom:2px; }
+.availability-toggle.premium {
+  margin:13px 0 0;border:0;background:#17233d;color:#fff;padding:13px;border-radius:12px;font-size:11px;
+}
+.availability-toggle.premium.online { background:linear-gradient(135deg,#0d8f7f,#14b89a);color:#fff; }
+.provider-location-btn { margin-top:7px !important;border-style:solid !important;border-color:#e2e6ee !important;color:#526078 !important;font-size:10px !important; }
+
+.incoming-job-card { border:2px solid #ffb347;box-shadow:0 9px 28px rgba(245,165,36,.18); }
+.incoming-head,.job-panel-head { display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px; }
+.countdown-pill {
+  min-width:43px;padding:7px 9px;border-radius:99px;background:#fff1d9;color:#c46e12;text-align:center;
+  font-size:10px;font-weight:900;
+}
+.sound-banner {
+  display:flex;align-items:center;gap:8px;background:#fff8ec;border-radius:11px;padding:8px 10px;margin-bottom:9px;color:#b96d18;
+}
+.sound-banner span { display:flex;flex-direction:column;gap:1px; }
+.sound-banner strong { font-size:9px; }
+.sound-banner small { font-size:7px;color:#9b7b54; }
+.job-location-row { display:flex;align-items:flex-start;gap:8px;margin:9px 0 10px; }
+.job-location-row > span { font-size:17px; }
+.job-location-row div { display:flex;flex-direction:column;gap:2px;min-width:0; }
+.job-location-row small,.customer-card small { font-size:7px;letter-spacing:.8px;color:#8b95a7;font-weight:900; }
+.job-location-row strong { font-size:10.5px;color:#17233d;line-height:1.35; }
+.premium-actions { margin-top:10px; }
+.premium-actions .decline-btn,.premium-actions .accept-btn { padding:12px;border-radius:11px;font-size:10.5px; }
+.premium-actions .accept-btn { background:linear-gradient(135deg,#ff7a00,#ff9f2f);box-shadow:0 6px 14px rgba(255,122,0,.18); }
+
+.job-live-pill { padding:5px 8px;border-radius:99px;background:#e7faf4;color:#0d9075;font-size:7px;font-weight:900; }
+.route-highlight {
+  display:flex;align-items:center;justify-content:space-between;background:#edf9f6;color:#0b806c;border-radius:11px;padding:9px 10px;margin:8px 0;
+}
+.route-highlight strong { font-size:14px;color:#17233d; }
+.route-highlight span { font-size:8px; }
+.customer-card {
+  display:flex;align-items:center;gap:9px;padding:10px;background:#f8f9fc;border:1px solid #e8ebf0;border-radius:12px;
+}
+.customer-avatar { width:31px;height:31px;border-radius:10px;background:#e8edff;display:flex;align-items:center;justify-content:center; }
+.customer-card div { display:flex;flex-direction:column;gap:1px; }
+.customer-card strong { font-size:10px;color:#17233d; }
+.customer-card div > span { font-size:8px;color:#7c8698; }
+.provider-input { border-radius:11px !important;background:#fbfcfe !important;border-color:#e0e5ed !important;padding:11px !important;font-size:12px !important; }
+.provider-input:focus { outline:2px solid rgba(255,122,0,.18) !important;border-color:#ff9a2e !important; }
+.provider-main-cta { background:linear-gradient(135deg,#ff7a00,#ff9f2f) !important;border-radius:12px !important;box-shadow:0 8px 18px rgba(255,122,0,.20);font-size:11px !important; }
+.provider-stars { justify-content:center; }
+.provider-stars .star { font-size:26px; }
+
+.earning-highlight {
+  display:flex;flex-direction:column;align-items:center;text-align:center;padding:14px;
+  background:linear-gradient(135deg,#edf9f6,#f8fffd);border-radius:14px;margin-bottom:8px;
+}
+.earning-highlight span { font-size:7px;letter-spacing:1px;color:#0d9075;font-weight:900; }
+.earning-highlight strong { font-family:'Lora',serif;font-size:28px;color:#17233d;margin:2px 0; }
+.earning-highlight small { color:#7d8798;font-size:7.5px; }
+
+.provider-benefits { margin-top:20px; }
+.provider-benefits h2 { font-family:'Lora',serif;font-size:20px;color:#17233d;margin:2px 0 10px; }
+.benefit-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:7px; }
+.benefit-grid > div {
+  display:flex;flex-direction:column;align-items:center;text-align:center;padding:11px 4px;
+  background:#fff;border:1px solid #e5e8ef;border-radius:14px;
+}
+.benefit-grid span { width:28px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:#fff0df;margin-bottom:5px;font-size:14px; }
+.benefit-grid strong { font-size:8.5px;color:#17233d; }
+.benefit-grid small { font-size:6.8px;color:#8b95a7;margin-top:2px; }
+@media (min-width:430px) {
+  .provider-home-screen { padding-left:20px;padding-right:20px; }
+  .provider-hero { margin-left:-20px;margin-right:-20px;padding-left:21px;padding-right:21px; }
+}
