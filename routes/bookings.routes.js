@@ -167,6 +167,91 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
   }
 });
 
+// Customer cancels before the ride/job has started.
+// The booking row is locked so accept/decline/timeout cannot race the cancellation.
+router.post('/:id/cancel', requireAuth(['customer']), async (req, res, next) => {
+  const client = await pool.connect();
+  let inTransaction = false;
+  try {
+    const { id } = req.params;
+    await client.query('BEGIN');
+    inTransaction = true;
+
+    await client.query(
+      'SELECT pg_advisory_xact_lock(hashtext($1))',
+      [`gofixo-customer-booking:${req.user.id}`]
+    );
+
+    const booking = await client.query(
+      `SELECT id, customer_id, provider_id, status
+       FROM bookings
+       WHERE id = $1
+       FOR UPDATE`,
+      [id]
+    );
+    if (booking.rows.length === 0) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const current = booking.rows[0];
+    if (current.customer_id !== req.user.id) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
+      return res.status(403).json({ error: 'This booking does not belong to you' });
+    }
+    if (!['requested', 'accepted'].includes(current.status)) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
+      return res.status(409).json({ error: 'This booking can no longer be cancelled' });
+    }
+
+    await client.query(
+      `UPDATE bookings
+       SET status = 'cancelled', provider_id = NULL, offered_at = NULL
+       WHERE id = $1`,
+      [id]
+    );
+
+    if (current.provider_id) {
+      const eligibility = await client.query(
+        `SELECT 1
+         FROM service_providers sp
+         WHERE sp.id = $1
+           AND sp.kyc_status = 'approved'
+           AND sp.current_lat IS NOT NULL
+           AND sp.current_lng IS NOT NULL
+           AND NOT EXISTS (
+             SELECT 1 FROM bookings b
+             WHERE b.provider_id = sp.id
+               AND b.status IN ('requested', 'accepted', 'ongoing')
+               AND b.id <> $2
+           )
+           AND EXISTS (
+             SELECT 1 FROM provider_subscriptions ps
+             WHERE ps.provider_id = sp.id
+               AND ps.status = 'active'
+               AND ps.expiry_date > NOW()
+           )`,
+        [current.provider_id, id]
+      );
+      await client.query(
+        'UPDATE service_providers SET is_available = $1 WHERE id = $2',
+        [eligibility.rows.length > 0, current.provider_id]
+      );
+    }
+
+    await client.query('COMMIT');
+    inTransaction = false;
+    res.json({ message: 'Booking cancelled', booking_id: Number(id) });
+  } catch (err) {
+    if (inTransaction) await client.query('ROLLBACK').catch(() => {});
+    next(err);
+  } finally {
+    client.release();
+  }
+});
 // Provider accepts the request that is buzzing on their phone.
 // Re-check subscription/KYC and active-booking ownership atomically so an offer
 // cannot be accepted after the provider becomes ineligible or gets another job.
