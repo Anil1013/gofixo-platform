@@ -6,20 +6,28 @@ const pool = require('../config/db');
 const { isValidPassword, PASSWORD_ERROR } = require('../utils/password');
 const { checkLoginRateLimit, recordFailedLogin, clearLoginFailures } = require('../utils/loginRateLimit');
 
+function normalizeIndianPhone(value) {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  if (digits.length === 10) return digits;
+  if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
+  return '';
+}
+
 // Register a new customer — phone + password (name optional)
 router.post('/customer/register', async (req, res, next) => {
   try {
     const { name, phone, password } = req.body;
-    if (!phone || !password) return res.status(400).json({ error: 'phone and password are required' });
+    const normalizedPhone = normalizeIndianPhone(phone);
+    if (!normalizedPhone || !password) return res.status(400).json({ error: 'Valid 10-digit Indian phone number and password are required' });
     if (!isValidPassword(password)) return res.status(400).json({ error: PASSWORD_ERROR });
 
-    const existing = await pool.query('SELECT id FROM customers WHERE phone = $1', [phone]);
+    const existing = await pool.query('SELECT id FROM customers WHERE phone = $1', [normalizedPhone]);
     if (existing.rows.length) return res.status(409).json({ error: 'Phone already registered — please log in instead' });
 
     const password_hash = await bcrypt.hash(password, 10);
     const result = await pool.query(
       'INSERT INTO customers (name, phone, password_hash) VALUES ($1, $2, $3) RETURNING id, name, phone, created_at',
-      [name || null, phone, password_hash]
+      [name || null, normalizedPhone, password_hash]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -32,36 +40,37 @@ router.post('/:role/login', async (req, res, next) => {
   try {
     const { role } = req.params;
     const { phone, password } = req.body;
+    const normalizedPhone = normalizeIndianPhone(phone);
     if (!['customer', 'provider'].includes(role)) {
       return res.status(400).json({ error: 'role must be customer or provider' });
     }
-    if (!phone || !password) return res.status(400).json({ error: 'phone and password are required' });
+    if (!normalizedPhone || !password) return res.status(400).json({ error: 'Valid 10-digit Indian phone number and password are required' });
 
-    const retryAfter = checkLoginRateLimit(req.ip, role, phone);
+    const retryAfter = checkLoginRateLimit(req.ip, role, normalizedPhone);
     if (retryAfter > 0) {
       res.set('Retry-After', String(retryAfter));
       return res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
     }
 
     const table = role === 'customer' ? 'customers' : 'service_providers';
-    const result = await pool.query(`SELECT * FROM ${table} WHERE phone = $1`, [phone]);
+    const result = await pool.query(`SELECT * FROM ${table} WHERE phone = $1`, [normalizedPhone]);
     if (result.rows.length === 0) {
-      recordFailedLogin(req.ip, role, phone);
+      recordFailedLogin(req.ip, role, normalizedPhone);
       return res.status(401).json({ error: 'Invalid phone number or password' });
     }
     const user = result.rows[0];
     if (!user.password_hash) {
-      recordFailedLogin(req.ip, role, phone);
+      recordFailedLogin(req.ip, role, normalizedPhone);
       return res.status(401).json({ error: 'Invalid phone number or password' });
     }
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
-      recordFailedLogin(req.ip, role, phone);
+      recordFailedLogin(req.ip, role, normalizedPhone);
       return res.status(401).json({ error: 'Invalid phone number or password' });
     }
 
-    clearLoginFailures(req.ip, role, phone);
+    clearLoginFailures(req.ip, role, normalizedPhone);
 
     const token = jwt.sign({ id: user.id, role }, process.env.JWT_SECRET, { expiresIn: '30d' });
     delete user.password_hash;
@@ -79,10 +88,11 @@ router.post('/:role/reset-password', async (req, res, next) => {
   try {
     const { role } = req.params;
     const { phone, current_password, new_password } = req.body;
+    const normalizedPhone = normalizeIndianPhone(phone);
     if (!['customer', 'provider'].includes(role)) {
       return res.status(400).json({ error: 'role must be customer or provider' });
     }
-    if (!phone || !current_password || !new_password) {
+    if (!normalizedPhone || !current_password || !new_password) {
       return res.status(400).json({ error: 'phone, current_password and new_password are required' });
     }
     if (!isValidPassword(new_password)) return res.status(400).json({ error: PASSWORD_ERROR });
@@ -91,7 +101,7 @@ router.post('/:role/reset-password', async (req, res, next) => {
     }
 
     const table = role === 'customer' ? 'customers' : 'service_providers';
-    const result = await pool.query(`SELECT id, password_hash FROM ${table} WHERE phone = $1`, [phone]);
+    const result = await pool.query(`SELECT id, password_hash FROM ${table} WHERE phone = $1`, [normalizedPhone]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'No account found with this phone number' });
     }
