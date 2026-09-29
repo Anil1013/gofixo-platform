@@ -210,6 +210,28 @@ router.post('/:id/documents', requireAuth(['provider']), requireOwnProvider, upl
         'INSERT INTO provider_documents (provider_id, doc_type, file_url) VALUES ($1, $2, $3) RETURNING id, provider_id, doc_type, file_url, uploaded_at',
         [req.params.id, docType, fileUrl]
       );
+
+      // Auto-approve only when every required document for this provider
+      // type has been uploaded. Admin can always override the status later.
+      const provider = await pool.query(
+        'SELECT type, kyc_status FROM service_providers WHERE id = $1',
+        [req.params.id]
+      );
+      if (provider.rows.length > 0) {
+        const required = REQUIRED_DOCS[provider.rows[0].type] || [];
+        const docs = await pool.query(
+          'SELECT DISTINCT doc_type FROM provider_documents WHERE provider_id = $1',
+          [req.params.id]
+        );
+        const uploaded = new Set(docs.rows.map((d) => d.doc_type));
+        if (required.length > 0 && required.every((doc) => uploaded.has(doc))) {
+          await pool.query(
+            'UPDATE service_providers SET kyc_status = \'approved\' WHERE id = $1',
+            [req.params.id]
+          );
+        }
+      }
+
       res.status(201).json(result.rows[0]);
     } catch (err) {
       await fsp.unlink(filePath).catch(() => {});
@@ -234,20 +256,6 @@ router.patch('/:id/kyc', requireAdmin, async (req, res, next) => {
     const { status } = req.body; // 'approved' or 'rejected'
     if (!['approved', 'rejected', 'pending'].includes(status)) {
       return res.status(400).json({ error: 'status must be approved, rejected, or pending' });
-    }
-
-    if (status === 'approved') {
-      const provider = await pool.query('SELECT type FROM service_providers WHERE id = $1', [req.params.id]);
-      if (provider.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
-      const required = REQUIRED_DOCS[provider.rows[0].type];
-      if (required) {
-        const docs = await pool.query('SELECT doc_type FROM provider_documents WHERE provider_id = $1', [req.params.id]);
-        const uploaded = new Set(docs.rows.map((d) => d.doc_type));
-        const missing = required.filter((r) => !uploaded.has(r));
-        if (missing.length > 0) {
-          return res.status(400).json({ error: `Cannot approve — missing required documents: ${missing.join(', ')}` });
-        }
-      }
     }
 
     const result = await pool.query(
