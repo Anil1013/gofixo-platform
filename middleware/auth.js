@@ -19,7 +19,7 @@ function requireAuth(allowedRoles = []) {
       // Compare the password-change timestamp inside PostgreSQL so a TIMESTAMP
       // value is not re-interpreted using the Node process timezone.
       const account = await pool.query(
-        `SELECT password_changed_at > to_timestamp($2) AS password_changed
+        `SELECT FLOOR(EXTRACT(EPOCH FROM password_changed_at)) > $2 AS password_changed
          FROM ${table}
          WHERE id = $1`,
         [payload.id, payload.iat || 0]
