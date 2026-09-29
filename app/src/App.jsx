@@ -133,7 +133,7 @@ export default function App() {
   const showNav = !(role === 'customer' && activeBooking);
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell role-${role}`}>
       <header className="topbar">
         <span className="topbar-brand">Gofixo</span>
         <div className="topbar-actions"><span className="topbar-role">{role === 'provider' ? 'Partner' : 'Customer'}</span><button className="logout-link" onClick={logout}>Log out</button></div>
