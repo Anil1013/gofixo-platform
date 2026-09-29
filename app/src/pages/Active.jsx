@@ -22,9 +22,12 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
+  // Refresh booking state and the assigned provider's coordinates every 15 seconds
+  // while the ride/service is active. The backend only exposes that location to
+  // this authenticated customer.
   useEffect(() => {
     if (booking.status === 'completed' || booking.status === 'no_provider') return;
-    const interval = setInterval(onRefresh, 5000);
+    const interval = setInterval(onRefresh, 15 * 1000);
     return () => clearInterval(interval);
   }, [booking.status]);
 
