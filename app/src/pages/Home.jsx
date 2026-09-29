@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiPost } from '../api';
 import MapView from '../components/MapView';
 import { reverseGeocode, searchAddress, getRoute, formatDistance } from '../utils/geo';
@@ -20,6 +20,8 @@ const FARE_RULES = {
   car: { base: 60, perKm: 18, minimum: 70 },
 };
 
+const LOCATION_PROMPTED_KEY = 'gofixo_location_prompted';
+
 function calculateFare(type, distanceKm) {
   const rule = FARE_RULES[type];
   if (!rule || !Number.isFinite(distanceKm) || distanceKm < 0) return 0;
@@ -40,32 +42,85 @@ export default function Home({ onBooked }) {
   const [finding, setFinding] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const locationRequestRef = useRef(false);
+  const destinationResolvedRef = useRef('');
 
-  function useMyLocation() {
+  async function applyCurrentLocation(pos) {
+    const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    setCoords(here);
+    setLocating(false);
+
+    // Keep the coordinates even if reverse geocoding is temporarily unavailable.
+    const address = await reverseGeocode(here.lat, here.lng);
+    setLocation(address || 'Current location');
+
+    if (destCoords) {
+      const nextRoute = await getRoute(here, destCoords);
+      setRoute(nextRoute);
+    }
+  }
+
+  function requestCurrentLocation({ interactive = false } = {}) {
+    if (locationRequestRef.current) return;
+    locationRequestRef.current = true;
     setLocating(true);
     setError('');
+
     if (!navigator.geolocation) {
       setError('Location is not available on this device/browser.');
       setLocating(false);
+      locationRequestRef.current = false;
       return;
     }
+
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setCoords(here);
-        setLocating(false);
-        // Turn coordinates into a readable address (fills the box, still editable)
-        const address = await reverseGeocode(here.lat, here.lng);
-        if (address) setLocation(address);
-        if (destCoords) setRoute(await getRoute(here, destCoords));
+        localStorage.setItem(LOCATION_PROMPTED_KEY, '1');
+        await applyCurrentLocation(pos);
+        locationRequestRef.current = false;
       },
       () => {
-        setError('Could not get your location. Please allow location access.');
         setLocating(false);
+        locationRequestRef.current = false;
+        if (interactive) {
+          setError('Could not get your location. Please allow location access in phone/browser settings.');
+        }
       },
-      { enableHighAccuracy: true, timeout: 15000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
     );
   }
+
+  function useMyLocation() {
+    requestCurrentLocation({ interactive: true });
+  }
+
+  useEffect(() => {
+    // Browser/phone permission is persistent. Only request it automatically once.
+    // After permission is granted, future Home loads silently read the current GPS
+    // position without showing the permission dialog again.
+    if (!navigator.geolocation) return;
+
+    const prompted = localStorage.getItem(LOCATION_PROMPTED_KEY) === '1';
+
+    if (navigator.permissions?.query) {
+      navigator.permissions.query({ name: 'geolocation' }).then((permission) => {
+        if (permission.state === 'granted') {
+          requestCurrentLocation();
+        } else if (permission.state === 'prompt' && !prompted) {
+          localStorage.setItem(LOCATION_PROMPTED_KEY, '1');
+          requestCurrentLocation();
+        }
+      }).catch(() => {
+        if (!prompted) {
+          localStorage.setItem(LOCATION_PROMPTED_KEY, '1');
+          requestCurrentLocation();
+        }
+      });
+    } else if (!prompted) {
+      localStorage.setItem(LOCATION_PROMPTED_KEY, '1');
+      requestCurrentLocation();
+    }
+  }, []);
 
   async function findPickup() {
     setError('');
@@ -85,25 +140,29 @@ export default function Home({ onBooked }) {
   }
 
   async function findDestination() {
+    const query = destination.trim();
+    if (!query || query === destinationResolvedRef.current) return;
+
     setError('');
-    if (!destination.trim()) return;
     setFinding(true);
-    const found = await searchAddress(destination);
+    const found = await searchAddress(query);
     if (!found) {
       setError('Could not find that place — try adding the area or city name.');
       setFinding(false);
       return;
     }
+
     setDestination(found.label);
+    destinationResolvedRef.current = query;
     setDestCoords({ lat: found.lat, lng: found.lng });
-    setRoute(await getRoute(coords, found));
+    setRoute(coords ? await getRoute(coords, found) : null);
     setFinding(false);
   }
 
   async function book() {
     setError('');
     if (!coords) {
-      setError('Please share your location first.');
+      setError('Please allow location access so we can use your current pickup location.');
       return;
     }
     if (!location) {
@@ -113,7 +172,7 @@ export default function Home({ onBooked }) {
     setLoading(true);
     try {
       if (category === 'ride' && (!destCoords || !route)) {
-        setError('Please find both pickup and drop locations to calculate the fare.');
+        setError('Please enter a valid drop location so we can calculate the fare.');
         return;
       }
       const body = {
@@ -166,14 +225,23 @@ export default function Home({ onBooked }) {
       </div>
 
       <button type="button" className="secondary" style={{ marginTop: 0 }} onClick={useMyLocation} disabled={locating}>
-        {locating ? 'Getting location...' : coords ? '📍 Location shared — tap to refresh' : '📍 Use my current location'}
+        {locating ? 'Getting location...' : coords ? '📍 Current location detected — tap to refresh' : '📍 Use my current location'}
       </button>
 
       {coords && <MapView markers={markers} line={route ? route.line : null} height={190} />}
 
       <label>{category === 'ride' ? 'Pickup address' : 'Service address'}</label>
       <div className="find-row">
-        <input value={location} onChange={(e) => { setLocation(e.target.value); setCoords(null); setRoute(null); }} placeholder="Enter pickup address" />
+        <input
+          value={location}
+          onChange={(e) => {
+            setLocation(e.target.value);
+            setCoords(null);
+            setRoute(null);
+          }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && category === 'ride') findPickup(); }}
+          placeholder="Your current location"
+        />
         {category === 'ride' && <button type="button" onClick={findPickup} disabled={pickupFinding}>{pickupFinding ? '...' : 'Find'}</button>}
       </div>
 
@@ -181,7 +249,18 @@ export default function Home({ onBooked }) {
         <>
           <label>Where to?</label>
           <div className="find-row">
-            <input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="e.g. Cyber Hub, Gurgaon" />
+            <input
+              value={destination}
+              onChange={(e) => {
+                setDestination(e.target.value);
+                destinationResolvedRef.current = '';
+                setDestCoords(null);
+                setRoute(null);
+              }}
+              onBlur={findDestination}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); findDestination(); } }}
+              placeholder="Enter drop location, e.g. Cyber Hub, Gurgaon"
+            />
             <button type="button" onClick={findDestination} disabled={finding}>{finding ? '...' : 'Find'}</button>
           </div>
           {route && (
