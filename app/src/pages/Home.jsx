@@ -9,13 +9,13 @@ const RIDE_TYPES = [
   { value: 'car', label: 'Car' },
 ];
 
-const PRONTO_TYPES = [
+const HOME_SERVICE_TYPES = [
   { value: 'general_worker', label: 'Home help (cleaning, general)' },
   { value: 'skilled_worker', label: 'Skilled (electrician, plumber, carpenter)' },
 ];
 
 export default function Home({ onBooked }) {
-  const [category, setCategory] = useState('ride'); // ride | pronto
+  const [category, setCategory] = useState('ride'); // ride | services
   const [providerType, setProviderType] = useState('bike');
   const [location, setLocation] = useState('');
   const [work, setWork] = useState('');
@@ -90,7 +90,7 @@ export default function Home({ onBooked }) {
         service_type: category,
         provider_type: providerType,
         pickup_location: location,
-        drop_or_service_address: category === 'pronto' ? work : destination || undefined,
+        drop_or_service_address: category === 'services' ? work : destination || undefined,
         pickup_lat: coords.lat,
         pickup_lng: coords.lng,
       };
@@ -103,7 +103,7 @@ export default function Home({ onBooked }) {
     }
   }
 
-  const types = category === 'ride' ? RIDE_TYPES : PRONTO_TYPES;
+  const types = category === 'ride' ? RIDE_TYPES : HOME_SERVICE_TYPES;
 
   const markers = [];
   if (coords) markers.push({ lat: coords.lat, lng: coords.lng, emoji: '📍', color: '#EC4899' });
