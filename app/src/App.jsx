@@ -124,7 +124,7 @@ export default function App() {
       }
       return tab === 'home' ? <Home onBooked={(b) => setActiveBooking(b)} /> : <History />;
     }
-    if (tab === 'home') return <ProviderHome />;
+    if (tab === 'home') return <ProviderHome onLogout={logout} />;
     if (tab === 'plans') return <ProviderPlans />;
     if (tab === 'docs') return <ProviderDocuments />;
     return <ProviderHistory />;
