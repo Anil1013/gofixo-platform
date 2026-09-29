@@ -27,6 +27,7 @@ export function getRole() {
 
 async function handle(res) {
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401) clearSession();
   if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
   return data;
 }
