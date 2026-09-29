@@ -309,6 +309,9 @@ export default function Home({ onBooked }) {
             <button type="button" onClick={findDestination} disabled={finding}>{finding ? '...' : 'Find'}</button>
           </div>
           <input value={dropPincode} onChange={(e) => setDropPincode(e.target.value)} placeholder="PIN code" />
+          <input value={dropArea} onChange={(e) => setDropArea(e.target.value)} placeholder="Locality / area" />
+          <input value={dropStreet} onChange={(e) => setDropStreet(e.target.value)} placeholder="Road / street" />
+          <input value={dropHouse} onChange={(e) => setDropHouse(e.target.value)} placeholder="House / building no." />
           {route && (
             <>
               <p className="route-info">🛣 {formatDistance(route.distanceKm)} · about {route.durationMin} min</p>
