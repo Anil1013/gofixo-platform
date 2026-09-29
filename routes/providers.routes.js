@@ -11,6 +11,7 @@ const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
 const { isValidPassword, PASSWORD_ERROR } = require('../utils/password');
 const { getVapidPublicKey } = require('../services/push');
+const { broadcastProviderLocation } = require('../services/realtime');
 
 const PROVIDER_TYPES = ['bike', 'auto', 'car', 'general_worker', 'skilled_worker'];
 
@@ -476,6 +477,15 @@ router.patch('/:id/location', requireAuth(['provider']), async (req, res, next) 
       [latitude, longitude, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
+
+    // Push the newest GPS position to customers who are tracking this provider.
+    broadcastProviderLocation(
+      Number(req.params.id),
+      latitude,
+      longitude,
+      result.rows[0].location_updated_at
+    ).catch((err) => console.error('Realtime location broadcast error:', err.message));
+
     res.json(result.rows[0]);
   } catch (err) {
     next(err);
