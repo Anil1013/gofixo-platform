@@ -167,23 +167,68 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
   }
 });
 
-// Provider accepts the request that is buzzing on their phone
+// Provider accepts the request that is buzzing on their phone.
+// Re-check subscription/KYC and active-booking ownership atomically so an offer
+// cannot be accepted after the provider becomes ineligible or gets another job.
 router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => {
+  const client = await pool.connect();
+  let inTransaction = false;
   try {
-    const result = await pool.query(
-      `UPDATE bookings SET status = 'accepted'
-       WHERE id = $1 AND provider_id = $2 AND status = 'requested'
-         AND NOT ($2 = ANY(COALESCE(declined_providers, '{}')))
-       RETURNING id, service_type, customer_id, provider_id, pickup_location, drop_or_service_address,
-                 status, pickup_lat, pickup_lng, created_at`,
+    await client.query('BEGIN');
+    inTransaction = true;
+
+    await client.query(
+      'SELECT pg_advisory_xact_lock(hashtext($1))',
+      [`gofixo-provider-booking:${req.user.id}`]
+    );
+
+    const result = await client.query(
+      `UPDATE bookings b SET status = 'accepted'
+       WHERE b.id = $1
+         AND b.provider_id = $2
+         AND b.status = 'requested'
+         AND NOT ($2 = ANY(COALESCE(b.declined_providers, '{}')))
+         AND EXISTS (
+           SELECT 1
+           FROM service_providers sp
+           WHERE sp.id = b.provider_id
+             AND sp.kyc_status = 'approved'
+             AND EXISTS (
+               SELECT 1
+               FROM provider_subscriptions ps
+               WHERE ps.provider_id = sp.id
+                 AND ps.status = 'active'
+                 AND ps.expiry_date > NOW()
+             )
+         )
+         AND NOT EXISTS (
+           SELECT 1
+           FROM bookings active_b
+           WHERE active_b.provider_id = b.provider_id
+             AND active_b.status IN ('accepted', 'ongoing')
+             AND active_b.id <> b.id
+         )
+       RETURNING b.id, b.service_type, b.customer_id, b.provider_id, b.pickup_location,
+                 b.drop_or_service_address, b.status, b.pickup_lat, b.pickup_lng, b.created_at`,
       [req.params.id, req.user.id]
     );
+
     if (result.rows.length === 0) {
-      return res.status(409).json({ error: 'This request is no longer available (it may have timed out)' });
+      await client.query('ROLLBACK');
+      inTransaction = false;
+      return res.status(409).json({
+        error: 'This request is no longer available or your provider account is not currently eligible'
+      });
     }
+
+    await client.query('COMMIT');
+    inTransaction = false;
     res.json(result.rows[0]);
   } catch (err) {
+    if (inTransaction) await client.query('ROLLBACK').catch(() => {});
     next(err);
+  } finally {
+    client.release();
   }
 });
 
@@ -202,33 +247,45 @@ router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) =>
   }
 });
 
-// Provider starts the ride/job by entering the PIN the customer sees on their dashboard
+// Provider starts the ride/job by entering the PIN the customer sees on their dashboard.
+// The update is atomic and clears the PIN after success, making it single-use.
 router.post('/:id/start', requireAuth(['provider']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { pin } = req.body;
     if (!pin) return res.status(400).json({ error: 'pin is required' });
 
-    const existing = await pool.query('SELECT provider_id, start_pin, status FROM bookings WHERE id = $1', [id]);
-    if (existing.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
-    const booking = existing.rows[0];
-
-    if (booking.provider_id !== req.user.id) {
-      return res.status(403).json({ error: 'This booking does not belong to you' });
-    }
-    if (booking.status !== 'accepted') {
-      return res.status(400).json({ error: booking.status === 'requested' ? 'Accept the request first' : `Booking is already ${booking.status}` });
-    }
-    if (booking.start_pin !== pin) {
-      return res.status(401).json({ error: 'Incorrect PIN' });
-    }
-
     const result = await pool.query(
-      `UPDATE bookings SET status = 'ongoing' WHERE id = $1
+      `UPDATE bookings
+       SET status = 'ongoing', start_pin = NULL
+       WHERE id = $1
+         AND provider_id = $2
+         AND status = 'accepted'
+         AND start_pin = $3
        RETURNING id, service_type, customer_id, provider_id, pickup_location, status, created_at`,
+      [id, req.user.id, String(pin)]
+    );
+
+    if (result.rows.length > 0) {
+      return res.json(result.rows[0]);
+    }
+
+    const existing = await pool.query(
+      'SELECT provider_id, start_pin, status FROM bookings WHERE id = $1',
       [id]
     );
-    res.json(result.rows[0]);
+    if (existing.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
+    if (existing.rows[0].provider_id !== req.user.id) {
+      return res.status(403).json({ error: 'This booking does not belong to you' });
+    }
+    if (existing.rows[0].status !== 'accepted') {
+      return res.status(400).json({
+        error: existing.rows[0].status === 'requested'
+          ? 'Accept the request first'
+          : `Booking is already ${existing.rows[0].status}`
+      });
+    }
+    return res.status(401).json({ error: 'Incorrect PIN' });
   } catch (err) {
     next(err);
   }
