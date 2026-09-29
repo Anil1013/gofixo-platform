@@ -68,36 +68,70 @@ export default function ProviderHome() {
 
   useEffect(() => () => stopBuzzer(), []); // stop on unmount
 
+  async function updateCurrentLocation(refreshProfile = false) {
+    if (!navigator.geolocation) {
+      throw new Error('Location not available on this device.');
+    }
+
+    await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          try {
+            await apiPatch(`/providers/${profile.id}/location`, {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+            }, true);
+            resolve();
+          } catch (err) {
+            reject(err);
+          }
+        },
+        () => reject(new Error('Could not get your location.')),
+        { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 }
+      );
+    });
+
+    if (refreshProfile) await loadAll();
+  }
+
   async function toggleAvailability() {
     setBusy(true);
     setError('');
     try {
-      await apiPatch(`/providers/${profile.id}/availability`, { is_available: !profile.is_available }, true);
-      loadAll();
+      const goingOnline = !profile.is_available;
+      if (goingOnline) {
+        await updateCurrentLocation(false);
+      }
+      await apiPatch(`/providers/${profile.id}/availability`, { is_available: goingOnline }, true);
+      await loadAll();
     } catch (err) {
       setError(err.message);
+      await loadAll();
     } finally {
       setBusy(false);
     }
   }
 
-  function shareLocation() {
-    if (!navigator.geolocation) {
-      setError('Location not available on this device.');
-      return;
+  async function shareLocation() {
+    setError('');
+    try {
+      await updateCurrentLocation(true);
+    } catch (err) {
+      setError(err.message);
     }
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          await apiPatch(`/providers/${profile.id}/location`, { lat: pos.coords.latitude, lng: pos.coords.longitude }, true);
-          loadAll();
-        } catch (err) {
-          setError(err.message);
-        }
-      },
-      () => setError('Could not get your location.')
-    );
   }
+
+  // Keep an online provider's location fresh so they stop matching after a
+  // prolonged disconnect instead of being treated as if they were still nearby.
+  useEffect(() => {
+    if (!profile?.is_available) return undefined;
+
+    const id = setInterval(() => {
+      updateCurrentLocation(false).catch(() => {});
+    }, 60 * 1000);
+
+    return () => clearInterval(id);
+  }, [profile?.is_available, profile?.id]);
 
   async function acceptBooking() {
     setBusy(true);
