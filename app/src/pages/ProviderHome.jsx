@@ -353,7 +353,7 @@ export default function ProviderHome() {
               <p>{profile.generated_id} · {profile.type?.replaceAll('_', ' ')}</p>
             </div>
           </div>
-          <span className="provider-status-pill"><i />{profile.is_available ? 'ONLINE' : 'OFFLINE'}</span>
+          <button type="button" className={profile.is_available ? 'provider-status-pill hero-availability-toggle online' : 'provider-status-pill hero-availability-toggle'} onClick={toggleAvailability} disabled={busy || profile.kyc_status !== 'approved'}><i />{profile.is_available ? 'Online' : 'Go online'}</button>
         </div>
         <div className="provider-hero-bottom">
           <div>
@@ -439,9 +439,10 @@ export default function ProviderHome() {
       {!activeBooking && (
         <section className="provider-benefits">
           <span className="section-kicker">GOFIXO PARTNER</span>
-          <h2>Work your way.</h2>
+          <h2>Keep Going!</h2>
+          <p className="partner-motivation">You are doing great today. Stay online and keep accepting nearby requests.</p>
           <div className="benefit-grid">
-            <div><span>📍</span><strong>Nearby jobs</strong><small>Smart matching</small></div>
+            <div><span>🏆</span><strong>Nearby jobs</strong><small>Smart matching</small></div>
             <div><span>💰</span><strong>Clear earnings</strong><small>Know your fare</small></div>
             <div><span>🛡️</span><strong>Built for trust</strong><small>Verified customers</small></div>
           </div>
