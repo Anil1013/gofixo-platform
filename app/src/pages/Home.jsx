@@ -169,6 +169,10 @@ export default function Home({ onBooked }) {
       setError('Please confirm your pickup location.');
       return;
     }
+    if (String(pickupPincode).length !== 6) {
+      setError('Please confirm the 6-digit pickup PIN code.');
+      return;
+    }
     setLoading(true);
     try {
       let resolvedDestination = destCoords;
@@ -199,6 +203,10 @@ export default function Home({ onBooked }) {
 
       if (category === 'ride' && (!resolvedDestination || !resolvedRoute)) {
         setError('Please enter a valid drop location so we can calculate the fare.');
+        return;
+      }
+      if (category === 'ride' && String(dropPincode).length !== 6) {
+        setError('Please confirm the 6-digit drop PIN code.');
         return;
       }
 
