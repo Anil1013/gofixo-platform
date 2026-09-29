@@ -587,3 +587,38 @@ button,input{font-family:inherit}
   .provider-profile h1{font-size:19px!important}
   .provider-stat-card strong{font-size:16px!important}
 }
+
+
+.partner-empty-booking{
+  margin:0 0 14px;
+  padding:15px;
+  border:1px solid var(--gf-line);
+  border-radius:20px;
+  background:#fff;
+  box-shadow:var(--gf-shadow);
+}
+.partner-empty-booking .incoming-head{margin-bottom:10px}
+.partner-empty-booking .incoming-head h2{
+  margin:2px 0 0;
+  font-family:Lora,serif!important;
+  font-size:21px!important;
+  color:var(--gf-navy)!important;
+}
+.empty-request-card{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  padding:13px;
+  border-radius:15px;
+  background:linear-gradient(135deg,#f7faff,#fff);
+  border:1px dashed #dce3ed;
+}
+.empty-request-icon{
+  width:43px;height:43px;flex:0 0 43px;
+  border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  background:#fff1df;
+  font-size:21px;
+}
+.empty-request-card strong{display:block;color:var(--gf-navy);font-size:11px}
+.empty-request-card small{display:block;color:#7c8799;font-size:8px;line-height:1.4;margin-top:3px}
