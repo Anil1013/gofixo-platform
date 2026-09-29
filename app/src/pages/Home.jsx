@@ -22,9 +22,9 @@ const FARE_RULES = {
 };
 
 const RIDE_VISUALS = {
-  bike: { image: 'https://images.unsplash.com/photo-1733565823567-ca12618dec46?auto=format&fit=crop&w=900&q=82', title: 'Bike', sub: 'Fast & affordable', tone: 'orange' },
+  bike: { image: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=900&q=88', title: 'Bike', sub: 'Fast & affordable', tone: 'orange' },
   auto: { image: 'https://images.unsplash.com/photo-1703142488992-72018a83fd8a?auto=format&fit=crop&w=900&q=82', title: 'Auto', sub: 'Comfortable rides', tone: 'green' },
-  car: { image: 'https://images.unsplash.com/photo-1558594924-32c0320a116e?auto=format&fit=crop&w=900&q=82', title: 'Car', sub: 'Premium & safe', tone: 'blue' },
+  car: { image: 'https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=900&q=88', title: 'Car', sub: 'Premium & safe', tone: 'blue' },
 };
 
 const SERVICE_VISUALS = {
