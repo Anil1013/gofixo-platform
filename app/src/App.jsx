@@ -9,6 +9,7 @@ import ProviderDocuments from './pages/ProviderDocuments';
 import ProviderHistory from './pages/ProviderHistory';
 import { apiGet, getToken, getUser, getRole, clearSession } from './api';
 import './App.css';
+import './gofixo-reference.css';
 
 // Bookings the customer has finished looking at (rated / dismissed) — kept so a page reload doesn't bring them back
 const DISMISSED_KEY = 'gofixo_dismissed_bookings';
@@ -134,8 +135,8 @@ export default function App() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <span className="topbar-brand">Gofixo {role === 'provider' ? '· Partner' : ''}</span>
-        <button className="logout-link" onClick={logout}>Log out</button>
+        <span className="topbar-brand">Gofixo</span>
+        <div className="topbar-actions"><span className="topbar-role">{role === 'provider' ? 'Partner' : 'Customer'}</span><button className="logout-link" onClick={logout}>Log out</button></div>
       </header>
 
       <main className="main">{renderContent()}</main>
