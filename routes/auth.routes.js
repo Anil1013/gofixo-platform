@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
 const { isValidPassword, PASSWORD_ERROR } = require('../utils/password');
+const { checkLoginRateLimit, recordFailedLogin, clearLoginFailures } = require('../utils/loginRateLimit');
 
 // Register a new customer — phone + password (name optional)
 router.post('/customer/register', async (req, res, next) => {
@@ -36,18 +37,31 @@ router.post('/:role/login', async (req, res, next) => {
     }
     if (!phone || !password) return res.status(400).json({ error: 'phone and password are required' });
 
+    const retryAfter = checkLoginRateLimit(req.ip, role, phone);
+    if (retryAfter > 0) {
+      res.set('Retry-After', String(retryAfter));
+      return res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
+    }
+
     const table = role === 'customer' ? 'customers' : 'service_providers';
     const result = await pool.query(`SELECT * FROM ${table} WHERE phone = $1`, [phone]);
     if (result.rows.length === 0) {
+      recordFailedLogin(req.ip, role, phone);
       return res.status(404).json({ error: 'No account found with this phone number' });
     }
     const user = result.rows[0];
     if (!user.password_hash) {
+      recordFailedLogin(req.ip, role, phone);
       return res.status(401).json({ error: 'No password set on this account yet' });
     }
 
     const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(401).json({ error: 'Incorrect password' });
+    if (!valid) {
+      recordFailedLogin(req.ip, role, phone);
+      return res.status(401).json({ error: 'Incorrect password' });
+    }
+
+    clearLoginFailures(req.ip, role, phone);
 
     const token = jwt.sign({ id: user.id, role, phone }, process.env.JWT_SECRET, { expiresIn: '30d' });
     delete user.password_hash;
