@@ -1266,3 +1266,37 @@ button,input{font-family:inherit}
   cursor:pointer;
 }
 .partner-profile-logout:hover{background:#fff5ea;color:#ff7a00;border-color:#ffd7ad}
+
+/* Real-photo cards */
+.role-customer .reference-vehicle-strip img{
+  border-radius:14px;
+  object-fit:cover!important;
+  background:#eaf1f7;
+  box-shadow:0 7px 16px rgba(16,33,63,.16);
+}
+.role-customer .visual-type-card img{
+  border-radius:12px!important;
+  object-fit:cover!important;
+  background:#eef3f7;
+}
+.role-customer .service-pills button{
+  overflow:hidden!important;
+  justify-content:flex-start!important;
+}
+.role-customer .service-pills button img{
+  width:100%!important;
+  height:54px!important;
+  object-fit:cover!important;
+  border-radius:10px!important;
+  margin-bottom:3px!important;
+}
+.role-customer .service-pills button span{
+  font-size:7px!important;
+  line-height:1.1!important;
+  margin:0!important;
+  font-weight:800!important;
+}
+@media(max-width:390px){
+  .role-customer .service-pills{grid-template-columns:repeat(4,1fr)!important}
+  .role-customer .service-pills button img{height:50px!important}
+}
