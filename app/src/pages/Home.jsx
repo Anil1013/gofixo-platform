@@ -286,6 +286,9 @@ export default function Home({ onBooked }) {
         {category === 'ride' && <button type="button" onClick={findPickup} disabled={pickupFinding}>{pickupFinding ? '...' : 'Find'}</button>}
       </div>
       <input value={pickupPincode} onChange={(e) => setPickupPincode(e.target.value)} placeholder="PIN code" />
+      <input value={pickupArea} onChange={(e) => setPickupArea(e.target.value)} placeholder="Locality / area" />
+      <input value={pickupStreet} onChange={(e) => setPickupStreet(e.target.value)} placeholder="Road / street" />
+      <input value={pickupHouse} onChange={(e) => setPickupHouse(e.target.value)} placeholder="House / building no." />
 
       {category === 'ride' && (
         <>
