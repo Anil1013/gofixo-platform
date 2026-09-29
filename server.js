@@ -56,7 +56,22 @@ setInterval(async () => {
       [String(OFFER_TIMEOUT_SECONDS)]
     );
     for (const row of expired.rows) {
-      await handleDeclineOrTimeout(row.id, true);
+      // Coordinate timeout processing across multiple backend instances.
+      // The advisory lock is per booking, so unrelated expired offers can still progress concurrently.
+      const lock = await pool.query(
+        'SELECT pg_try_advisory_lock($1, $2) AS locked',
+        [2147483646, row.id]
+      );
+      if (!lock.rows[0].locked) continue;
+
+      try {
+        await handleDeclineOrTimeout(row.id, true);
+      } finally {
+        await pool.query(
+          'SELECT pg_advisory_unlock($1, $2)',
+          [2147483646, row.id]
+        );
+      }
     }
   } catch (err) {
     console.error('Offer timeout sweeper error:', err.message);
