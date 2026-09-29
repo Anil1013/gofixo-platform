@@ -68,6 +68,11 @@ async function ensureRuntimeSchema() {
   `);
 
   await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS profile_photo_url TEXT
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS provider_push_subscriptions (
       id SERIAL PRIMARY KEY,
       provider_id INT NOT NULL REFERENCES service_providers(id) ON DELETE CASCADE,
