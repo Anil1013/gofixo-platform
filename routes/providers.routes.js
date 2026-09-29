@@ -33,20 +33,43 @@ router.post('/register', async (req, res, next) => {
     }
     if (!isValidPassword(password)) return res.status(400).json({ error: PASSWORD_ERROR });
 
-    // generated_id pattern: RL-D-00231 (driver) or RL-W-00512 (worker)
+    // generated_id pattern: RL-D-00231 (driver) or RL-W-00512 (worker).
+    // COUNT()+1 is race-prone: two concurrent registrations can receive the same ID.
+    // Serialize ID allocation per provider type with a PostgreSQL transaction advisory lock.
     const prefix = ['bike', 'car', 'auto'].includes(type) ? 'D' : 'W';
-    const countResult = await pool.query('SELECT COUNT(*) FROM service_providers WHERE type = $1', [type]);
-    const nextNumber = String(parseInt(countResult.rows[0].count, 10) + 1).padStart(5, '0');
-    const generatedId = `RL-${prefix}-${nextNumber}`;
-    const passwordHash = await bcrypt.hash(password, 10);
+    const client = await pool.connect();
+    let inTransaction = false;
+    try {
+      await client.query('BEGIN');
+      inTransaction = true;
 
-    const result = await pool.query(
-      `INSERT INTO service_providers (generated_id, name, phone, type, password_hash)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id, generated_id, name, phone, type, kyc_status, created_at`,
-      [generatedId, name, phone, type, passwordHash]
-    );
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`gofixo-provider-id:${type}`]);
 
-    res.status(201).json(result.rows[0]);
+      const maxResult = await client.query(
+        `SELECT COALESCE(MAX(CAST(SUBSTRING(generated_id FROM 6) AS INTEGER)), 0) AS max_number
+         FROM service_providers
+         WHERE type = $1 AND generated_id LIKE $2`,
+        [type, `RL-${prefix}-%`]
+      );
+      const nextNumber = String(Number(maxResult.rows[0].max_number) + 1).padStart(5, '0');
+      const generatedId = `RL-${prefix}-${nextNumber}`;
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      const result = await client.query(
+        `INSERT INTO service_providers (generated_id, name, phone, type, password_hash)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id, generated_id, name, phone, type, kyc_status, created_at`,
+        [generatedId, name, phone, type, passwordHash]
+      );
+
+      await client.query('COMMIT');
+      inTransaction = false;
+      res.status(201).json(result.rows[0]);
+    } catch (err) {
+      if (inTransaction) await client.query('ROLLBACK').catch(() => {});
+      next(err);
+    } finally {
+      client.release();
+    }
   } catch (err) {
     next(err);
   }
