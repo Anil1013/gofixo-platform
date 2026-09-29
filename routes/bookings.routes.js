@@ -96,8 +96,6 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       drop_or_service_address,
       pickup_lat,
       pickup_lng,
-      drop_lat,
-      drop_lng,
       estimated_fare,
       route_distance_km,
     } = req.body;
@@ -121,16 +119,10 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       return res.status(400).json({ error: 'pickup coordinates are out of range' });
     }
 
-    const dropLatitude = drop_lat === undefined || drop_lat === null || drop_lat === '' ? null : Number(drop_lat);
-    const dropLongitude = drop_lng === undefined || drop_lng === null || drop_lng === '' ? null : Number(drop_lng);
     const routeDistance = route_distance_km === undefined || route_distance_km === null || route_distance_km === '' ? null : Number(route_distance_km);
     const estimatedFare = estimated_fare === undefined || estimated_fare === null || estimated_fare === '' ? null : Number(estimated_fare);
 
     if (service_type === 'ride') {
-      if (!Number.isFinite(dropLatitude) || !Number.isFinite(dropLongitude) ||
-          dropLatitude < -90 || dropLatitude > 90 || dropLongitude < -180 || dropLongitude > 180) {
-        return res.status(400).json({ error: 'A valid drop location is required for a ride' });
-      }
       if (!Number.isFinite(routeDistance) || routeDistance <= 0 || routeDistance > 1000) {
         return res.status(400).json({ error: 'A valid route distance is required for a ride' });
       }
@@ -181,13 +173,13 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
     const result = await client.query(
       `INSERT INTO bookings (
          service_type, provider_type, customer_id, provider_id, pickup_location, drop_or_service_address,
-         pickup_lat, pickup_lng, drop_lat, drop_lng, fare_amount, start_pin, status, offered_at, declined_providers
+         pickup_lat, pickup_lng, fare_amount, start_pin, status, offered_at, declined_providers
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'requested', NOW(), '{}')
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'requested', NOW(), '{}')
        RETURNING *`,
       [
         service_type, provider_type, customer_id, nearest.id, pickup_location, drop_or_service_address,
-        pickupLatitude, pickupLongitude, dropLatitude, dropLongitude, estimatedFare, generatePin()
+        pickupLatitude, pickupLongitude, estimatedFare, generatePin()
       ]
     );
 
