@@ -42,13 +42,13 @@ CREATE TABLE customers (
 
 CREATE TABLE bookings (
   id SERIAL PRIMARY KEY,
-  service_type VARCHAR(10) NOT NULL,               -- ride / pronto
+  service_type VARCHAR(10) NOT NULL,               -- ride / services
   customer_id INT REFERENCES customers(id),
   provider_id INT REFERENCES service_providers(id),
   pickup_location TEXT,
   drop_or_service_address TEXT,
   fare_amount NUMERIC(10,2),
-  duration_minutes INT,                             -- used for Pronto hourly billing
+  duration_minutes INT,                             -- used for home-service hourly billing
   status VARCHAR(20) DEFAULT 'requested',            -- requested / ongoing / pending_confirmation / completed / disputed
   payment_confirmed_by_provider BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT NOW(),
