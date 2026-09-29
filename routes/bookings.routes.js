@@ -242,9 +242,24 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       `SELECT p.id AS provider_id, pps.endpoint, pps.p256dh, pps.auth
        FROM service_providers p
        JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
-       WHERE p.id = ANY($1::int[])`,
-      [nearby.rows.map((row) => row.id)]
-    ).then(async (pushRows) => {
+       WHERE p.type = $1
+         AND p.is_available = true
+         AND p.current_lat IS NOT NULL
+         AND p.current_lng IS NOT NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM bookings active_b
+           WHERE active_b.provider_id = p.id
+             AND active_b.status IN ('accepted', 'ongoing')
+         )
+         AND (6371 * acos(
+           LEAST(1, GREATEST(-1,
+             cos(radians($2)) * cos(radians(p.current_lat)) *
+             cos(radians(p.current_lng) - radians($3)) +
+             sin(radians($2)) * sin(radians(p.current_lat))
+           ))
+         )) <= 3)`,
+      [provider_type, pickupLatitude, pickupLongitude]
+    )    ).then(async (pushRows) => {
       for (const row of pushRows.rows) {
         const resultPush = await sendProviderPush(
           { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
