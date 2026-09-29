@@ -49,10 +49,14 @@ export default function Providers() {
   async function updateKyc(id, status) {
     setUpdatingId(id);
     try {
-      await apiPatch(`/providers/${id}/kyc`, { status });
-      load();
+      let reason = '';
+      if (status === 'rejected') {
+        reason = window.prompt('Reason for rejecting KYC (optional):', '') || '';
+      }
+      await apiPatch(`/providers/${id}/kyc`, { status, reason });
+      await load();
     } catch (e) {
-      alert(`Failed to update: ${e.message}`);
+      alert(status === 'approved' ? `Approval not completed: ${e.message}` : `KYC update failed: ${e.message}`);
     } finally {
       setUpdatingId(null);
     }
@@ -103,6 +107,11 @@ export default function Providers() {
               <td>{p.type}</td>
               <td>
                 <span className={`badge badge-${p.kyc_status}`}>{p.kyc_status}</span>
+                {p.kyc_review_note && (
+                  <div style={{ marginTop: 6, maxWidth: 260, color: '#E9A3A3', fontSize: 12 }}>
+                    {p.kyc_review_note}
+                  </div>
+                )}
               </td>
               <td>{p.plan_name ? p.plan_name : <span style={{ color: '#B0A8BE' }}>none</span>}</td>
               <td>
