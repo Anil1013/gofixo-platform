@@ -18,6 +18,12 @@ async function findNearestProvider(providerType, lat, lng, excludeIds = []) {
        AND is_available = true
        AND kyc_status = 'approved'
        AND current_lat IS NOT NULL AND current_lng IS NOT NULL
+       AND EXISTS (
+         SELECT 1 FROM provider_subscriptions ps
+         WHERE ps.provider_id = service_providers.id
+           AND ps.status = 'active'
+           AND ps.expiry_date > NOW()
+       )
        AND NOT (id = ANY($4::int[]))
      ORDER BY distance_km ASC
      LIMIT 1`,
@@ -37,6 +43,12 @@ async function claimNearestProvider(client, providerType, lat, lng, excludeIds =
          AND is_available = true
          AND kyc_status = 'approved'
          AND current_lat IS NOT NULL AND current_lng IS NOT NULL
+         AND EXISTS (
+           SELECT 1 FROM provider_subscriptions ps
+           WHERE ps.provider_id = service_providers.id
+             AND ps.status = 'active'
+             AND ps.expiry_date > NOW()
+         )
          AND NOT (id = ANY($4::int[]))
        ORDER BY
          ( 6371 * acos(
@@ -64,27 +76,53 @@ async function claimNearestProvider(client, providerType, lat, lng, excludeIds =
 // Offers the booking to the next nearest provider (skipping those who already declined/timed out).
 // The offered provider is marked busy while the offer is open. If nobody is left, the booking becomes 'no_provider'.
 async function offerToNextProvider(booking) {
-  const next = await findNearestProvider(
-    booking.provider_type,
-    booking.pickup_lat,
-    booking.pickup_lng,
-    booking.declined_providers || []
-  );
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-  if (!next) {
-    await pool.query(
-      `UPDATE bookings SET status = 'no_provider', provider_id = NULL, offered_at = NULL WHERE id = $1`,
-      [booking.id]
+    // Claim the next provider and update the booking in one transaction.
+    // This closes the race where two offer/timeout workers could target the same provider.
+    const next = await claimNearestProvider(
+      client,
+      booking.provider_type,
+      booking.pickup_lat,
+      booking.pickup_lng,
+      booking.declined_providers || []
     );
-    return null;
-  }
 
-  await pool.query(
-    `UPDATE bookings SET provider_id = $1, status = 'requested', offered_at = NOW() WHERE id = $2`,
-    [next.id, booking.id]
-  );
-  await pool.query('UPDATE service_providers SET is_available = false WHERE id = $1', [next.id]);
-  return next.id;
+    if (!next) {
+      await client.query(
+        `UPDATE bookings
+         SET status = 'no_provider', provider_id = NULL, offered_at = NULL
+         WHERE id = $1 AND status = 'requested'`,
+        [booking.id]
+      );
+      await client.query('COMMIT');
+      return null;
+    }
+
+    const updated = await client.query(
+      `UPDATE bookings
+       SET provider_id = $1, status = 'requested', offered_at = NOW()
+       WHERE id = $2 AND status = 'requested'
+       RETURNING id`,
+      [next.id, booking.id]
+    );
+
+    if (updated.rows.length === 0) {
+      // The booking was accepted/cancelled concurrently; rollback releases the provider.
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    await client.query('COMMIT');
+    return next.id;
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 // A provider declined (or let the offer time out): record them, free/offline them, and offer to the next nearest.
