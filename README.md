@@ -27,7 +27,7 @@ Phone + password login for both customers and providers — no SMS/OTP needed:
 - `POST /api/auth/customer/register` — body: `{ name?, phone, password }`. Creates a customer account.
 - Providers get their password set as part of `POST /api/providers/register` — body: `{ name, phone, type, password }`.
 - `POST /api/auth/:role/login` (role = `customer` or `provider`) — body: `{ phone, password }`. Returns `{ token, user }`.
-- `POST /api/auth/:role/reset-password` — body: `{ phone, current_password, new_password }`. Requires the current password; there is no SMS/OTP recovery flow.
+- `POST /api/auth/:role/reset-password` — body: `{ phone, current_password, new_password }`. Requires the current password; changing the password invalidates older JWT sessions.
 - Send the token as `Authorization: Bearer <token>` on protected routes. Creating a booking requires a customer token; starting/confirming a booking requires the assigned provider's token.
 
 ## Ride-request matching (buzzer, Accept/Decline)
@@ -69,8 +69,8 @@ The admin panel now requires a login key before showing any data. Set `ADMIN_SEC
 ## KYC documents
 
 - `POST /api/providers/:id/documents` (provider auth, multipart form: `doc_type` + `file`) — uploads JPG/PNG/PDF documents. Ride providers require Aadhar front/back, driving license, RC, and vehicle photos; home-service workers require Aadhar front/back, profile photo, and police verification.
-- Files are stored on the backend disk under `uploads/providers/:id/` with randomized filenames. They are not publicly served; the authenticated provider document endpoint streams them.
-- `GET /api/providers` now also returns each provider's active `plan_name`, `earning_cap`, `total_earned_this_cycle`, `pending_amount` (cap remaining), and their uploaded `documents` — all shown directly in the admin panel's Providers table.
+- Files are stored on the backend disk under `uploads/providers/:id/` with randomized filenames. They are not publicly served; provider and admin document endpoints stream them only after authorization.
+- `GET /api/providers` returns provider KYC/plan metadata and document metadata (ID + type) for the admin panel; document files are fetched through the protected admin document endpoint.
 - Run `config/migration_002_documents.sql` once against `gofixo-db`.
 
 ## Remaining product work
