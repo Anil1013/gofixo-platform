@@ -302,6 +302,14 @@ router.post('/:id/rate', requireAuth(['customer']), async (req, res, next) => {
     }
 
     await client.query('BEGIN');
+
+    // Serialize ratings for this booking so two concurrent submissions cannot
+    // both pass the duplicate-rating check.
+    await client.query(
+      'SELECT pg_advisory_xact_lock(hashtext($1))',
+      [`gofixo-booking-rating:${id}`]
+    );
+
     const booking = await client.query('SELECT customer_id, provider_id, status FROM bookings WHERE id = $1', [id]);
     if (booking.rows.length === 0) {
       await client.query('ROLLBACK');
