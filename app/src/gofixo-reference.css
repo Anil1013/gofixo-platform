@@ -126,3 +126,464 @@ body{background:#f3f6fa;color:var(--gf-ink)}
 .provider-benefits{position:relative;overflow:hidden}
 .provider-benefits::before{content:"🏆";position:absolute;right:16px;top:15px;font-size:26px;opacity:.9}
 .provider-benefits h2{color:var(--gf-navy)!important}
+
+
+/* =========================================================
+   FINAL MOBILE REFERENCE POLISH — LORA / GOFIXO APP
+   ========================================================= */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:wght@400;500;600;700&display=swap');
+
+:root{
+  --gf-navy:#10213f;
+  --gf-orange:#ff7a00;
+  --gf-orange-2:#ff9d32;
+  --gf-green:#12b85f;
+  --gf-red:#f34d59;
+  --gf-blue:#2f80ed;
+  --gf-cream:#fff8ed;
+  --gf-bg:#f4f7fb;
+  --gf-line:#e4e9f1;
+  --gf-muted:#728097;
+  --gf-shadow:0 10px 28px rgba(16,33,63,.08);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:#eef2f7;
+  color:var(--gf-navy);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+button,input{font-family:inherit}
+
+/* Phone-like app canvas on desktop, full width on mobile */
+.app-shell{
+  width:min(430px,100vw);
+  max-width:430px;
+  min-height:100vh;
+  height:100vh;
+  margin:0 auto;
+  background:#fff;
+  box-shadow:0 18px 60px rgba(16,33,63,.12);
+  overflow:hidden;
+  position:relative;
+}
+@media(max-width:700px){
+  .app-shell{width:100%;max-width:none;box-shadow:none}
+}
+@media(min-width:701px){
+  .app-shell{border-radius:28px;margin:18px auto;height:calc(100vh - 36px)}
+}
+
+.topbar{
+  height:70px!important;
+  padding:0 18px!important;
+  background:#fff!important;
+  border-bottom:1px solid #edf0f5!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  position:relative!important;
+  z-index:20!important;
+}
+.topbar-brand{
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  font-family:Lora,serif!important;
+  font-size:25px!important;
+  font-weight:700!important;
+  letter-spacing:-.8px!important;
+  color:var(--gf-navy)!important;
+}
+.topbar-brand::before{
+  content:"";
+  width:34px;height:40px;
+  border-radius:50% 50% 50% 10%;
+  background:var(--gf-orange);
+  transform:rotate(-45deg);
+  box-shadow:0 7px 16px rgba(255,122,0,.2);
+}
+.topbar-role{
+  font-size:10px!important;
+  color:#69758a!important;
+  background:#f2f5f9!important;
+  padding:7px 12px!important;
+  border-radius:999px!important;
+  font-weight:800!important;
+  letter-spacing:1px!important;
+}
+.logout-link{
+  color:#68748a!important;
+  font-weight:700!important;
+  font-size:13px!important;
+}
+.topbar-actions{gap:8px!important}
+
+/* Main scrolling area */
+.main{
+  height:calc(100% - 130px);
+  overflow-y:auto;
+  background:#fff;
+  scrollbar-width:thin;
+}
+.main::-webkit-scrollbar{width:5px}
+.main::-webkit-scrollbar-thumb{background:#aeb7c6;border-radius:99px}
+.bottom-nav{
+  height:60px!important;
+  background:rgba(255,255,255,.98)!important;
+  border-top:1px solid #e7ebf1!important;
+  box-shadow:0 -8px 20px rgba(16,33,63,.05)!important;
+  position:absolute!important;
+  bottom:0!important;
+  left:0!important;
+  right:0!important;
+  z-index:30!important;
+}
+.bottom-nav button{
+  color:#7d889b!important;
+  font-size:10px!important;
+  font-weight:700!important;
+}
+.bottom-nav button.active{
+  color:var(--gf-orange)!important;
+}
+
+/* Customer */
+.home-screen{
+  padding:0 14px 24px!important;
+  background:#fff!important;
+}
+.home-hero{
+  min-height:300px!important;
+  margin:0 -14px 16px!important;
+  padding:19px 17px 14px!important;
+  border-radius:0 0 28px 28px!important;
+  background:linear-gradient(180deg,#fff 0%,#f7fbff 70%,#edf7ff 100%)!important;
+  color:var(--gf-navy)!important;
+  box-shadow:none!important;
+}
+.home-hero::before{
+  width:230px!important;height:230px!important;
+  right:-80px!important;top:40px!important;
+  background:rgba(255,184,89,.18)!important;
+}
+.home-hero::after{
+  width:170px!important;height:170px!important;
+  left:-80px!important;bottom:-105px!important;
+  background:rgba(47,128,237,.08)!important;
+}
+.home-hero-copy{width:55%!important;z-index:4!important}
+.home-brand-row{
+  color:var(--gf-navy)!important;
+  font-family:Lora,serif!important;
+  font-size:22px!important;
+}
+.home-logo-mark{
+  width:30px!important;height:30px!important;
+  border-radius:50% 50% 50% 10%!important;
+  transform:rotate(-45deg)!important;
+  background:var(--gf-orange)!important;
+  color:transparent!important;
+}
+.home-logo-mark::after{content:"";width:9px;height:9px;border-radius:50%;background:#fff}
+.home-eyebrow{
+  margin:20px 0 2px!important;
+  color:#6d7890!important;
+  font-size:10px!important;
+  letter-spacing:1.2px!important;
+}
+.home-hero h1{
+  font-family:Lora,serif!important;
+  font-size:29px!important;
+  line-height:1.05!important;
+  color:var(--gf-navy)!important;
+  letter-spacing:-1px!important;
+}
+.home-hero h1 span{color:var(--gf-orange)!important}
+.home-hero-text{
+  color:#65748d!important;
+  font-size:10.5px!important;
+  line-height:1.4!important;
+}
+.home-trust-row span{
+  color:#4c5a70!important;
+  background:#fff!important;
+  border:1px solid #e5eaf0!important;
+  box-shadow:0 3px 9px rgba(16,33,63,.04)
+}
+.home-hero-visual{
+  width:59%!important;
+  right:-7px!important;
+  bottom:-2px!important;
+  z-index:2!important;
+}
+.home-hero-visual img{
+  max-height:190px;
+  object-fit:contain;
+  filter:drop-shadow(0 13px 14px rgba(16,33,63,.18))!important;
+}
+.hero-float-card{
+  left:8px!important;
+  bottom:15px!important;
+  min-width:78px!important;
+  padding:7px 9px!important;
+  border-radius:12px!important;
+}
+.hero-float-card strong{font-size:8px!important}
+.hero-float-card span{font-size:7px!important}
+
+.home-section-heading{
+  margin:5px 2px 9px!important;
+  align-items:center!important;
+}
+.home-section-heading h2,
+.booking-panel-head h2{
+  font-family:Lora,serif!important;
+  font-weight:700!important;
+  color:var(--gf-navy)!important;
+}
+.home-section-heading h2{font-size:22px!important}
+.section-kicker{color:var(--gf-orange)!important}
+
+.live-dot{
+  color:#0c9b58!important;
+  background:#e8f9ef!important;
+}
+.home-category-switch{
+  grid-template-columns:1fr 1fr!important;
+  background:#f2f5f9!important;
+  padding:4px!important;
+  border-radius:14px!important;
+  gap:4px!important;
+}
+.home-category-switch button{
+  border:0!important;
+  box-shadow:none!important;
+  background:transparent!important;
+  padding:10px 8px!important;
+  border-radius:11px!important;
+}
+.home-category-switch button.active{
+  background:#fff!important;
+  color:var(--gf-navy)!important;
+  box-shadow:0 4px 12px rgba(16,33,63,.08)!important;
+  border:0!important;
+}
+
+.visual-type-grid{
+  gap:8px!important;
+  margin-bottom:18px!important;
+}
+.visual-type-card{
+  border-radius:16px!important;
+  box-shadow:0 6px 15px rgba(16,33,63,.06)!important;
+  background:#fff!important;
+}
+.visual-type-card img{
+  aspect-ratio:1.35!important;
+  background:#f5f8fb;
+}
+.visual-type-name{
+  font-size:12px!important;
+  font-weight:800!important;
+}
+.visual-type-sub{
+  font-size:8px!important;
+}
+
+.booking-panel{
+  border:0!important;
+  background:#f8fafc!important;
+  border-radius:20px!important;
+  padding:14px!important;
+  box-shadow:none!important;
+}
+.booking-panel-head{margin-bottom:10px!important}
+.booking-panel-head h2{font-size:19px!important}
+.location-card{
+  background:#fff!important;
+  border:1px solid #e1e7ef!important;
+  border-radius:15px!important;
+  box-shadow:0 5px 13px rgba(16,33,63,.05)!important;
+}
+.location-icon{
+  background:#fff1df!important;
+  color:var(--gf-orange)!important;
+}
+.home-screen input{
+  background:#fff!important;
+  border-color:#dfe5ed!important;
+}
+.home-cta{
+  background:linear-gradient(135deg,var(--gf-orange),#ff9b2e)!important;
+}
+
+/* Provider */
+.provider-home-screen{
+  padding:0 14px 24px!important;
+  background:#fff!important;
+}
+.provider-hero{
+  margin:0 -14px 13px!important;
+  padding:16px 17px 17px!important;
+  border-radius:0 0 27px 27px!important;
+  color:var(--gf-navy)!important;
+  background:linear-gradient(180deg,#fff 0%,#f1fff8 100%)!important;
+  border-bottom:1px solid #dfeee6!important;
+  box-shadow:none!important;
+}
+.provider-hero::after{
+  width:190px!important;height:190px!important;
+  right:-75px!important;top:-50px!important;
+  background:rgba(91,221,171,.14)!important;
+}
+.provider-hero.online{background:linear-gradient(180deg,#fff 0%,#effff8 100%)!important}
+.provider-profile{gap:10px!important}
+.provider-avatar{
+  width:58px!important;height:58px!important;
+  border-radius:50%!important;
+  background:#fff0df!important;
+  border:4px solid #fff!important;
+  box-shadow:0 6px 15px rgba(16,33,63,.10)!important;
+}
+.provider-greeting{color:var(--gf-orange)!important;font-size:8px!important}
+.provider-profile h1{
+  font-family:Lora,serif!important;
+  color:var(--gf-navy)!important;
+  font-size:21px!important;
+}
+.provider-profile p{color:#66758c!important;font-size:9px!important}
+.hero-availability-toggle{
+  min-width:92px!important;
+  padding:9px 13px!important;
+  background:#dff8e9!important;
+  color:#0b9d52!important;
+  box-shadow:none!important;
+}
+.provider-hero:not(.online) .hero-availability-toggle{
+  background:#f0f3f7!important;color:#5c687c!important
+}
+.provider-status-pill i{width:8px!important;height:8px!important}
+.provider-hero-bottom{margin-top:17px!important}
+.provider-hero-label{color:#58708a!important;font-size:9px!important}
+.provider-hero-bottom strong{
+  color:var(--gf-navy)!important;
+  font-family:Lora,serif!important;
+  font-size:15px!important;
+}
+.provider-type-badge{
+  background:#fff!important;
+  color:#46556d!important;
+  border:1px solid #e4e9ef!important;
+  border-radius:14px!important;
+  padding:8px 10px!important;
+  font-size:8px!important;
+}
+
+.provider-stat-grid{
+  gap:7px!important;
+  margin:0 1px 17px!important;
+}
+.provider-stat-card{
+  min-height:82px!important;
+  padding:12px 9px!important;
+  border-radius:16px!important;
+  box-shadow:0 6px 18px rgba(16,33,63,.06)!important;
+}
+.provider-stat-card:nth-child(1){background:#eff6ff!important;border-color:#e1ecfa!important}
+.provider-stat-card:nth-child(2){background:#ecfbf2!important;border-color:#d9f2e3!important}
+.provider-stat-card:nth-child(3){background:#fff6e9!important;border-color:#f6e5ca!important}
+.provider-stat-card span{
+  font-size:7px!important;letter-spacing:.7px!important;
+  color:#6c7890!important
+}
+.provider-stat-card strong{
+  font-size:18px!important;
+  font-family:Lora,serif!important;
+  color:var(--gf-navy)!important;
+}
+.provider-stat-card small{font-size:7px!important}
+
+.provider-benefits{
+  margin-top:4px!important;
+  border-radius:20px!important;
+  padding:17px!important;
+  background:#fff!important;
+  border:1px solid var(--gf-line)!important;
+  box-shadow:var(--gf-shadow)!important;
+}
+.provider-benefits::before{
+  content:"🏆"!important;
+  top:14px!important;right:15px!important;
+  font-size:27px!important;
+}
+.provider-benefits h2{
+  font-family:Lora,serif!important;
+  font-size:25px!important;
+  margin:2px 0 5px!important;
+}
+.partner-motivation{
+  color:#66758c!important;
+  font-size:11px!important;
+  line-height:1.45!important;
+  padding-right:10px!important;
+}
+.benefit-grid{gap:8px!important}
+.benefit-grid>div{
+  min-height:104px!important;
+  border-radius:16px!important;
+  background:#f8fafc!important;
+  border:1px solid #e4e9ef!important;
+  justify-content:center!important;
+}
+.benefit-grid span{
+  width:34px!important;height:34px!important;
+  border-radius:11px!important;
+  font-size:17px!important;
+}
+.benefit-grid strong{font-size:9px!important}
+.benefit-grid small{font-size:7px!important}
+
+.incoming-job-card,.provider-job-panel{
+  border-radius:20px!important;
+  border:1px solid var(--gf-line)!important;
+  box-shadow:var(--gf-shadow)!important;
+}
+.incoming-job-card{
+  border-top:3px solid var(--gf-orange)!important;
+}
+.incoming-head h2,.job-panel-head h2{
+  font-family:Lora,serif!important;
+  font-size:21px!important;
+}
+.premium-actions .decline-btn{
+  border:1px solid #ffb5bb!important;
+  background:#fff!important;
+  color:var(--gf-red)!important;
+}
+.premium-actions .accept-btn{
+  background:linear-gradient(135deg,var(--gf-green),#08a951)!important;
+  box-shadow:0 8px 18px rgba(18,184,95,.2)!important;
+}
+.provider-main-cta{
+  background:linear-gradient(135deg,var(--gf-orange),#ff9d32)!important;
+}
+
+/* Make the existing route map visually closer to the reference card */
+.provider-job-panel .map-box,
+.incoming-job-card .map-box{
+  border-radius:17px!important;
+  border:0!important;
+  box-shadow:inset 0 0 0 1px rgba(16,33,63,.05)!important;
+}
+
+/* Hide duplicate availability card; status toggle in hero is the primary control */
+.provider-home-screen>.availability-panel{display:none!important}
+
+@media(max-width:390px){
+  .home-hero{min-height:285px!important}
+  .home-hero h1{font-size:27px!important}
+  .provider-profile h1{font-size:19px!important}
+  .provider-stat-card strong{font-size:16px!important}
+}
