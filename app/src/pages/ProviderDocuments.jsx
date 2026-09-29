@@ -21,6 +21,7 @@ export default function ProviderDocuments() {
   const user = getUser();
   const isRide = ['bike', 'car', 'auto'].includes(user.type);
   const docTypes = isRide ? RIDE_DOCS : WORKER_DOCS;
+  const optionalDocs = [{ value: 'profile_photo', label: 'Profile photo (optional)' }];
 
   const [docType, setDocType] = useState(docTypes[0].value);
   const [file, setFile] = useState(null);
@@ -86,8 +87,9 @@ export default function ProviderDocuments() {
   }
 
   const uploadedTypes = new Set(uploaded.map((d) => d.doc_type));
-  const remaining = docTypes.filter((d) => !uploadedTypes.has(d.value));
-  const allDone = remaining.length === 0;
+  const requiredRemaining = docTypes.filter((d) => !uploadedTypes.has(d.value));
+  const allDone = requiredRemaining.length === 0;
+  const selectableDocs = isRide ? [...docTypes, ...optionalDocs] : docTypes;
 
   return (
     <div className="screen">
@@ -120,11 +122,17 @@ export default function ProviderDocuments() {
             </div>
           ))}
         </div>
+        {isRide && (
+          <p style={{ marginTop: 10, color: 'var(--text-dim)', fontSize: 13 }}>
+            Profile photo is optional and can be replaced anytime without changing KYC approval.
+          </p>
+        )}
+        </div>
       </div>
 
       <label>Document type</label>
       <select value={docType} onChange={(e) => setDocType(e.target.value)}>
-        {docTypes.map((d) => (
+        {selectableDocs.map((d) => (
           <option key={d.value} value={d.value}>{d.label}{uploadedTypes.has(d.value) ? ' ✓ — replace if needed' : ''}</option>
         ))}
       </select>
