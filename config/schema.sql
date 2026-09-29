@@ -14,6 +14,7 @@ CREATE TABLE service_providers (
   is_available BOOLEAN DEFAULT false,
   current_lat NUMERIC(9,6),
   current_lng NUMERIC(9,6),
+  location_updated_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
