@@ -3,7 +3,7 @@ const pool = require('../config/db');
 
 // Verifies a JWT and attaches { id, role, type } to req.user
 function requireAuth(allowedRoles = []) {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     const header = req.headers.authorization;
     if (!header || !header.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'Missing or invalid Authorization header' });
