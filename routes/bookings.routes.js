@@ -66,7 +66,7 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
     const result = await pool.query(
       `SELECT b.id, b.service_type, b.customer_id, b.provider_id, b.pickup_location, b.drop_or_service_address,
               b.fare_amount, b.duration_minutes, b.status, b.payment_confirmed_by_provider,
-              b.created_at, b.completed_at, b.pickup_lat, b.pickup_lng, b.offered_at,
+              b.created_at, b.completed_at, b.pickup_lat, b.pickup_lng, b.drop_lat, b.drop_lng, b.offered_at,
               c.name AS customer_name,
               CASE WHEN b.status IN ('accepted', 'ongoing', 'completed') THEN c.phone END AS customer_phone
        FROM bookings b
@@ -88,7 +88,18 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
   const client = await pool.connect();
   let inTransaction = false;
   try {
-    const { service_type, provider_type, pickup_location, drop_or_service_address, pickup_lat, pickup_lng } = req.body;
+    const {
+      service_type,
+      provider_type,
+      pickup_location,
+      drop_or_service_address,
+      pickup_lat,
+      pickup_lng,
+      drop_lat,
+      drop_lng,
+      estimated_fare,
+      route_distance_km,
+    } = req.body;
     const customer_id = req.user.id;
 
     if (!service_type || !provider_type) {
@@ -107,6 +118,24 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
     }
     if (pickupLatitude < -90 || pickupLatitude > 90 || pickupLongitude < -180 || pickupLongitude > 180) {
       return res.status(400).json({ error: 'pickup coordinates are out of range' });
+    }
+
+    const dropLatitude = drop_lat === undefined || drop_lat === null || drop_lat === '' ? null : Number(drop_lat);
+    const dropLongitude = drop_lng === undefined || drop_lng === null || drop_lng === '' ? null : Number(drop_lng);
+    const routeDistance = route_distance_km === undefined || route_distance_km === null || route_distance_km === '' ? null : Number(route_distance_km);
+    const estimatedFare = estimated_fare === undefined || estimated_fare === null || estimated_fare === '' ? null : Number(estimated_fare);
+
+    if (service_type === 'ride') {
+      if (!Number.isFinite(dropLatitude) || !Number.isFinite(dropLongitude) ||
+          dropLatitude < -90 || dropLatitude > 90 || dropLongitude < -180 || dropLongitude > 180) {
+        return res.status(400).json({ error: 'A valid drop location is required for a ride' });
+      }
+      if (!Number.isFinite(routeDistance) || routeDistance <= 0 || routeDistance > 1000) {
+        return res.status(400).json({ error: 'A valid route distance is required for a ride' });
+      }
+      if (!Number.isFinite(estimatedFare) || estimatedFare <= 0 || estimatedFare > 1000000) {
+        return res.status(400).json({ error: 'A valid estimated fare is required for a ride' });
+      }
     }
 
     await client.query('BEGIN');
@@ -149,11 +178,16 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
     }
 
     const result = await client.query(
-      `INSERT INTO bookings (service_type, provider_type, customer_id, provider_id, pickup_location, drop_or_service_address,
-                             pickup_lat, pickup_lng, start_pin, status, offered_at, declined_providers)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'requested', NOW(), '{}') RETURNING *`,
-      [service_type, provider_type, customer_id, nearest.id, pickup_location, drop_or_service_address,
-       pickupLatitude, pickupLongitude, generatePin()]
+      `INSERT INTO bookings (
+         service_type, provider_type, customer_id, provider_id, pickup_location, drop_or_service_address,
+         pickup_lat, pickup_lng, drop_lat, drop_lng, fare_amount, start_pin, status, offered_at, declined_providers
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'requested', NOW(), '{}')
+       RETURNING *`,
+      [
+        service_type, provider_type, customer_id, nearest.id, pickup_location, drop_or_service_address,
+        pickupLatitude, pickupLongitude, dropLatitude, dropLongitude, estimatedFare, generatePin()
+      ]
     );
 
     await client.query('COMMIT');
@@ -457,8 +491,8 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
   try {
     const { id } = req.params;
     const { fare_amount, rating, comment } = req.body;
-    const fare = Number(fare_amount);
-    if (!Number.isFinite(fare) || fare <= 0 || fare > 1000000) {
+    const submittedFare = fare_amount === undefined || fare_amount === null || fare_amount === '' ? null : Number(fare_amount);
+    if (submittedFare !== null && (!Number.isFinite(submittedFare) || submittedFare <= 0 || submittedFare > 1000000)) {
       return res.status(400).json({ error: 'fare_amount must be a positive amount up to 1000000' });
     }
     if (rating !== undefined && rating !== null && (!Number.isInteger(Number(rating)) || Number(rating) < 1 || Number(rating) > 5)) {
@@ -470,7 +504,7 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
 
     await client.query('BEGIN');
 
-    const existing = await client.query('SELECT provider_id, status FROM bookings WHERE id = $1', [id]);
+    const existing = await client.query('SELECT provider_id, status, fare_amount FROM bookings WHERE id = $1', [id]);
     if (existing.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Booking not found' });
@@ -478,6 +512,12 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
     if (existing.rows[0].provider_id !== req.user.id) {
       await client.query('ROLLBACK');
       return res.status(403).json({ error: 'This booking does not belong to you' });
+    }
+
+    const fare = submittedFare ?? Number(existing.rows[0].fare_amount);
+    if (!Number.isFinite(fare) || fare <= 0 || fare > 1000000) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'A valid fare is required before completing this booking' });
     }
 
     // Complete only an ongoing booking. The status predicate makes payment
@@ -563,7 +603,9 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
 
     if (rating) {
       await client.query(
-        `INSERT INTO booking_ratings (booking_id, rated_by, rating, comment) VALUES ($1, 'provider', $2, $3)`,
+        `INSERT INTO booking_ratings (booking_id, rated_by, rating, comment)
+         VALUES ($1, 'provider', $2, $3)
+         ON CONFLICT (booking_id, rated_by) DO NOTHING`,
         [id, rating, comment || null]
       );
     }
