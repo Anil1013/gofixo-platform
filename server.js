@@ -14,9 +14,8 @@ const { handleDeclineOrTimeout } = require('./services/matching');
 
 const app = express();
 
-// AWS Elastic Beanstalk/reverse-proxy deployments can forward the real client IP.
-// Keep this opt-in so direct deployments do not blindly trust spoofed proxy headers.
-app.set('trust proxy', process.env.TRUST_PROXY === 'true' ? 1 : false);
+// AWS Elastic Beanstalk runs the Node process behind its reverse proxy.
+// Trust the single proxy hop so req.ip reflects the real client IP for rate limiting.
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 const allowedOrigins = (process.env.FRONTEND_BASE_URL || '').split(',').map((s) => s.trim()).filter(Boolean);
