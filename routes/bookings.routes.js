@@ -338,7 +338,10 @@ router.post('/:id/start', requireAuth(['provider']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { pin } = req.body;
-    if (!pin) return res.status(400).json({ error: 'pin is required' });
+    const normalizedPin = String(pin ?? '').trim();
+    if (!/^\d{4}$/.test(normalizedPin)) {
+      return res.status(400).json({ error: 'pin must be exactly 4 digits' });
+    }
 
     const result = await pool.query(
       `UPDATE bookings
@@ -348,7 +351,7 @@ router.post('/:id/start', requireAuth(['provider']), async (req, res, next) => {
          AND status = 'accepted'
          AND start_pin = $3
        RETURNING id, service_type, customer_id, provider_id, pickup_location, status, created_at`,
-      [id, req.user.id, String(pin)]
+      [id, req.user.id, normalizedPin]
     );
 
     if (result.rows.length > 0) {
@@ -384,6 +387,9 @@ router.post('/:id/rate', requireAuth(['customer']), async (req, res, next) => {
     const { rating, comment } = req.body;
     if (!Number.isInteger(Number(rating)) || Number(rating) < 1 || Number(rating) > 5) {
       return res.status(400).json({ error: 'rating must be an integer from 1 to 5' });
+    }
+    if (comment !== undefined && comment !== null && (typeof comment !== 'string' || comment.length > 500)) {
+      return res.status(400).json({ error: 'comment must be text up to 500 characters' });
     }
 
     await client.query('BEGIN');
