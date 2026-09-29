@@ -7,7 +7,7 @@ import { startBuzzer, stopBuzzer } from '../utils/buzzer';
 const TYPE_ICON = { bike: '🏍', auto: '🛺', car: '🚗', general_worker: '🧹', skilled_worker: '🔧' };
 const OFFER_SECONDS = 60;
 
-export default function ProviderHome() {
+export default function ProviderHome({ onLogout }) {
   const [profile, setProfile] = useState(null);
   const [activeBooking, setActiveBooking] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -363,7 +363,7 @@ export default function ProviderHome() {
           <div className="partner-rating"><span>★</span> {ratingValue} <small>({Number(profile.today_rides || 0)} rides today)</small></div>
           <p>{providerTypeLabel} · {profile.generated_id}</p>
         </div>
-        <span className="partner-profile-arrow">›</span>
+        <button type="button" className="partner-profile-logout" onClick={onLogout} title="Log out">↪</button>
       </section>
 
       <div className="partner-stat-row">
