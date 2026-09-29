@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiPost } from '../api';
+import { apiPost, API_BASE, getToken } from '../api';
 import MapView from '../components/MapView';
 import { navigateToCoords } from '../utils/geo';
 
@@ -21,6 +21,7 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
   const [rated, setRated] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [liveProvider, setLiveProvider] = useState(null);
 
   // Refresh booking state and the assigned provider's coordinates every 15 seconds
   // while the ride/service is active. The backend only exposes that location to
@@ -31,6 +32,56 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
     const interval = setInterval(onRefresh, 15 * 1000);
     return () => clearInterval(interval);
   }, [booking.status]);
+
+  // Live provider tracking over WebSocket. HTTP polling remains as a fallback
+  // so the map still recovers automatically if the realtime connection drops.
+  useEffect(() => {
+    setLiveProvider(null);
+    if (booking.status === 'completed' || booking.status === 'no_provider') return undefined;
+
+    const token = getToken();
+    if (!token || !('WebSocket' in window)) return undefined;
+
+    const wsUrl = API_BASE.replace(/^http/, 'ws') + `/realtime?token=${encodeURIComponent(token)}`;
+    let ws;
+    let retryTimer;
+    let stopped = false;
+
+    const connect = () => {
+      if (stopped) return;
+      try {
+        ws = new WebSocket(wsUrl);
+        ws.onopen = () => {
+          ws.send(JSON.stringify({ type: 'subscribe_booking', booking_id: booking.id }));
+        };
+        ws.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            if (message.type === 'provider_location' && Number(message.booking_id) === Number(booking.id)) {
+              const lat = Number(message.lat);
+              const lng = Number(message.lng);
+              if (Number.isFinite(lat) && Number.isFinite(lng)) setLiveProvider({ lat, lng });
+            }
+          } catch {
+            // Ignore malformed realtime messages; polling remains available.
+          }
+        };
+        ws.onclose = () => {
+          if (!stopped) retryTimer = setTimeout(connect, 3000);
+        };
+        ws.onerror = () => ws.close();
+      } catch {
+        retryTimer = setTimeout(connect, 3000);
+      }
+    };
+
+    connect();
+    return () => {
+      stopped = true;
+      clearTimeout(retryTimer);
+      if (ws) ws.close();
+    };
+  }, [booking.id, booking.status]);
 
   async function cancelBooking() {
     setError('');
@@ -72,9 +123,12 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
   }
 
   const current = stepIndex(booking.status);
+  const providerLat = liveProvider?.lat ?? Number(booking.provider_lat);
+  const providerLng = liveProvider?.lng ?? Number(booking.provider_lng);
+  const hasProviderLocation = Number.isFinite(providerLat) && Number.isFinite(providerLng);
   const markers = [{ lat: Number(booking.pickup_lat), lng: Number(booking.pickup_lng), emoji: '📍', color: '#EC4899' }];
-  if (booking.provider_lat && booking.provider_lng) {
-    markers.push({ lat: Number(booking.provider_lat), lng: Number(booking.provider_lng), emoji: '🏍', color: '#8B5CF6' });
+  if (hasProviderLocation) {
+    markers.push({ lat: providerLat, lng: providerLng, emoji: '🏍', color: '#8B5CF6' });
   }
 
   return (
