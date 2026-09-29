@@ -47,6 +47,45 @@ export default function ProviderHome() {
     return () => clearInterval(interval);
   }, []);
 
+  // Keep the provider's phone screen awake while the partner app is open.
+  // Wake Lock is released by the browser when the page is hidden, so we
+  // reacquire it automatically when the app becomes visible again.
+  useEffect(() => {
+    let wakeLock = null;
+    let stopped = false;
+
+    async function requestWakeLock() {
+      if (stopped || document.visibilityState !== 'visible' || !('wakeLock' in navigator)) return;
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => {
+          wakeLock = null;
+          if (!stopped && document.visibilityState === 'visible') {
+            requestWakeLock();
+          }
+        });
+      } catch {
+        // Some browsers/OS versions may not support screen wake lock.
+      }
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') requestWakeLock();
+      else if (wakeLock) {
+        wakeLock.release().catch(() => {});
+        wakeLock = null;
+      }
+    };
+
+    requestWakeLock();
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      stopped = true;
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (wakeLock) wakeLock.release().catch(() => {});
+    };
+  }, []);
+
   useEffect(() => {
     // Opening the partner app puts an approved provider back on duty automatically.
     // This runs only once per app session, so a manual Offline tap is respected
