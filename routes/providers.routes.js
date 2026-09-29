@@ -512,6 +512,13 @@ router.get('/me', requireAuth(['provider']), async (req, res, next) => {
       `SELECT sp.id, sp.generated_id, sp.name, sp.phone, sp.type, sp.kyc_status, sp.kyc_review_note,
         sp.bank_upi_id, sp.avg_rating, sp.is_available, sp.current_lat, sp.current_lng,
         sp.location_updated_at, sp.created_at,
+        (
+          SELECT COUNT(*)
+          FROM bookings b
+          WHERE b.provider_id = sp.id
+            AND b.status = 'completed'
+            AND COALESCE(b.completed_at, b.updated_at, b.created_at) >= CURRENT_DATE
+        ) AS today_rides,
         sub.plan_name,
         sub.earning_cap,
         sub.total_earned_this_cycle,
