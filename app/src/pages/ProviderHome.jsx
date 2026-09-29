@@ -342,79 +342,110 @@ export default function ProviderHome() {
     : jobMarker;
 
   return (
-    <div className="screen">
-      <div className="dash-header">
-        <div className="dash-avatar">{TYPE_ICON[profile.type] || '🔧'}</div>
-        <div>
-          <p className="dash-name">{profile.name}</p>
-          <p className="dash-id">{profile.generated_id}</p>
+    <div className="screen provider-home-screen">
+      <section className={profile.is_available ? 'provider-hero online' : 'provider-hero'}>
+        <div className="provider-hero-top">
+          <div className="provider-profile">
+            <div className="provider-avatar">{TYPE_ICON[profile.type] || '🔧'}</div>
+            <div>
+              <span className="provider-greeting">WELCOME BACK</span>
+              <h1>{profile.name}</h1>
+              <p>{profile.generated_id} · {profile.type?.replaceAll('_', ' ')}</p>
+            </div>
+          </div>
+          <span className="provider-status-pill"><i />{profile.is_available ? 'ONLINE' : 'OFFLINE'}</span>
         </div>
-        <span className={`badge badge-${profile.kyc_status} dash-kyc`}>{profile.kyc_status}</span>
-      </div>
+        <div className="provider-hero-bottom">
+          <div>
+            <span className="provider-hero-label">{profile.is_available ? 'You are visible to nearby customers' : 'Go online when you are ready'}</span>
+            <strong>{profile.is_available ? 'Ready for your next booking' : 'Start earning with Gofixo'}</strong>
+          </div>
+          <span className="provider-type-badge">{TYPE_ICON[profile.type] || '🔧'} {profile.type === 'general_worker' ? 'Home Help' : profile.type === 'skilled_worker' ? 'Skilled Expert' : profile.type?.toUpperCase()}</span>
+        </div>
+      </section>
 
-      <div className="stat-grid">
-        <div className="stat-tile"><p className="stat-label">Plan</p><p className="stat-value">{profile.plan_name || '—'}</p></div>
-        <div className="stat-tile"><p className="stat-label">Left this cycle</p><p className="stat-value">{profile.pending_amount !== null ? `₹${Number(profile.pending_amount).toLocaleString('en-IN')}` : '—'}</p></div>
-        <div className="stat-tile"><p className="stat-label">Rating</p><p className="stat-value">{profile.avg_rating} ★</p></div>
-        <div className="stat-tile"><p className="stat-label">Status</p><p className="stat-value">{profile.is_available ? 'Online' : 'Offline'}</p></div>
+      <div className="provider-stat-grid">
+        <div className="provider-stat-card"><span>PLAN</span><strong>{profile.plan_name || '—'}</strong><small>Current plan</small></div>
+        <div className="provider-stat-card"><span>AVAILABLE</span><strong>{profile.pending_amount !== null ? `₹${Number(profile.pending_amount).toLocaleString('en-IN')}` : '—'}</strong><small>Cycle balance</small></div>
+        <div className="provider-stat-card"><span>RATING</span><strong>{profile.avg_rating} <em>★</em></strong><small>Customer rating</small></div>
       </div>
 
       {error && <p className="auth-error">{error}</p>}
 
       {!activeBooking && (
-        <>
-          <button className={profile.is_available ? 'availability-toggle online' : 'availability-toggle'} onClick={toggleAvailability} disabled={busy || profile.kyc_status !== 'approved'}>
+        <section className="availability-panel">
+          <div>
+            <span className="section-kicker">YOUR AVAILABILITY</span>
+            <h2>{profile.is_available ? 'You’re live' : 'Ready to go online?'}</h2>
+            <p>{profile.is_available ? 'Keep the app online to receive nearby requests.' : 'Turn on availability to start receiving jobs.'}</p>
+          </div>
+          <button className={profile.is_available ? 'availability-toggle premium online' : 'availability-toggle premium'} onClick={toggleAvailability} disabled={busy || profile.kyc_status !== 'approved'}>
             <span className="toggle-dot" />
-            {profile.is_available ? "You're online — tap to go offline" : 'Tap to go available'}
+            {profile.is_available ? 'Go offline' : 'Go online'}
           </button>
           {profile.kyc_status !== 'approved' && <p className="auth-error">KYC must be approved before you can go available.</p>}
-          <button className="secondary" onClick={shareLocation}>📍 Update my location</button>
-        </>
+          <button className="secondary provider-location-btn" onClick={shareLocation}>📍 Refresh my location</button>
+        </section>
       )}
 
       {activeBooking && activeBooking.status === 'requested' && (
-        <div className="buzz-card">
-          <p className="buzz-title">🔔 New request!</p>
-          {secondsLeft !== null && <p className="buzz-timer">{secondsLeft}s to respond</p>}
-          <MapView markers={jobMarker} height={150} />
-          <p className="pickup-line">📍 {activeBooking.pickup_location}</p>
-          <div className="buzz-actions">
-            <button className="decline-btn" onClick={declineBooking} disabled={busy}>Decline</button>
-            <button className="accept-btn" onClick={acceptBooking} disabled={busy}>Accept</button>
+        <section className="incoming-job-card">
+          <div className="incoming-head">
+            <div><span className="section-kicker">NEW BOOKING</span><h2>Someone needs you!</h2></div>
+            {secondsLeft !== null && <span className="countdown-pill">{secondsLeft}s</span>}
           </div>
-        </div>
+          <div className="sound-banner">🔔 <span><strong>Booking alert is active</strong><small>Accept within the timer to take this job</small></span></div>
+          <MapView markers={jobMarker} height={170} />
+          <div className="job-location-row"><span>📍</span><div><small>PICKUP</small><strong>{activeBooking.pickup_location}</strong></div></div>
+          <div className="buzz-actions premium-actions">
+            <button className="decline-btn" onClick={declineBooking} disabled={busy}>Decline</button>
+            <button className="accept-btn" onClick={acceptBooking} disabled={busy}>Accept booking →</button>
+          </div>
+        </section>
       )}
 
       {activeBooking && activeBooking.status === 'accepted' && (
-        <div className="job-card">
-          <p className="job-label">On the way</p>
-          <MapView markers={navigationMarkers} line={pickupRoute ? pickupRoute.line : null} height={190} />
-          <p className="pickup-line">📍 {activeBooking.pickup_location}</p>
-          {pickupRoute && <p className="route-info">🧭 {pickupRoute.distanceKm.toFixed(1)} km · about {pickupRoute.durationMin} min</p>}
-          <p className="provider-line">{activeBooking.customer_name || 'Customer'} · {activeBooking.customer_phone}</p>
-          <p className="route-info">Navigation is running inside Gofixo. Keep this screen open while travelling.</p>
-          <label>Enter customer's PIN to start</label>
-          <input value={pin} onChange={(e) => setPin(e.target.value)} placeholder="4-digit PIN" inputMode="numeric" />
-          <button className="cta" onClick={startBooking} disabled={busy || pin.length < 4}>Start</button>
-        </div>
+        <section className="provider-job-panel">
+          <div className="job-panel-head"><div><span className="section-kicker">PICKUP</span><h2>On the way</h2></div><span className="job-live-pill">● LIVE</span></div>
+          <MapView markers={navigationMarkers} line={pickupRoute ? pickupRoute.line : null} height={200} />
+          <div className="job-location-row"><span>📍</span><div><small>PICKUP</small><strong>{activeBooking.pickup_location}</strong></div></div>
+          {pickupRoute && <div className="route-highlight"><strong>{pickupRoute.distanceKm.toFixed(1)} km</strong><span>about {pickupRoute.durationMin} min</span></div>}
+          <div className="customer-card"><span className="customer-avatar">👤</span><div><small>CUSTOMER</small><strong>{activeBooking.customer_name || 'Customer'}</strong><span>{activeBooking.customer_phone}</span></div></div>
+          <p className="route-info">🧭 Navigation is running inside Gofixo. Keep this screen open while travelling.</p>
+          <label>Customer start PIN</label>
+          <input className="provider-input" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0,4))} placeholder="Enter 4-digit PIN" inputMode="numeric" />
+          <button className="cta provider-main-cta" onClick={startBooking} disabled={busy || pin.length < 4}>Start trip →</button>
+        </section>
       )}
 
       {activeBooking && activeBooking.status === 'ongoing' && (
-        <div className="job-card">
-          <p className="job-label">In progress</p>
-          <p className="pickup-line">📍 {activeBooking.pickup_location}</p>
+        <section className="provider-job-panel">
+          <div className="job-panel-head"><div><span className="section-kicker">TRIP IN PROGRESS</span><h2>Complete the booking</h2></div><span className="job-live-pill">● ONGOING</span></div>
+          <div className="earning-highlight"><span>YOUR FARE</span><strong>₹{fareAmount || '—'}</strong><small>Confirm the amount received from customer</small></div>
           <label>Fare amount (₹)</label>
-          <input value={fareAmount} onChange={(e) => setFareAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Calculated fare" inputMode="decimal" />
+          <input className="provider-input" value={fareAmount} onChange={(e) => setFareAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Enter final fare" inputMode="decimal" />
           {activeBooking.fare_amount && <p className="route-info">Customer estimate: ₹{Number(activeBooking.fare_amount).toLocaleString('en-IN')}</p>}
           <label>Rate the customer</label>
-          <div className="stars">
+          <div className="stars provider-stars">
             {[1, 2, 3, 4, 5].map((n) => (
               <button key={n} className={n <= rating ? 'star active' : 'star'} onClick={() => setRating(n)}>★</button>
             ))}
           </div>
-          <input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Optional comment" />
-          <button className="cta" onClick={completeBooking} disabled={busy || !fareAmount}>Confirm payment received</button>
-        </div>
+          <input className="provider-input" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Optional feedback" maxLength={500} />
+          <button className="cta provider-main-cta" onClick={completeBooking} disabled={busy || !fareAmount}>Confirm payment received →</button>
+        </section>
+      )}
+
+      {!activeBooking && (
+        <section className="provider-benefits">
+          <span className="section-kicker">GOFIXO PARTNER</span>
+          <h2>Work your way.</h2>
+          <div className="benefit-grid">
+            <div><span>📍</span><strong>Nearby jobs</strong><small>Smart matching</small></div>
+            <div><span>💰</span><strong>Clear earnings</strong><small>Know your fare</small></div>
+            <div><span>🛡️</span><strong>Built for trust</strong><small>Verified customers</small></div>
+          </div>
+        </section>
       )}
     </div>
   );
