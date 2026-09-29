@@ -259,7 +259,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
            ))
          )) <= 3)`,
       [provider_type, pickupLatitude, pickupLongitude]
-    )    ).then(async (pushRows) => {
+    ).then(async (pushRows) => {
       for (const row of pushRows.rows) {
         const resultPush = await sendProviderPush(
           { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
