@@ -119,7 +119,7 @@ router.get('/', requireAdmin, async (req, res, next) => {
         ORDER BY ps.start_date DESC LIMIT 1
       ) sub ON true
       LEFT JOIN LATERAL (
-        SELECT json_agg(json_build_object('doc_type', doc_type, 'file_url', file_url) ORDER BY uploaded_at DESC) AS documents
+        SELECT json_agg(json_build_object('id', id, 'doc_type', doc_type, 'file_url', file_url) ORDER BY uploaded_at DESC) AS documents
         FROM provider_documents pd WHERE pd.provider_id = sp.id
       ) docs ON true
       ORDER BY sp.created_at DESC
@@ -180,6 +180,8 @@ const REQUIRED_DOCS = {
   bike: ['aadhar_front', 'aadhar_back', 'driving_license', 'vehicle_rc', 'vehicle_photo_front', 'vehicle_photo_back'],
   car: ['aadhar_front', 'aadhar_back', 'driving_license', 'vehicle_rc', 'vehicle_photo_front', 'vehicle_photo_back'],
   auto: ['aadhar_front', 'aadhar_back', 'driving_license', 'vehicle_rc', 'vehicle_photo_front', 'vehicle_photo_back'],
+  general_worker: ['aadhar_front', 'aadhar_back', 'profile_photo', 'police_verification'],
+  skilled_worker: ['aadhar_front', 'aadhar_back', 'profile_photo', 'police_verification'],
 };
 
 // Update KYC status (admin approve/reject)
