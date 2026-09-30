@@ -56,7 +56,17 @@ function calculateStraightLineKm(from, to) {
 }
 
 async function buildRoute(from, to) {
-  const routed = await getRoute(from, to);
+  if (!from || !to || !Number.isFinite(Number(from.lat)) || !Number.isFinite(Number(from.lng))
+    || !Number.isFinite(Number(to.lat)) || !Number.isFinite(Number(to.lng))) {
+    return null;
+  }
+
+  let routed = null;
+  try {
+    routed = await getRoute(from, to);
+  } catch {
+    routed = null;
+  }
   if (routed && Number.isFinite(routed.distanceKm) && routed.distanceKm > 0) return routed;
   const distanceKm = calculateStraightLineKm(from, to);
   if (!Number.isFinite(distanceKm) || distanceKm <= 0) return null;
@@ -123,8 +133,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
     setLocation(address || 'Current location');
 
     if (destCoords) {
-      const nextRoute = await getRoute(here, destCoords);
-      setRoute(nextRoute);
+      setRoute(await buildRoute(here, destCoords));
     }
   }
 
@@ -223,7 +232,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
     setDestination(found.label);
     destinationResolvedRef.current = query;
     setDestCoords({ lat: found.lat, lng: found.lng });
-    setRoute(coords ? await buildRoute(coords, found) : null);
+    setRoute(coords ? await buildRoute(coords, { lat: found.lat, lng: found.lng }) : null);
     setFinding(false);
   }
 
@@ -390,7 +399,11 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                   destinationResolvedRef.current = item.label;
                   setDestCoords({ lat: item.lat, lng: item.lng });
                   setDestinationSuggestions([]);
-                  if (coords) buildRoute(coords, item).then(setRoute);
+                  if (coords) {
+                    buildRoute(coords, { lat: item.lat, lng: item.lng })
+                      .then(setRoute)
+                      .catch(() => setRoute(null));
+                  }
                 }}
               >
                 <strong>{item.label}</strong>
