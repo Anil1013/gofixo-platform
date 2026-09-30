@@ -11,11 +11,10 @@ const PROVIDER_TYPES = [
 
 export default function Auth({ onAuthed }) {
   const [role, setRole] = useState('customer'); // customer | provider
-  const [mode, setMode] = useState('login'); // login | register | reset
+  const [mode, setMode] = useState('login'); // login | register | forgot
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
   const [providerType, setProviderType] = useState('bike');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -35,10 +34,10 @@ export default function Auth({ onAuthed }) {
         }
         setMode('login');
         setMessage('Account created — please log in.');
-      } else if (mode === 'reset') {
-        await apiPost(`/auth/${role}/reset-password`, { phone, current_password: currentPassword, new_password: password });
+      } else if (mode === 'forgot') {
+        await apiPost(`/auth/${role}/forgot-password`, { phone });
         setMode('login');
-        setMessage('Password reset — please log in with your new password.');
+        setMessage('Reset request submitted. An administrator can complete the password reset for this account.');
       } else {
         const data = await apiPost(`/auth/${role}/login`, { phone, password });
         setSession(data.token, data.user, role);
@@ -71,7 +70,7 @@ export default function Auth({ onAuthed }) {
         <h2>
           {mode === 'login' && 'Log in'}
           {mode === 'register' && (role === 'customer' ? 'Create customer account' : 'Register as a provider')}
-          {mode === 'reset' && 'Reset password'}
+          {mode === 'forgot' && 'Forgot password'}
         </h2>
 
         {mode === 'register' && (
@@ -104,39 +103,37 @@ export default function Auth({ onAuthed }) {
           />
         </div>
 
-        {mode === 'reset' && (
+        {mode !== 'forgot' && (
           <>
-            <label>Current password</label>
+            <label>Password</label>
             <input
               type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="Your current password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Min 8 chars, letters + numbers"
               required
             />
           </>
         )}
 
-        <label>{mode === 'reset' ? 'New password' : 'Password'}</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Min 8 chars, letters + numbers"
-          required
-        />
+        {mode === 'forgot' && (
+          <p className="auth-reset-help">
+            Enter your registered phone number. Your password will not be changed immediately;
+            a reset request is created for admin approval.
+          </p>
+        )}
 
         {error && <p className="auth-error">{error}</p>}
         {message && <p className="auth-message">{message}</p>}
 
         <button type="submit" disabled={loading}>
-          {loading ? 'Please wait...' : mode === 'login' ? 'Log in' : mode === 'register' ? 'Create account' : 'Reset password'}
+          {loading ? 'Please wait...' : mode === 'login' ? 'Log in' : mode === 'register' ? 'Create account' : 'Request reset'}
         </button>
 
         <div className="auth-links">
-          {mode !== 'login' && <button type="button" onClick={() => setMode('login')}>Back to login</button>}
+          {mode !== 'login' && <button type="button" onClick={() => { setMode('login'); setError(''); setMessage(''); }}>Back to login</button>}
           {mode === 'login' && <button type="button" onClick={() => setMode('register')}>New here? Create account</button>}
-          {mode === 'login' && <button type="button" onClick={() => setMode('reset')}>Change password</button>}
+          {mode === 'login' && role === 'customer' && <button type="button" onClick={() => { setMode('forgot'); setError(''); setMessage(''); }}>Forgot password?</button>}
         </div>
       </form>
     </div>
