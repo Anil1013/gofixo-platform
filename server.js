@@ -23,8 +23,21 @@ const app = express();
 app.set('trust proxy', 1);
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-const allowedOrigins = (process.env.FRONTEND_BASE_URL || '').split(',').map((s) => s.trim()).filter(Boolean);
-app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : '*' }));
+const configuredOrigins = (process.env.FRONTEND_BASE_URL || '').split(',').map((s) => s.trim()).filter(Boolean);
+const allowedOrigins = new Set([
+  ...configuredOrigins,
+  'https://gofixo-admin.mob13r.com',
+  'https://gofixo-app.mob13r.com',
+]);
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.has(origin)) return callback(null, true);
+    return callback(new Error('CORS origin not allowed'));
+  },
+  methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key', 'x-api-key', 'x-publisher-key'],
+  optionsSuccessStatus: 204,
+}));
 // Keep API request bodies bounded; KYC files use multipart handling in their route.
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
@@ -74,7 +87,7 @@ async function ensureRuntimeSchema() {
     ADD COLUMN IF NOT EXISTS profile_photo_url TEXT
   `);
 
-  // Customer forgot-password requests. Create this on startup so an older production\n  // database cannot return 500 when the Admin Customers page is opened.\n  await pool.query(`\n    CREATE TABLE IF NOT EXISTS password_reset_requests (\n      id SERIAL PRIMARY KEY,\n      customer_id INT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,\n      status VARCHAR(20) NOT NULL DEFAULT 'pending',\n      created_at TIMESTAMP DEFAULT NOW(),\n      resolved_at TIMESTAMP\n    )\n  `);\n\n  await pool.query(`\n    CREATE UNIQUE INDEX IF NOT EXISTS password_reset_requests_one_pending\n      ON password_reset_requests (customer_id)\n      WHERE status = 'pending'\n  `);\n\n  await pool.query(`
+  // Customer forgot-password requests. Create this on startup so an older production\n  // database cannot return 500 while the Admin Customers page is opened.\n  await pool.query(`\n    CREATE TABLE IF NOT EXISTS password_reset_requests (\n      id SERIAL PRIMARY KEY,\n      customer_id INT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,\n      status VARCHAR(20) NOT NULL DEFAULT 'pending',\n      created_at TIMESTAMP DEFAULT NOW(),\n      resolved_at TIMESTAMP\n    )\n  `);\n\n  await pool.query(`\n    CREATE UNIQUE INDEX IF NOT EXISTS password_reset_requests_one_pending\n      ON password_reset_requests (customer_id)\n      WHERE status = 'pending'\n  `);\n\n  await pool.query(`
     CREATE TABLE IF NOT EXISTS provider_push_subscriptions (
       id SERIAL PRIMARY KEY,
       provider_id INT NOT NULL REFERENCES service_providers(id) ON DELETE CASCADE,
