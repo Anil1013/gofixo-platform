@@ -3261,3 +3261,134 @@ button,input{font-family:inherit}
     font-size:15px!important;
   }
 }
+
+
+/* =========================================================
+   PARTNER UI — green brand palette (remove yellow/orange accents)
+   ========================================================= */
+.role-provider .provider-home-screen{
+  background:
+    radial-gradient(150px 110px at 100% 0%, rgba(22,160,93,.10), transparent 70%),
+    radial-gradient(180px 130px at 0% 28%, rgba(20,184,166,.07), transparent 72%),
+    linear-gradient(180deg,#f7fbf9 0%,#f3f8f5 100%)!important;
+}
+.role-provider .partner-logo-pin{
+  background:linear-gradient(145deg,#16a05d,#14b8a6)!important;
+  box-shadow:0 6px 14px rgba(22,160,93,.22)!important;
+}
+.role-provider .partner-logo strong span{
+  color:#16a05d!important;
+}
+.role-provider .partner-online-toggle.online{
+  color:#07894a!important;
+  border-color:#c9ebd9!important;
+  background:#effbf5!important;
+}
+.role-provider .partner-online-toggle.online i{
+  background:#12b85f!important;
+  box-shadow:0 0 0 4px rgba(18,184,95,.13)!important;
+}
+.role-provider .partner-profile-card{
+  background:
+    radial-gradient(110px 80px at 100% 0%,rgba(22,160,93,.13),transparent 72%),
+    linear-gradient(135deg,#fff 0%,#fafdff 56%,#eefaf4 100%)!important;
+}
+.role-provider .partner-rating span{
+  color:#16a05d!important;
+}
+.role-provider .partner-stat-row>div:nth-child(3){
+  background:linear-gradient(145deg,#e9f9f1,#fbfffd)!important;
+  border-color:#d6f1e1!important;
+}
+.role-provider .stat-icon.orange{
+  background:#e7f9ef!important;
+  color:#079d52!important;
+}
+.role-provider .keep-going-card{
+  background:
+    radial-gradient(circle at 100% 0%,rgba(255,255,255,.72),transparent 35%),
+    linear-gradient(135deg,#e8f9ef,#f8fffb 55%,#e1f7ef)!important;
+  border-color:#ccebd9!important;
+}
+.role-provider .keep-going-card strong{
+  color:#0d7f4d!important;
+}
+.role-provider .reference-request-card::before{
+  background:linear-gradient(90deg,#16a05d,#14b8a6,#0d8f50)!important;
+}
+.role-provider .reference-section-head button{
+  color:#0d8f50!important;
+  background:#eaf8f1!important;
+  border-color:#cfe9dc!important;
+}
+.role-provider .ride-type-icon{
+  background:linear-gradient(135deg,#e8f8f0,#e8f8f6)!important;
+  border-color:#d5ebe1!important;
+}
+.role-provider .reference-fare-row{
+  background:#effaf5!important;
+}
+.role-provider .reference-fare-row strong{
+  color:#0b8f56!important;
+}
+.role-provider .accept-reference{
+  background:linear-gradient(135deg,#10bd63,#079d52)!important;
+  box-shadow:0 7px 16px rgba(16,189,99,.22)!important;
+}
+.role-provider .reference-online-footer>span{
+  background:#12b85f!important;
+}
+.role-provider .reference-online-footer button{
+  background:#0d8f50!important;
+}
+.role-provider .reference-online-footer button:hover{
+  background:#087542!important;
+}
+.role-provider .waiting-request{
+  background:
+    radial-gradient(circle at 100% 0%,rgba(22,160,93,.07),transparent 35%),
+    #fbfffd!important;
+}
+.role-provider .waiting-request .ride-type-icon{
+  background:#eaf8f1!important;
+}
+.role-provider .reference-benefits{
+  background:
+    radial-gradient(circle at 100% 0%,rgba(22,160,93,.08),transparent 32%),
+    #fff!important;
+}
+.role-provider .reference-benefits .section-kicker{
+  color:#0b9560!important;
+}
+.role-provider .reference-benefits .benefit-grid>div:nth-child(1) span{
+  background:#e7f9ef!important;
+}
+.role-provider .reference-benefits .benefit-grid>div:nth-child(2) span{
+  background:#e7f9ef!important;
+}
+.role-provider .reference-benefits .benefit-grid>div:nth-child(3) span{
+  background:#e6f8f4!important;
+}
+.role-provider .provider-job-panel .job-live-pill{
+  background:#e7f9ef!important;
+  color:#079d52!important;
+}
+.role-provider .route-highlight{
+  background:linear-gradient(135deg,#e9faf2,#f8fffc)!important;
+  border-color:#d6f1e1!important;
+}
+.role-provider .earning-highlight{
+  background:linear-gradient(135deg,#e9faf2,#fff)!important;
+  border-color:#cdeedc!important;
+}
+.role-provider .provider-main-cta{
+  background:linear-gradient(135deg,#0d8f50,#16a05d,#14b8a6)!important;
+  box-shadow:0 8px 18px rgba(22,160,93,.20)!important;
+}
+.role-provider .provider-main-cta:hover{
+  background:linear-gradient(135deg,#087542,#0d8f50,#119b8b)!important;
+}
+.role-provider .bottom-nav button.active{
+  color:#0d8f50!important;
+  background:#eaf8f1!important;
+}
