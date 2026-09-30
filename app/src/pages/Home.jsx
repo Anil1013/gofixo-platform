@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { apiPost, getUser } from '../api';
+import { apiPost, getRole, getToken, getUser } from '../api';
 import ProfilePhoto from '../components/ProfilePhoto';
 import MapView from '../components/MapView';
 import { reverseGeocodeDetails, reverseGeocode, searchAddress, searchAddressSuggestions, getRoute, formatDistance } from '../utils/geo';
@@ -292,6 +292,13 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
 
   async function book() {
     setError('');
+
+    // Booking must always be created from an authenticated customer session.
+    // Keep this guard here as a second layer in addition to App.jsx routing.
+    if (!getToken() || getRole() !== 'customer' || !getUser()) {
+      setError('Please log in first to request a ride or home service.');
+      return;
+    }
     if (category === 'services' && !work.trim()) {
       setError('Please select the service you need.');
       return;
