@@ -16,16 +16,63 @@ const HOME_SERVICE_TYPES = [
 ];
 
 const FARE_RULES = {
-  bike: { base: 30, perKm: 10, minimum: 40 },
-  auto: { base: 40, perKm: 14, minimum: 50 },
-  car: { base: 60, perKm: 18, minimum: 70 },
+  // Base fare remains separate; distance is charged progressively by slab.
+  bike: {
+    base: 30,
+    minimum: 30,
+    slabs: [
+      { upto: 10, rate: 6 },
+      { upto: 20, rate: 5.5 },
+      { upto: 30, rate: 5 },
+      { upto: 50, rate: 4.5 },
+      { upto: Infinity, rate: 4.5 },
+    ],
+  },
+  auto: {
+    base: 40,
+    minimum: 40,
+    slabs: [
+      { upto: 10, rate: 7.5 },
+      { upto: 20, rate: 6.5 },
+      { upto: 30, rate: 6 },
+      { upto: 50, rate: 5.5 },
+      { upto: Infinity, rate: 5.5 },
+    ],
+  },
+  car: {
+    base: 60,
+    minimum: 60,
+    slabs: [
+      { upto: 10, rate: 9.5 },
+      { upto: 20, rate: 9 },
+      { upto: 30, rate: 8 },
+      { upto: 50, rate: 6.5 },
+      { upto: 100, rate: 5 },
+      { upto: Infinity, rate: 2.5 },
+    ],
+  },
 };
 
 function calculateFare(providerType, distanceKm) {
   const rule = FARE_RULES[providerType] || FARE_RULES.bike;
   const km = Number(distanceKm);
   if (!Number.isFinite(km) || km <= 0) return rule.minimum;
-  return Math.max(rule.minimum, Math.round(rule.base + (km * rule.perKm)));
+
+  let remainingKm = km;
+  let previousLimit = 0;
+  let distanceFare = 0;
+
+  for (const slab of rule.slabs) {
+    const slabKm = Math.max(0, Math.min(remainingKm, slab.upto - previousLimit));
+    if (slabKm > 0) {
+      distanceFare += slabKm * slab.rate;
+      remainingKm -= slabKm;
+    }
+    previousLimit = slab.upto;
+    if (remainingKm <= 0) break;
+  }
+
+  return Math.max(rule.minimum, Math.round(rule.base + distanceFare));
 }
 
 const RIDE_VISUALS = {
