@@ -241,8 +241,8 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
       setError('Please confirm your pickup location.');
       return;
     }
-    if (String(pickupPincode).length !== 6) {
-      setError('Please confirm the 6-digit pickup PIN code.');
+    if (pickupPincode && !/^\d{6}$/.test(String(pickupPincode))) {
+      setError('Pickup PIN code must be 6 digits if provided.');
       return;
     }
     setLoading(true);
