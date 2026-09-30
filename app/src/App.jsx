@@ -123,7 +123,7 @@ export default function App() {
             booking={activeBooking}
             onRefresh={checkActiveBooking}
             onDismiss={() => dismissBooking(activeBooking.id)}
-            onDone={() => { dismissBooking(activeBooking.id); setActiveBooking(null); }}
+            onDone={() => { dismissBooking(activeBooking.id); setActiveBooking(null); setTab('home'); }}
           />
         );
       }
