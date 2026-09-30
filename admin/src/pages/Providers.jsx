@@ -18,6 +18,8 @@ export default function Providers() {
   const [error, setError] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
   const [search, setSearch] = useState('');
+  const [documentViewer, setDocumentViewer] = useState(null);
+  const [documentLoading, setDocumentLoading] = useState(false);
 
   function load() {
     setLoading(true);
@@ -29,21 +31,22 @@ export default function Providers() {
 
   useEffect(load, []);
 
-  async function viewDocument(providerId, documentId) {
-    const tab = window.open('about:blank', '_blank', 'noopener,noreferrer');
-    if (!tab) {
-      alert('Please allow pop-ups to view KYC documents.');
-      return;
-    }
+  async function viewDocument(providerId, documentId, label) {
+    setDocumentLoading(true);
     try {
       const blob = await apiGetBlob(`/providers/admin/${providerId}/documents/${documentId}`);
       const url = URL.createObjectURL(blob);
-      tab.location.href = url;
-      window.setTimeout(() => URL.revokeObjectURL(url), 60 * 1000);
+      setDocumentViewer({ url, label: label || 'KYC document', type: blob.type || 'application/octet-stream' });
     } catch (e) {
-      tab.close();
       alert(`Failed to open document: ${e.message}`);
+    } finally {
+      setDocumentLoading(false);
     }
+  }
+
+  function closeDocumentViewer() {
+    if (documentViewer?.url) URL.revokeObjectURL(documentViewer.url);
+    setDocumentViewer(null);
   }
 
   async function updateKyc(id, status) {
@@ -127,7 +130,7 @@ export default function Providers() {
                         key={d.id}
                         type="button"
                         className="btn"
-                        onClick={() => viewDocument(p.id, d.id)}
+                        onClick={() => viewDocument(p.id, d.id, DOC_LABELS[d.doc_type] || d.doc_type)}
                       >
                         {DOC_LABELS[d.doc_type] || d.doc_type}
                       </button>
@@ -167,6 +170,34 @@ export default function Providers() {
           )}
         </tbody>
       </table>
+
+
+      {documentLoading && (
+        <div className="document-viewer-loading">Opening document…</div>
+      )}
+
+      {documentViewer && (
+        <div className="document-viewer-backdrop" role="dialog" aria-modal="true" aria-label={documentViewer.label}>
+          <div className="document-viewer">
+            <div className="document-viewer-head">
+              <strong>{documentViewer.label}</strong>
+              <button type="button" className="btn btn-light" onClick={closeDocumentViewer}>Close</button>
+            </div>
+            <div className="document-viewer-body">
+              {documentViewer.type.startsWith('image/') ? (
+                <img src={documentViewer.url} alt={documentViewer.label} />
+              ) : documentViewer.type === 'application/pdf' ? (
+                <iframe title={documentViewer.label} src={documentViewer.url} />
+              ) : (
+                <div className="document-download-fallback">
+                  <p>This document type cannot be previewed in the browser.</p>
+                  <a href={documentViewer.url} target="_blank" rel="noopener noreferrer">Open document</a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
