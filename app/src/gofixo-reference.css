@@ -1998,3 +1998,105 @@ button,input{font-family:inherit}
   box-shadow:0 7px 20px rgba(255,122,0,.16)!important;
   border-color:#ffd1a3!important;
 }
+
+
+/* Customer service picker — explicit, tappable service choices */
+.role-customer .service-choice-grid{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:8px!important;
+  margin:7px 0 10px!important;
+}
+.role-customer .service-choice-card{
+  position:relative!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  min-width:0!important;
+  padding:7px!important;
+  border:1px solid #e1e8ee!important;
+  border-radius:13px!important;
+  background:#fff!important;
+  color:#10213f!important;
+  text-align:left!important;
+  cursor:pointer!important;
+  box-shadow:0 3px 10px rgba(16,33,63,.05)!important;
+}
+.role-customer .service-choice-card img{
+  width:43px!important;
+  height:43px!important;
+  flex:0 0 43px!important;
+  object-fit:cover!important;
+  border-radius:10px!important;
+}
+.role-customer .service-choice-card span{
+  min-width:0!important;
+  font-size:9px!important;
+  font-weight:900!important;
+  line-height:1.15!important;
+}
+.role-customer .service-choice-card b{
+  position:absolute!important;
+  right:6px!important;
+  top:5px!important;
+  width:17px!important;
+  height:17px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border-radius:50%!important;
+  background:#16a05d!important;
+  color:#fff!important;
+  font-size:10px!important;
+}
+.role-customer .service-choice-card.selected{
+  border:2px solid #16a05d!important;
+  background:#f0fff6!important;
+  box-shadow:0 5px 14px rgba(22,160,93,.13)!important;
+}
+.role-customer .service-custom-label{
+  display:block!important;
+  margin:4px 0 5px!important;
+  font-size:8px!important;
+  color:#66758a!important;
+}
+
+/* Replace yellow/cream customer UI accents with green */
+.role-customer .trusted-professionals-banner{
+  background:linear-gradient(105deg,#eaf9f0,#f4fff8 63%,#e8f7ee)!important;
+  border-color:#ccebd9!important;
+}
+.role-customer .trusted-professionals-banner>div>span{color:#21824f!important}
+.role-customer .trusted-professionals-banner p b{color:#16a05d!important}
+.role-customer .trusted-professionals-banner button{
+  background:linear-gradient(135deg,#16a05d,#0d8f50)!important;
+  box-shadow:0 5px 12px rgba(22,160,93,.22)!important;
+}
+.role-customer .reference-ride-tile:nth-child(1)>div{
+  background:#eefaf3!important;
+}
+.role-customer .reference-why-grid span{
+  background:#eaf8f0!important;
+  color:#16a05d!important;
+}
+.role-customer .wallet-row>span{
+  background:#eaf8f0!important;
+  color:#16a05d!important;
+}
+.role-customer .reference-booking-head>div>span{
+  color:#16a05d!important;
+}
+.role-customer .reference-book-cta{
+  background:linear-gradient(135deg,#16a05d,#0d8f50)!important;
+  box-shadow:0 8px 18px rgba(22,160,93,.22)!important;
+}
+.role-customer .reference-section-title button{
+  color:#16a05d!important;
+}
+.role-customer .reference-location-search:focus-within{
+  border-color:#bfe6ce!important;
+  box-shadow:0 7px 20px rgba(22,160,93,.15)!important;
+}
+.role-customer .destination-search-status{
+  color:#16a05d!important;
+}
