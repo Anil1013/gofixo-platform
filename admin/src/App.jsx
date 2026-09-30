@@ -2,12 +2,14 @@ import { useState } from 'react';
 import Providers from './pages/Providers';
 import Plans from './pages/Plans';
 import Bookings from './pages/Bookings';
+import Customers from './pages/Customers';
 import './App.css';
 
 const TABS = {
   providers: { label: 'Providers', component: Providers },
   bookings: { label: 'Bookings', component: Bookings },
   plans: { label: 'Plans', component: Plans },
+  customers: { label: 'Customers', component: Customers },
 };
 
 const BIKE_IMG = 'https://images.unsplash.com/photo-1767275090329-331c0ffb1005?w=500&h=500&fit=crop&auto=format&q=70';
