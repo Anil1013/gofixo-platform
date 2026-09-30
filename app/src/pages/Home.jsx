@@ -337,7 +337,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
           {RIDE_TYPES.map((t) => {
             const visual = RIDE_VISUALS[t.value];
             return (
-              <button type="button" key={t.value} onClick={() => {
+              <button type="button" key={t.value} aria-pressed={providerType === t.value} className={providerType === t.value ? 'selected' : ''} onClick={() => {
                 setCategory('ride');
                 setProviderType(t.value);
                 setShowBooking(true);
@@ -409,7 +409,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
           {RIDE_TYPES.map((t) => {
             const visual = RIDE_VISUALS[t.value];
             return (
-              <button type="button" key={t.value} className="reference-ride-tile" onClick={() => {
+              <button type="button" key={t.value} aria-pressed={providerType === t.value} className={`reference-ride-tile ${providerType === t.value ? 'selected' : ''}`} onClick={() => {
                 setCategory('ride');
                 setProviderType(t.value);
                 setShowBooking(true);
@@ -462,6 +462,38 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
             </div>
             <button type="button" onClick={() => setShowBooking(false)} aria-label="Close booking">×</button>
           </div>
+
+          {category === 'ride' && (
+            <div className="ride-choice-field">
+              <label>Select your ride</label>
+              <div className="ride-choice-grid">
+                {RIDE_TYPES.map((t) => {
+                  const visual = RIDE_VISUALS[t.value];
+                  const selected = providerType === t.value;
+                  return (
+                    <button
+                      type="button"
+                      key={t.value}
+                      className={`ride-choice-card ${selected ? 'selected' : ''}`}
+                      aria-pressed={selected}
+                      onClick={() => {
+                        setCategory('ride');
+                        setProviderType(t.value);
+                        setError('');
+                      }}
+                    >
+                      <img src={visual.image} alt={visual.title} />
+                      <span className="ride-choice-copy">
+                        <strong>{visual.title}</strong>
+                        <small>{visual.sub}</small>
+                      </span>
+                      <span className="ride-choice-check">{selected ? '✓ Selected' : 'Select'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {category === 'services' && (
             <div className="service-request-field service-request-field-top">
