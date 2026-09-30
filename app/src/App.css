@@ -981,3 +981,14 @@ button.cta:disabled { opacity: 0.5; }
   .provider-home-screen { padding-left:20px;padding-right:20px; }
   .provider-hero { margin-left:-20px;margin-right:-20px;padding-left:21px;padding-right:21px; }
 }
+
+.auth-reset-help {
+  margin: 8px 0 2px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #F3FBF6;
+  color: #4B6B59;
+  border: 1px solid #D9F0E2;
+  font-size: 12px;
+  line-height: 1.5;
+}
