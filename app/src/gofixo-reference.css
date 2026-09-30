@@ -2100,3 +2100,58 @@ button,input{font-family:inherit}
 .role-customer .destination-search-status{
   color:#16a05d!important;
 }
+
+
+/* Final customer service UX fixes */
+.role-customer .customer-reference-screen .service-request-field-top{
+  display:block!important;
+  position:relative!important;
+  z-index:60!important;
+  margin:0 0 12px!important;
+  padding:11px!important;
+  border:1px solid #ccebd9!important;
+  border-radius:16px!important;
+  background:#f7fffa!important;
+}
+.role-customer .service-request-field-top .service-choice-grid{
+  position:relative!important;
+  z-index:61!important;
+}
+.role-customer .service-request-field-top .service-choice-card{
+  position:relative!important;
+  z-index:62!important;
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+  user-select:none!important;
+}
+.role-customer .service-request-field-top .service-choice-card:active{
+  transform:scale(.98)!important;
+}
+.role-customer .service-request-field-top .service-custom-input{
+  width:100%!important;
+  min-height:42px!important;
+  box-sizing:border-box!important;
+  border:1px solid #d7e5dd!important;
+  border-radius:11px!important;
+  background:#fff!important;
+  color:#10213f!important;
+  padding:0 11px!important;
+  font-size:10px!important;
+  outline:0!important;
+}
+.role-customer .service-request-field-top .service-custom-input:focus{
+  border-color:#16a05d!important;
+  box-shadow:0 0 0 3px rgba(22,160,93,.10)!important;
+}
+.role-customer .customer-reference-hero h1.orange{
+  color:#16a05d!important;
+}
+.role-customer .bottom-nav button.active{
+  color:#16a05d!important;
+}
+.role-customer .reference-booking-head>div>span{
+  color:#16a05d!important;
+}
+.role-customer .premium-find-row button{
+  background:#16a05d!important;
+}
