@@ -58,6 +58,7 @@ CREATE TABLE bookings (
   drop_or_service_address TEXT,
   pickup_lat NUMERIC(9,6),
   pickup_lng NUMERIC(9,6),
+  route_distance_km NUMERIC(10,2),
   start_pin VARCHAR(4),
   offered_at TIMESTAMP,
   declined_providers INT[] DEFAULT '{}',
