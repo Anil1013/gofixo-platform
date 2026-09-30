@@ -26,7 +26,8 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/gofixo-platform
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             npm install --omit=dev
             if command -v nginx >/dev/null 2>&1; then
               sudo cp .platform/nginx/conf.d/upload.conf /etc/nginx/conf.d/gofixo-upload.conf
