@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:wght@400;500;600;700&display=swap');
 /* Gofixo reference UI refresh — layered over the existing functional styles. */
 :root{
   --gf-navy:#10213f;
@@ -132,7 +132,6 @@ body{background:#f3f6fa;color:var(--gf-ink)}
 /* =========================================================
    FINAL MOBILE REFERENCE POLISH — LORA / GOFIXO APP
    ========================================================= */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:wght@400;500;600;700&display=swap');
 
 :root{
   --gf-navy:#10213f;
