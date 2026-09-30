@@ -11,6 +11,7 @@ const providersRoutes = require('./routes/providers.routes');
 const subscriptionsRoutes = require('./routes/subscriptions.routes');
 const bookingsRoutes = require('./routes/bookings.routes');
 const authRoutes = require('./routes/auth.routes');
+const adminRoutes = require('./routes/admin.routes');
 const pool = require('./config/db');
 const { handleDeclineOrTimeout } = require('./services/matching');
 const { attachRealtime } = require('./services/realtime');
@@ -40,6 +41,7 @@ app.use('/api/providers', providersRoutes);
 app.use('/api/subscriptions', subscriptionsRoutes);
 app.use('/api/bookings', bookingsRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Generic error handler — never leak raw error details in production
 app.use((err, req, res, next) => {
