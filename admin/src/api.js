@@ -22,6 +22,24 @@ export async function apiGet(path) {
   return res.json();
 }
 
+export async function apiPost(path, body) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-admin-key': getAdminKey(),
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new Error('Admin key incorrect — please log in again');
+  }
+  if (!res.ok) throw new Error(data.error || `API error: ${res.status}`);
+  return data;
+}
+
 export async function apiPatch(path, body) {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'PATCH',
