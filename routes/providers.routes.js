@@ -549,25 +549,6 @@ router.get('/me', requireAuth(['provider']), async (req, res, next) => {
   }
 });
 
-// Authenticated provider profile-photo access.\nrouter.get('/:id/profile-photo', requireAuth(['provider']), async (req, res, next) => {
-  try {
-    if (req.user.id !== parseInt(req.params.id, 10)) return res.status(403).json({ error: 'You can only access your own profile photo' });
-    const result = await pool.query(
-      `SELECT file_url FROM provider_documents
-       WHERE provider_id = $1 AND doc_type = 'profile_photo'
-       ORDER BY uploaded_at DESC, id DESC LIMIT 1`,
-      [req.params.id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Profile photo not set' });
-    const relativePath = result.rows[0].file_url.replace(/^\/uploads\//, '');
-    const filePath = path.resolve(__dirname, '..', 'uploads', relativePath);
-    const uploadsRoot = path.resolve(__dirname, '..', 'uploads') + path.sep;
-    if (!filePath.startsWith(uploadsRoot)) return res.status(400).json({ error: 'Invalid photo path' });
-    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Profile photo file not found' });
-    res.sendFile(filePath);
-  } catch (err) { next(err); }
-});
-
 // Available subscription plans for a given provider type
 router.get('/plans/:type', async (req, res, next) => {
   try {
