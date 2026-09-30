@@ -66,7 +66,7 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
   try {
     const result = await pool.query(
       `SELECT b.id, b.service_type, b.customer_id, b.provider_id, b.pickup_location, b.drop_or_service_address,
-              b.fare_amount, b.duration_minutes, b.status, b.payment_confirmed_by_provider,
+              b.fare_amount, b.route_distance_km, b.duration_minutes, b.status, b.payment_confirmed_by_provider,
               b.created_at, b.completed_at, b.pickup_lat, b.pickup_lng, b.offered_at,
               c.name AS customer_name,
               CASE WHEN b.status IN ('accepted', 'ongoing', 'completed') THEN c.phone END AS customer_phone
@@ -222,13 +222,13 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
     const result = await client.query(
       `INSERT INTO bookings (
          service_type, provider_type, customer_id, provider_id, pickup_location, drop_or_service_address,
-         pickup_lat, pickup_lng, fare_amount, start_pin, status, offered_at, declined_providers
+         pickup_lat, pickup_lng, route_distance_km, fare_amount, start_pin, status, offered_at, declined_providers
        )
-       VALUES ($1, $2, $3, NULL, $4, $5, $6, $7, $8, $9, 'requested', NOW(), '{}')
+       VALUES ($1, $2, $3, NULL, $4, $5, $6, $7, $8, $9, $10, 'requested', NOW(), '{}')
        RETURNING *`,
       [
         service_type, provider_type, customer_id, pickup_location, drop_or_service_address,
-        pickupLatitude, pickupLongitude, estimatedFare, generatePin()
+        pickupLatitude, pickupLongitude, routeDistance, estimatedFare, generatePin()
       ]
     );
 
