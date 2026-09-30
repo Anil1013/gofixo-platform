@@ -79,8 +79,8 @@ export async function searchAddress(query) {
   // Nominatim is good for addresses, but exact spelling can be fragile.
   // Try the user's text first, then a few safe India/Gurgaon variants.
   const normalized = raw
-    .replace(/\\s*,\\s*/g, ', ')
-    .replace(/\\s+/g, ' ')
+    .replace(/\s*,\s*/g, ', ')
+    .replace(/\s+/g, ' ')
     .trim();
 
   const variants = [];
@@ -90,15 +90,15 @@ export async function searchAddress(query) {
   };
 
   add(normalized);
-  add(normalized.replace(/\\bakshneem\\b/gi, 'Akashneem'));
-  add(normalized.replace(/\\bakashneem\\b/gi, 'Akshneem'));
-  add(normalized.replace(/\\bgurgaon\\b/gi, 'Gurugram'));
-  add(normalized.replace(/\\bgurugram\\b/gi, 'Gurgaon'));
-  add(normalized.replace(/\\bakshneem\\b/gi, 'Akashneem').replace(/\\bgurgaon\\b/gi, 'Gurugram'));
-  add(normalized.replace(/\\bakashneem\\b/gi, 'Akshneem').replace(/\\bgurgaon\\b/gi, 'Gurgaon'));
+  add(normalized.replace(/\bakshneem\b/gi, 'Akashneem'));
+  add(normalized.replace(/\bakashneem\b/gi, 'Akshneem'));
+  add(normalized.replace(/\bgurgaon\b/gi, 'Gurugram'));
+  add(normalized.replace(/\bgurugram\b/gi, 'Gurgaon'));
+  add(normalized.replace(/\bakshneem\b/gi, 'Akashneem').replace(/\bgurgaon\b/gi, 'Gurugram'));
+  add(normalized.replace(/\bakashneem\b/gi, 'Akshneem').replace(/\bgurgaon\b/gi, 'Gurgaon'));
 
   // If the user gives a Gurgaon-style short address, explicitly add India.
-  if (/\\b(gurgaon|gurugram)\\b/i.test(normalized) && !/\\bindia\\b/i.test(normalized)) {
+  if (/\b(gurgaon|gurugram)\b/i.test(normalized) && !/\bindia\b/i.test(normalized)) {
     add(normalized + ', India');
   }
 
