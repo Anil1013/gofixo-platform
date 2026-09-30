@@ -72,12 +72,28 @@ router.post('/customers/:id/reset-password', async (req, res, next) => {
     if (customer.rows.length === 0) return res.status(404).json({ error: 'Customer not found' });
 
     const passwordHash = await bcrypt.hash(new_password, 10);
+
+    // Keep the actual password reset independent of optional audit columns on
+    // older production databases. The password itself is always stored as a hash.
     await pool.query(
       `UPDATE customers
-       SET password_hash = $1, password_changed_at = NOW()
+       SET password_hash = $1
        WHERE id = $2`,
       [passwordHash, id]
     );
+
+    // Record the password-change timestamp when the additive column is available.
+    // ensureRuntimeSchema creates it on new deployments, while this fallback keeps
+    // resets working against an older database during rollout.
+    try {
+      await pool.query(
+        `UPDATE customers SET password_changed_at = NOW() WHERE id = $1`,
+        [id]
+      );
+    } catch (timestampError) {
+      if (timestampError?.code !== '42703') throw timestampError;
+      console.warn('password_changed_at is not available yet; password reset still completed');
+    }
 
     await pool.query(
       `UPDATE password_reset_requests
