@@ -523,8 +523,31 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
 
           {category === 'services' && (
             <div className="service-request-field">
-              <label>What should we help with?</label>
-              <input value={work} onChange={(e) => setWork(e.target.value)} placeholder="e.g. Deep cleaning, fan repair, plumbing…" />
+              <label>Select the service you need</label>
+              <div className="service-choice-grid">
+                {HOME_SERVICE_CARDS.map((item) => (
+                  <button
+                    type="button"
+                    key={item.label}
+                    className={`service-choice-card ${work === item.label ? 'selected' : ''}`}
+                    onClick={() => {
+                      setProviderType(item.type);
+                      setWork(item.label);
+                      setError('');
+                    }}
+                  >
+                    <img src={item.image} alt="" />
+                    <span>{item.label}</span>
+                    {work === item.label && <b>✓</b>}
+                  </button>
+                ))}
+              </div>
+              <label className="service-custom-label">Or describe another service</label>
+              <input
+                value={work}
+                onChange={(e) => setWork(e.target.value)}
+                placeholder="e.g. Deep cleaning, fan repair, plumbing…"
+              />
             </div>
           )}
 
