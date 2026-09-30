@@ -45,10 +45,27 @@ const HOME_SERVICE_CARDS = [
 
 const LOCATION_PROMPTED_KEY = 'gofixo_location_prompted';
 
-function calculateFare(type, distanceKm) {
-  const rule = FARE_RULES[type];
-  if (!rule || !Number.isFinite(distanceKm) || distanceKm < 0) return 0;
-  return Math.max(rule.minimum, Math.round(rule.base + distanceKm * rule.perKm));
+function calculateStraightLineKm(from, to) {
+  if (!from || !to) return 0;
+  const toRad = (value) => (value * Math.PI) / 180;
+  const dLat = toRad(to.lat - from.lat);
+  const dLng = toRad(to.lng - from.lng);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(from.lat)) * Math.cos(toRad(to.lat)) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)));
+}
+
+async function buildRoute(from, to) {
+  const routed = await getRoute(from, to);
+  if (routed && Number.isFinite(routed.distanceKm) && routed.distanceKm > 0) return routed;
+  const distanceKm = calculateStraightLineKm(from, to);
+  if (!Number.isFinite(distanceKm) || distanceKm <= 0) return null;
+  return {
+    distanceKm: Math.max(distanceKm, 0.1),
+    durationMin: Math.max(1, Math.round(distanceKm * 3)),
+    line: null,
+    fallback: true,
+  };
 }
 
 export default function Home({ onBooked, initialCategory = 'ride' }) {
@@ -186,7 +203,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
     const pickup = { lat: found.lat, lng: found.lng };
     setLocation(found.label);
     setCoords(pickup);
-    if (destCoords) setRoute(await getRoute(pickup, destCoords));
+    if (destCoords) setRoute(await buildRoute(pickup, destCoords));
     setPickupFinding(false);
   }
 
@@ -206,7 +223,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
     setDestination(found.label);
     destinationResolvedRef.current = query;
     setDestCoords({ lat: found.lat, lng: found.lng });
-    setRoute(coords ? await getRoute(coords, found) : null);
+    setRoute(coords ? await buildRoute(coords, found) : null);
     setFinding(false);
   }
 
@@ -249,7 +266,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
           return;
         }
         resolvedDestination = { lat: found.lat, lng: found.lng };
-        resolvedRoute = await getRoute(coords, found);
+        resolvedRoute = await buildRoute(coords, found);
         setDestination(found.label);
         destinationResolvedRef.current = query;
         setDestCoords(resolvedDestination);
@@ -260,8 +277,8 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
         setError('Please enter a valid drop location so we can calculate the fare.');
         return;
       }
-      if (category === 'ride' && String(dropPincode).length !== 6) {
-        setError('Please confirm the 6-digit drop PIN code.');
+      if (category === 'ride' && dropPincode && !/^\d{6}$/.test(String(dropPincode))) {
+        setError('Drop PIN code must be 6 digits if provided.');
         return;
       }
 
@@ -280,7 +297,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
       const booking = await apiPost('/bookings', body, true);
       onBooked(booking);
     } catch (err) {
-      setError(err.message);
+      setError(err?.message || 'Ride booking failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -373,7 +390,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                   destinationResolvedRef.current = item.label;
                   setDestCoords({ lat: item.lat, lng: item.lng });
                   setDestinationSuggestions([]);
-                  if (coords) getRoute(coords, item).then(setRoute);
+                  if (coords) buildRoute(coords, item).then(setRoute);
                 }}
               >
                 <strong>{item.label}</strong>
