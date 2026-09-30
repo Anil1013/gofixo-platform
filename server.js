@@ -90,7 +90,8 @@ async function ensureRuntimeSchema() {
   await pool.query(`
     ALTER TABLE bookings
       ADD COLUMN IF NOT EXISTS payment_confirmed_by_provider BOOLEAN DEFAULT false,
-      ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP
+      ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS route_distance_km NUMERIC(10,2)
   `);
 
   await pool.query(`
