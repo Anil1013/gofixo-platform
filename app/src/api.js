@@ -18,7 +18,13 @@ export function clearSession() {
 
 export function getUser() {
   const raw = localStorage.getItem('gofixo_user');
-  return raw ? JSON.parse(raw) : null;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    localStorage.removeItem('gofixo_user');
+    return null;
+  }
 }
 
 export function getRole() {
