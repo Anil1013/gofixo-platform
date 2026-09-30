@@ -2155,3 +2155,137 @@ button,input{font-family:inherit}
 .role-customer .premium-find-row button{
   background:#16a05d!important;
 }
+
+
+/* Customer visual polish — richer green/teal palette without losing the Gofixo navy */
+.role-customer .customer-reference-screen{
+  background:
+    radial-gradient(circle at 8% 20%,rgba(34,197,94,.055),transparent 28%),
+    radial-gradient(circle at 94% 46%,rgba(20,184,166,.065),transparent 30%),
+    #f8fbfa!important;
+}
+.role-customer .customer-app-header{
+  background:linear-gradient(135deg,#ffffff 0%,#f4fff9 100%)!important;
+  border-bottom:1px solid #e2f1e9!important;
+}
+.role-customer .customer-logo-pin{
+  background:linear-gradient(145deg,#16a05d,#14b8a6)!important;
+  box-shadow:0 6px 15px rgba(22,160,93,.24)!important;
+}
+.role-customer .customer-logo strong span{
+  color:#16a05d!important;
+}
+.role-customer .customer-reference-hero{
+  background:
+    linear-gradient(180deg,rgba(232,250,242,.76),rgba(246,253,250,.56) 48%,rgba(255,255,255,.12)),
+    url('https://images.unsplash.com/photo-1643809107104-5ba8dd0e73ce?auto=format&fit=crop&w=1200&q=80') center 43%/cover!important;
+}
+.role-customer .customer-reference-hero h1.orange{
+  color:#16a05d!important;
+  text-shadow:0 2px 10px rgba(255,255,255,.8)!important;
+}
+.role-customer .reference-vehicle-strip button{
+  border:1px solid rgba(255,255,255,.9)!important;
+  background:rgba(255,255,255,.9)!important;
+  box-shadow:0 8px 18px rgba(16,33,63,.10)!important;
+}
+.role-customer .reference-vehicle-strip button:nth-child(2){
+  border-color:#bfead2!important;
+  background:linear-gradient(180deg,#fff,#effcf5)!important;
+}
+.role-customer .reference-location-search{
+  border:1px solid #dceee5!important;
+  background:rgba(255,255,255,.96)!important;
+}
+.role-customer .reference-location-search .location-pin-mark{
+  color:#16a05d!important;
+}
+.role-customer .reference-ride-tile,
+.role-customer .reference-service-cards button{
+  transition:transform .18s ease,box-shadow .18s ease!important;
+}
+.role-customer .reference-ride-tile:active,
+.role-customer .reference-service-cards button:active{
+  transform:translateY(-2px)!important;
+}
+.role-customer .reference-ride-tile{
+  border-color:#deebe5!important;
+  box-shadow:0 7px 18px rgba(16,33,63,.065)!important;
+}
+.role-customer .reference-ride-tile:nth-child(1)>div{
+  background:linear-gradient(135deg,#eaf9f1,#f5fffa)!important;
+}
+.role-customer .reference-ride-tile:nth-child(2)>div{
+  background:linear-gradient(135deg,#e4f8ef,#effdfa)!important;
+}
+.role-customer .reference-ride-tile:nth-child(3)>div{
+  background:linear-gradient(135deg,#e8f4f7,#f3fbfc)!important;
+}
+.role-customer .reference-section-title h2{
+  background:linear-gradient(90deg,#10213f,#166b50);
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent!important;
+}
+.role-customer .reference-section-title button{
+  color:#0d8f50!important;
+}
+.role-customer .trusted-professionals-banner{
+  background:linear-gradient(115deg,#e7f9ef 0%,#f5fffa 58%,#dff5ee 100%)!important;
+  border-color:#c3ead7!important;
+  box-shadow:0 9px 20px rgba(22,160,93,.08)!important;
+}
+.role-customer .reference-booking-panel{
+  border-color:#cfe9dc!important;
+  background:linear-gradient(180deg,#ffffff,#fbfffd)!important;
+  box-shadow:0 14px 30px rgba(16,33,63,.10)!important;
+}
+.role-customer .reference-booking-head>button{
+  background:#eaf8f1!important;
+  color:#0d8f50!important;
+}
+.role-customer .reference-location-card{
+  border-color:#cde9da!important;
+  background:linear-gradient(135deg,#f2fff8,#ffffff)!important;
+}
+.role-customer .reference-book-cta{
+  background:linear-gradient(135deg,#0d8f50 0%,#16a05d 52%,#14b8a6 100%)!important;
+  box-shadow:0 10px 22px rgba(22,160,93,.24)!important;
+}
+.role-customer .service-request-field-top{
+  box-shadow:inset 0 0 0 1px rgba(20,184,166,.03),0 8px 18px rgba(22,160,93,.06)!important;
+}
+.role-customer .service-choice-card.selected{
+  border-color:#16a05d!important;
+  background:linear-gradient(135deg,#effff6,#f7fffb)!important;
+}
+.role-customer .reference-why-grid>div{
+  border-color:#dfeee7!important;
+  box-shadow:0 5px 14px rgba(16,33,63,.045)!important;
+}
+.role-customer .reference-why-grid span{
+  background:linear-gradient(135deg,#e4f8ee,#e6faf7)!important;
+  color:#0d8f50!important;
+}
+.role-customer .bottom-nav{
+  border-top-color:#dcece5!important;
+  background:rgba(255,255,255,.97)!important;
+}
+.role-customer .bottom-nav button.active{
+  color:#0d8f50!important;
+}
+.role-customer .auth-error{
+  border:1px solid #ffd1d1!important;
+  background:#fff5f5!important;
+  color:#c53b3b!important;
+  border-radius:12px!important;
+  padding:10px!important;
+  font-size:9px!important;
+  line-height:1.35!important;
+}
+.role-customer .ride-summary{
+  border:1px solid #cde9da!important;
+  background:linear-gradient(135deg,#effcf5,#f4fffd)!important;
+  border-radius:13px!important;
+  padding:10px 11px!important;
+}
