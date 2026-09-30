@@ -126,10 +126,45 @@ router.post('/:role/login', async (req, res, next) => {
   }
 });
 
-// Change password using the existing password.
-// A phone number alone must never be sufficient to take over an account.
-// A true "forgot password" flow should be added only when a verified OTP/email
-// provider is configured for this deployment.
+// Request a password reset without revealing whether the phone exists.
+// This creates an admin-visible request; it does not change the password by itself.
+router.post('/:role/forgot-password', async (req, res, next) => {
+  try {
+    const { role } = req.params;
+    const normalizedPhone = normalizeIndianPhone(req.body?.phone);
+    if (!['customer', 'provider'].includes(role)) {
+      return res.status(400).json({ error: 'role must be customer or provider' });
+    }
+    if (!normalizedPhone) return res.status(400).json({ error: 'Valid 10-digit Indian phone number is required' });
+
+    // Keep this endpoint safe: knowing a phone number alone never changes the password.
+    const table = role === 'customer' ? 'customers' : 'service_providers';
+    const result = await pool.query(
+      `SELECT id FROM ${table}
+       WHERE phone = $1 OR RIGHT(regexp_replace(phone, '[^0-9]', '', 'g'), 10) = $1
+       LIMIT 1`,
+      [normalizedPhone]
+    );
+
+    if (role === 'customer' && result.rows.length > 0) {
+      await pool.query(
+        `INSERT INTO password_reset_requests (customer_id, status)
+         VALUES ($1, 'pending')
+         ON CONFLICT (customer_id)
+         WHERE status = 'pending'
+         DO NOTHING`,
+        [result.rows[0].id]
+      );
+    }
+
+    // Same response whether the account exists or not to reduce account enumeration.
+    res.json({ message: 'If the account exists, a password reset request has been created. An administrator can complete the reset.' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Change password while already signed in. The existing password is still required here.
 router.post('/:role/reset-password', async (req, res, next) => {
   try {
     const { role } = req.params;
