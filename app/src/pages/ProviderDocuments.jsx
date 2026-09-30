@@ -44,7 +44,7 @@ export default function ProviderDocuments() {
     if (!file) return;
 
     const maxBytes = 15 * 1024 * 1024;
-    const extension = (file.name || '').toLowerCase().match(/\\.[^.]+$/)?.[0] || '';
+    const extension = (file.name || '').toLowerCase().match(/\.[^.]+$/)?.[0] || '';
     const allowedExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp', '.pdf']);
     const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/octet-stream', '']);
     if (file.size > maxBytes) {
