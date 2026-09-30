@@ -87,7 +87,25 @@ async function ensureRuntimeSchema() {
     ADD COLUMN IF NOT EXISTS profile_photo_url TEXT
   `);
 
-  // Customer forgot-password requests. Create this on startup so an older production\n  // database cannot return 500 while the Admin Customers page is opened.\n  await pool.query(`\n    CREATE TABLE IF NOT EXISTS password_reset_requests (\n      id SERIAL PRIMARY KEY,\n      customer_id INT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,\n      status VARCHAR(20) NOT NULL DEFAULT 'pending',\n      created_at TIMESTAMP DEFAULT NOW(),\n      resolved_at TIMESTAMP\n    )\n  `);\n\n  await pool.query(`\n    CREATE UNIQUE INDEX IF NOT EXISTS password_reset_requests_one_pending\n      ON password_reset_requests (customer_id)\n      WHERE status = 'pending'\n  `);\n\n  await pool.query(`
+  // Customer forgot-password requests. Create this on startup so an older production
+  // database cannot return 500 while the Admin Customers page is opened.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_requests (
+      id SERIAL PRIMARY KEY,
+      customer_id INT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT NOW(),
+      resolved_at TIMESTAMP
+    )
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS password_reset_requests_one_pending
+      ON password_reset_requests (customer_id)
+      WHERE status = 'pending'
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS provider_push_subscriptions (
       id SERIAL PRIMARY KEY,
       provider_id INT NOT NULL REFERENCES service_providers(id) ON DELETE CASCADE,
