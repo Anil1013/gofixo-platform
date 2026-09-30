@@ -21,6 +21,13 @@ const FARE_RULES = {
   car: { base: 60, perKm: 18, minimum: 70 },
 };
 
+function calculateFare(providerType, distanceKm) {
+  const rule = FARE_RULES[providerType] || FARE_RULES.bike;
+  const km = Number(distanceKm);
+  if (!Number.isFinite(km) || km <= 0) return rule.minimum;
+  return Math.max(rule.minimum, Math.round(rule.base + (km * rule.perKm)));
+}
+
 const RIDE_VISUALS = {
   bike: { image: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=900&q=88', title: 'Bike', sub: 'Fast & affordable', tone: 'orange' },
   auto: { image: 'https://images.unsplash.com/photo-1703142488992-72018a83fd8a?auto=format&fit=crop&w=900&q=82', title: 'Auto', sub: 'Comfortable rides', tone: 'green' },
