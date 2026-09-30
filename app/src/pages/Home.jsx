@@ -212,6 +212,10 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
 
   async function book() {
     setError('');
+    if (category === 'services' && !work.trim()) {
+      setError('Please select the service you need.');
+      return;
+    }
     if (!coords) {
       setError('Please allow location access so we can use your current pickup location.');
       return;
@@ -442,6 +446,42 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
             <button type="button" onClick={() => setShowBooking(false)} aria-label="Close booking">×</button>
           </div>
 
+          {category === 'services' && (
+            <div className="service-request-field service-request-field-top">
+              <label>Select the service you need</label>
+              <div className="service-choice-grid">
+                {HOME_SERVICE_CARDS.map((item) => (
+                  <button
+                    type="button"
+                    key={item.label}
+                    className={`service-choice-card ${work === item.label ? 'selected' : ''}`}
+                    aria-pressed={work === item.label}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => {
+                      setProviderType(item.type);
+                      setWork(item.label);
+                      setError('');
+                    }}
+                  >
+                    <img src={item.image} alt="" />
+                    <span>{item.label}</span>
+                    {work === item.label && <b>✓</b>}
+                  </button>
+                ))}
+              </div>
+              <input
+                className="service-custom-input"
+                value={HOME_SERVICE_CARDS.some((item) => item.label === work) ? '' : work}
+                onChange={(e) => {
+                  setWork(e.target.value);
+                  setProviderType(e.target.value.trim() ? 'skilled_worker' : 'general_worker');
+                  setError('');
+                }}
+                placeholder="Or describe another service…"
+              />
+            </div>
+          )}
+
           <button type="button" className="location-card reference-location-card" onClick={useMyLocation} disabled={locating}>
             <span className="location-icon">⌖</span>
             <span className="location-copy">
@@ -521,39 +561,9 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
             </div>
           )}
 
-          {category === 'services' && (
-            <div className="service-request-field">
-              <label>Select the service you need</label>
-              <div className="service-choice-grid">
-                {HOME_SERVICE_CARDS.map((item) => (
-                  <button
-                    type="button"
-                    key={item.label}
-                    className={`service-choice-card ${work === item.label ? 'selected' : ''}`}
-                    onClick={() => {
-                      setProviderType(item.type);
-                      setWork(item.label);
-                      setError('');
-                    }}
-                  >
-                    <img src={item.image} alt="" />
-                    <span>{item.label}</span>
-                    {work === item.label && <b>✓</b>}
-                  </button>
-                ))}
-              </div>
-              <label className="service-custom-label">Or describe another service</label>
-              <input
-                value={work}
-                onChange={(e) => setWork(e.target.value)}
-                placeholder="e.g. Deep cleaning, fan repair, plumbing…"
-              />
-            </div>
-          )}
-
           {error && <p className="auth-error">{error}</p>}
 
-          <button className="cta home-cta reference-book-cta" onClick={book} disabled={loading}>
+          <button className="cta home-cta reference-book-cta" onClick={book} disabled={loading || (category === 'services' && !work.trim())}>
             <span>{loading ? 'Finding the nearest provider…' : category === 'ride' ? 'Book a Ride' : 'Book Home Service'}</span>
             {!loading && <span>→</span>}
           </button>
