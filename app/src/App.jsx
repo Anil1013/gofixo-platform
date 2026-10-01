@@ -37,7 +37,7 @@ function pickCurrent(bookings) {
   return (
     bookings.find((b) => {
       if (dismissed.has(b.id)) return false;
-      if (['requested', 'accepted', 'ongoing', 'no_provider'].includes(b.status)) return true;
+      if (['requested', 'accepted', 'ongoing'].includes(b.status)) return true;
       if (b.status === 'completed' && b.completed_at) {
         return Date.now() - new Date(b.completed_at).getTime() < RECENT_COMPLETED_MS;
       }
@@ -123,7 +123,7 @@ export default function App() {
             booking={activeBooking}
             onRefresh={checkActiveBooking}
             onDismiss={() => dismissBooking(activeBooking.id)}
-            onDone={() => { dismissBooking(activeBooking.id); setActiveBooking(null); }}
+            onDone={() => { dismissBooking(activeBooking.id); setActiveBooking(null); setTab('home'); }}
           />
         );
       }

@@ -116,8 +116,9 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
       <div className="screen">
         <div className="thanks-card" style={{ background: 'var(--red-bg)', color: 'var(--red)' }}>
           <p>😕 No provider was available nearby right now.</p>
+          <small style={{ display: 'block', marginTop: 8, opacity: .8 }}>Taking you back to Home…</small>
         </div>
-        <button className="cta" onClick={() => { onDismiss(); onDone(); }}>Try again</button>
+        <button className="cta" onClick={() => { onDismiss(); onDone(); }}>Back to Home</button>
       </div>
     );
   }
