@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.mappls.services.android")
 }
 
 android {
@@ -16,24 +17,10 @@ android {
 
     defaultConfig {
         applicationId = "com.gofixo.app"
-        minSdk = flutter.minSdkVersion
+        minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-    }
-
-    flavorDimensions += "app"
-
-    productFlavors {
-        create("customer") {
-            dimension = "app"
-            applicationId = "com.gofixo.app"
-        }
-
-        create("partner") {
-            dimension = "app"
-            applicationId = "com.gofixo.partner"
-        }
     }
 
     buildTypes {

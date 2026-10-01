@@ -14,6 +14,16 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
+        maven(url = "https://maven.mappls.com/repository/mappls/")
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+        google()
+        mavenCentral()
+        maven(url = "https://maven.mappls.com/repository/mappls/")
     }
 }
 
