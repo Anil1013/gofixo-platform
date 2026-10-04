@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'api_service.dart';
+import 'update_service.dart';
 
 const orange=Color(0xFFFF6B00), navy=Color(0xFF172B4D), muted=Color(0xFF64748B);
 
@@ -22,7 +23,20 @@ class _GateState extends State<Gate>{
   Future<Session?>? f;
   @override void initState(){super.initState();f=ApiService.loadSession();}
   void refresh()=>setState(()=>f=ApiService.loadSession());
-  @override Widget build(BuildContext c)=>FutureBuilder<Session?>(future:f,builder:(c,s){if(s.connectionState!=ConnectionState.done)return const Scaffold(body:Center(child:CircularProgressIndicator()));final x=s.data;if(x==null)return RoleScreen(onLogin:refresh);return x.role=='provider'?ProviderHome(session:x,onLogout:()async{await ApiService.clearSession();refresh();}):CustomerHome(session:x,onLogout:()async{await ApiService.clearSession();refresh();});});
+  @override Widget build(BuildContext c){
+    return FutureBuilder<Session?>(
+      future:f,
+      builder:(c,s){
+        if(s.connectionState!=ConnectionState.done)return const Scaffold(body:Center(child:CircularProgressIndicator()));
+        WidgetsBinding.instance.addPostFrameCallback((_){UpdateService.checkAndPrompt(c);});
+        final x=s.data;
+        if(x==null)return RoleScreen(onLogin:refresh);
+        return x.role=='provider'
+            ?ProviderHome(session:x,onLogout:()async{await ApiService.clearSession();refresh();})
+            :CustomerHome(session:x,onLogout:()async{await ApiService.clearSession();refresh();});
+      },
+    );
+  }
 }
 
 class RoleScreen extends StatelessWidget{
