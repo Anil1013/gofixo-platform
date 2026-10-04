@@ -14,7 +14,6 @@ const bookingsRoutes = require('./routes/bookings.routes');
 const authRoutes = require('./routes/auth.routes');
 const adminRoutes = require('./routes/admin.routes');
 const pool = require('./config/db');
-const { handleDeclineOrTimeout } = require('./services/matching');
 const { attachRealtime } = require('./services/realtime');
 
 const app = express();
