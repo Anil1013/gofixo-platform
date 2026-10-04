@@ -87,7 +87,6 @@ class _CustomerHomeState extends State<CustomerHome>{
     if(bookings.isEmpty)const Card(child:Padding(padding:EdgeInsets.all(24),child:Text('No bookings yet. Tap the location button to book a ride.'))),
     ...bookings.map((b)=>BookingCard(session:widget.session,b:b,onChanged:load)),
    ])));}
-}
 
 class BookingPage extends StatefulWidget{final Session session;final Future<void> Function({bool silent}) onChanged;const BookingPage({super.key,required this.session,required this.onChanged});@override State<BookingPage> createState()=>_BookingPageState();}
 class _BookingPageState extends State<BookingPage>{
@@ -104,7 +103,6 @@ class _BookingPageState extends State<BookingPage>{
     if(route.isNotEmpty&&pos!=null)Padding(padding:const EdgeInsets.only(top:14),child:SizedBox(height:240,child:FlutterMap(options:MapOptions(initialCenter:route.first,initialZoom:13),children:[TileLayer(urlTemplate:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',userAgentPackageName:'com.gofixo.app'),PolylineLayer(polylines:[Polyline(points:route,strokeWidth:5,color:orange)])]))),
     if(distance!=null)Card(child:ListTile(title:Text('Estimated ₹'+fare!.toStringAsFixed(0)),subtitle:Text(distance!.toStringAsFixed(1)+' km • '+type.toUpperCase()),trailing:FilledButton(onPressed:busy?null:book,child:const Text('Book')))),
    ])));}
-}
 
 class BookingCard extends StatelessWidget{final Session session;final Map<String,dynamic>b;final Future<void> Function()onChanged;const BookingCard({super.key,required this.session,required this.b,required this.onChanged});
   @override Widget build(BuildContext c){final status=b['status']?.toString()??'';final id=int.tryParse(b['id'].toString())??0;final pin=b['start_pin']?.toString();return Card(margin:const EdgeInsets.only(bottom:12),child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -129,7 +127,7 @@ class _ProviderHomeState extends State<ProviderHome>{
   void snack(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.replaceFirst('Exception: ',''))));
   Future<void>toggle()async{if(me==null)return;setState(()=>busy=true);try{final available=me!['is_available']==true;if(!available)await sendLocation();final x=await ApiService.setAvailability(widget.session.token,int.parse(me!['id'].toString()),!available);setState(()=>me=x);}catch(e){snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
   @override Widget build(BuildContext c){final m=me??{};final status=m['kyc_status']?.toString()??'pending';return Scaffold(appBar:AppBar(title:const Text('Partner dashboard'),actions:[IconButton(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>KycPage(session:widget.session,provider:me??{}))).then((_)=>load()),icon:const Icon(Icons.verified_user)),IconButton(onPressed:()=>showPlans(c),icon:const Icon(Icons.card_membership)),IconButton(onPressed:widget.onLogout,icon:const Icon(Icons.logout))]),body:RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[
-    Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(m['name']?.toString()??'',style:const TextStyle(fontSize:22,fontWeight:FontWeight.w800,color:navy)),Text((m['generated_id']??'').toString()),const SizedBox(height:10),Text('KYC: '+status),if(sub!=null)Text('Plan: '+(sub!['plan_name']??'').toString()+' • Earned ₹'+(sub!['total_earned_this_cycle']??0).toString()),const SizedBox(height:12),SwitchListTile(contentPadding:EdgeInsets.zero,title:Text(m['is_available']==true?'ONLINE':'OFFLINE'),subtitle:Text(m['is_available']==true?'Receiving nearby requests':'Tap to go online'),value:m['is_available']==true,onChanged:busy?null:(_)=>toggle())])),
+    Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(m['name']?.toString()??'',style:const TextStyle(fontSize:22,fontWeight:FontWeight.w800,color:navy)),Text((m['generated_id']??'').toString()),const SizedBox(height:10),Text('KYC: '+status),if(sub!=null)Text('Plan: '+(sub!['plan_name']??'').toString()+' • Earned ₹'+(sub!['total_earned_this_cycle']??0).toString()),const SizedBox(height:12),SwitchListTile(contentPadding:EdgeInsets.zero,title:Text(m['is_available']==true?'ONLINE':'OFFLINE'),subtitle:Text(m['is_available']==true?'Receiving nearby requests':'Tap to go online'),value:m['is_available']==true,onChanged:busy?null:(_)=>toggle())]))),
     if(jobs.any((x)=>x['status']=='requested'))...[
       const Padding(padding:EdgeInsets.only(top:12,bottom:8),child:Text('New requests',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800))),
       ...jobs.where((x)=>x['status']=='requested').map((j)=>JobCard(session:widget.session,b:j,onChanged:load)),
