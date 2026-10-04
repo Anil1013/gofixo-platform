@@ -24,6 +24,8 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven(url = "https://maven.mappls.com/repository/mappls/")
+        val storageUrl: String = System.getenv("FLUTTER_STORAGE_BASE_URL") ?: "https://storage.googleapis.com"
+        maven("$storageUrl/download.flutter.io")
     }
 }
 
