@@ -1,0 +1,134 @@
+
+name: Gofixo OTA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/lib/**'
+      - 'mobile/assets/**'
+      - 'mobile/pubspec.yaml'
+      - '.github/workflows/gofixo-ota.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gofixo-ota-main
+  cancel-in-progress: true
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test
+        run: flutter test
+
+      - name: Read OTA base version
+        id: base
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(python3 -c 'import json; print(json.load(open("version.json"))["version"])')"
+          BUILD="$(python3 -c 'import json; print(json.load(open("version.json"))["buildNumber"])')"
+          test -n "$VERSION"
+          test "$BUILD" -gt 0
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+
+      - name: Build OTA base APK
+        run: |
+          flutter build apk --release             --build-name "${{ steps.base.outputs.version }}"             --build-number "${{ steps.base.outputs.build }}"
+
+      - name: Build OTA patch
+        env:
+          PATCH_VERSION: "ota-${{ github.sha }}"
+          TARGET_VERSION_CODE: "${{ steps.base.outputs.build }}"
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          dart run flutter_ota_kit:pack             --apk build/app/outputs/flutter-apk/app-release.apk             --version "$PATCH_VERSION"             --target-version-code "$TARGET_VERSION_CODE"             --out dist
+          test -s dist/patch.zip
+          test -s dist/manifest.json
+          cp dist/patch.zip "dist/patch-$GITHUB_SHA.zip"
+
+      - name: Create server manifest
+        env:
+          PATCH_VERSION: "ota-${{ github.sha }}"
+          TARGET_VERSION_CODE: "${{ steps.base.outputs.build }}"
+        run: |
+          set -euo pipefail
+          MD5="$(md5sum "dist/patch-$GITHUB_SHA.zip" | awk '{print $1}')"
+          export MD5
+          python3 - <<'PY'
+          import json, os
+          manifest = {
+            "schemaVersion": 1,
+            "gitCommitHash": os.environ["GITHUB_SHA"],
+            "message": "Automatic Gofixo OTA update",
+            "patches": {}
+          }
+          for abi in ("arm64-v8a", "armeabi-v7a", "x86_64"):
+            manifest["patches"][abi] = {
+              "version": os.environ["PATCH_VERSION"],
+              "filename": f"patch-{os.environ['GITHUB_SHA']}.zip",
+              "md5": os.environ["MD5"],
+              "signature": "",
+              "targetVersionCode": int(os.environ["TARGET_VERSION_CODE"])
+            }
+          open("dist/latest.json", "w").write(json.dumps(manifest, indent=2) + "\n")
+          PY
+          cat dist/latest.json
+
+      - name: Prepare OTA upload
+        run: |
+          set -euo pipefail
+          mkdir -p ota-upload
+          cp "dist/patch-$GITHUB_SHA.zip" ota-upload/
+          cp dist/latest.json ota-upload/
+          ls -lh ota-upload
+
+      - name: Upload OTA payload to Gofixo EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "mobile/ota-upload/*"
+          target: "/home/ubuntu/gofixo-platform/ota/"
+          strip_components: 1
+          overwrite: true
+
+      - name: Verify OTA endpoint
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 2m
+          script: |
+            set -euo pipefail
+            test -s /home/ubuntu/gofixo-platform/ota/latest.json
+            python3 -m json.tool /home/ubuntu/gofixo-platform/ota/latest.json >/dev/null
+            curl -fsS --max-time 10 "http://127.0.0.1:4000/api/mobile/ota/check?app_version_code=${{ steps.base.outputs.build }}&abi=arm64-v8a" >/tmp/gofixo-ota-check.json
+            cat /tmp/gofixo-ota-check.json
