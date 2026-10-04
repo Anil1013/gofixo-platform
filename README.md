@@ -4,7 +4,7 @@ Gofixo is a Ride (Bike/Auto/Car) + Home Services backend with customer/provider 
 
 ## Production deployment
 
-The production process is pinned to `/home/ubuntu/gofixo-platform/server.js` through `ecosystem.config.cjs`. GitHub Actions deploys the `main` branch, restarts PM2, verifies the local API health endpoints, and then verifies the public API at `https://backend.mob13r.com/api/auth/health`. A deployment is considered failed when the public health endpoint is not HTTP 200.
+The production process is pinned to `/home/ubuntu/gofixo-platform/server.js` through `ecosystem.config.cjs`. GitHub Actions deploys the `main` branch, restarts PM2, verifies the local API health endpoints, and then verifies the public API at `https://gofixo.mob13r.com/api/auth/health`. A deployment is considered failed when the public health endpoint is not HTTP 200.
 
 The backend listens on port 4000 by default.
 
