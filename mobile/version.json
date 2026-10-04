@@ -1,7 +1,7 @@
 {
   "version": "1.0.2",
-  "buildNumber": 5,
+  "buildNumber": 1000002,
   "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/latest/download/gofixo-release.apk",
-  "notes": "Login fixes, stability improvements, and the latest Gofixo mobile build.",
+  "notes": "Gofixo OTA-enabled Android release.",
   "forceUpdate": false
 }
