@@ -1,4 +1,10 @@
 buildscript {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://maven.mappls.com/repository/mappls/") }
+    }
+
     dependencies {
         classpath("com.mappls.services:mappls-services:1.0.0")
     }
