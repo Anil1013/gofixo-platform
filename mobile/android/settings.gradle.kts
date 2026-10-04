@@ -93,8 +93,54 @@ kotlin {
     packageBuildFile.writeText(source)
 }
 
+/*
+ * Mappls GL 2.0.7 release-resource generator compatibility shim.
+ *
+ * Its legacy Flutter resource generator uses recursive Groovy file deletion.
+ * On the small CI/EC2 builder this can exhaust JVM Metaspace during AGP 9
+ * release resource processing. Use NIO's native tree traversal instead.
+ */
+fun patchMapplsResourceGeneratorForAgp9() {
+    val pubCache = System.getenv("PUB_CACHE")
+        ?: File(System.getProperty("user.home"), ".pub-cache").absolutePath
+
+    val scriptFile = File(
+        pubCache,
+        "hosted/pub.dev/mappls_gl-2.0.7/android/flutter-mappls-plugin.gradle"
+    )
+    if (!scriptFile.isFile) return
+
+    var source = scriptFile.readText()
+
+    val legacy = Regex(
+        """(?s)void deleteFolder\(File folder\) \{.*?\n\}"""
+    )
+
+    val replacement = """
+void deleteFolder(File folder) {
+    if (!folder.exists()) return
+
+    def stream = java.nio.file.Files.walk(folder.toPath())
+    try {
+        stream
+            .sorted(java.util.Comparator.reverseOrder())
+            .forEach { path -> java.nio.file.Files.deleteIfExists(path) }
+    } finally {
+        stream.close()
+    }
+}
+""".trim()
+
+    if (legacy.containsMatchIn(source) &&
+        !source.contains("java.nio.file.Files.walk(folder.toPath())")) {
+        source = source.replaceFirst(legacy, replacement)
+        scriptFile.writeText(source)
+    }
+}
+
 gradle.settingsEvaluated {
     patchMapplsGlForAgp9()
+    patchMapplsResourceGeneratorForAgp9()
 }
 
 include(":app")
