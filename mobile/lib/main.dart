@@ -124,10 +124,10 @@ class _ProviderHomeState extends State<ProviderHome>{
   Map<String,dynamic>? me,sub;List<Map<String,dynamic>> jobs=[];Timer? timer;bool busy=false;
   @override void initState(){super.initState();load();timer=Timer.periodic(const Duration(seconds:5),(_)=>load(silent:true));}
   @override void dispose(){timer?.cancel();super.dispose();}
-  Future<void>load({bool silent=false})async{try{final m=await ApiService.providerMe(widget.session.token);final j=await ApiService.providerBookings(widget.session.token);final s=await ApiService.subscription(widget.session.token,int.tryParse(m['id'].toString())??widget.session.userId??0);if(m['is_available']==true)await sendLocation(m,silent:true);if(mounted)setState((){me=m;sub=s;jobs=j;});}catch(e){if(!silent&&mounted)snack(e.toString());}}
-  Future<void>sendLocation(String token,{bool silent=false})async{try{final p=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.high));await ApiService.updateProviderLocation(widget.session.token,int.parse(me!['id'].toString()),p.latitude,p.longitude);}catch(e){if(!silent&&mounted)snack(e.toString());}}
+  Future<void>load({bool silent=false})async{try{final m=await ApiService.providerMe(widget.session.token);final j=await ApiService.providerBookings(widget.session.token);final s=await ApiService.subscription(widget.session.token,int.tryParse(m['id'].toString())??widget.session.userId??0);if(m['is_available']==true)await sendLocation(silent:true);if(mounted)setState((){me=m;sub=s;jobs=j;});}catch(e){if(!silent&&mounted)snack(e.toString());}}
+  Future<void>sendLocation({bool silent=false})async{try{final p=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.high));await ApiService.updateProviderLocation(widget.session.token,int.parse(me!['id'].toString()),p.latitude,p.longitude);}catch(e){if(!silent&&mounted)snack(e.toString());}}
   void snack(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.replaceFirst('Exception: ',''))));
-  Future<void>toggle()async{if(me==null)return;setState(()=>busy=true);try{final available=me!['is_available']==true;if(!available)await sendLocation(widget.session.token);final x=await ApiService.setAvailability(widget.session.token,int.parse(me!['id'].toString()),!available);setState(()=>me=x);}catch(e){snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
+  Future<void>toggle()async{if(me==null)return;setState(()=>busy=true);try{final available=me!['is_available']==true;if(!available)await sendLocation();final x=await ApiService.setAvailability(widget.session.token,int.parse(me!['id'].toString()),!available);setState(()=>me=x);}catch(e){snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
   @override Widget build(BuildContext c){final m=me??{};final status=m['kyc_status']?.toString()??'pending';return Scaffold(appBar:AppBar(title:const Text('Partner dashboard'),actions:[IconButton(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>KycPage(session:widget.session,provider:me??{}))).then((_)=>load()),icon:const Icon(Icons.verified_user)),IconButton(onPressed:()=>showPlans(c),icon:const Icon(Icons.card_membership)),IconButton(onPressed:widget.onLogout,icon:const Icon(Icons.logout))]),body:RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[
     Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(m['name']?.toString()??'',style:const TextStyle(fontSize:22,fontWeight:FontWeight.w800,color:navy)),Text((m['generated_id']??'').toString()),const SizedBox(height:10),Text('KYC: '+status),if(sub!=null)Text('Plan: '+(sub!['plan_name']??'').toString()+' • Earned ₹'+(sub!['total_earned_this_cycle']??0).toString()),const SizedBox(height:12),SwitchListTile(contentPadding:EdgeInsets.zero,title:Text(m['is_available']==true?'ONLINE':'OFFLINE'),subtitle:Text(m['is_available']==true?'Receiving nearby requests':'Tap to go online'),value:m['is_available']==true,onChanged:busy?null:(_)=>toggle())])),
     if(jobs.any((x)=>x['status']=='requested'))...[
@@ -172,10 +172,10 @@ class _KycPageState extends State<KycPage>{
     return ['aadhar_front','aadhar_back','driving_license','vehicle_rc','vehicle_photo_front','vehicle_photo_back'];
   }
   Future<void>pick(String doc)async{
-    final x=await FilePicker.platform.pickFiles(type:FileType.custom,allowedExtensions:const['jpg','jpeg','png','webp','pdf']);
-    if(x==null||x.files.single.path==null)return;
+    final x=await FilePicker.platform.pickFile(type:FileType.custom,allowedExtensions:const['jpg','jpeg','png','webp','pdf']);
+    if(x==null||x.path==null)return;
     setState(()=>busy=true);
-    try{await ApiService.uploadProviderDocument(widget.session.token,int.parse(widget.provider['id'].toString()),doc,x.files.single.path!);if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Document uploaded')));}
+    try{await ApiService.uploadProviderDocument(widget.session.token,int.parse(widget.provider['id'].toString()),doc,x.path!);if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Document uploaded')));}
     catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
     finally{if(mounted)setState(()=>busy=false);}
   }
