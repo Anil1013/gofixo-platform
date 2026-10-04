@@ -33,7 +33,7 @@ class RoleScreen extends StatelessWidget{
     const SizedBox(height:45),const Text('Welcome to Gofixo',style:TextStyle(fontSize:25,fontWeight:FontWeight.w700)),const SizedBox(height:24),
     _RoleButton(title:'Continue as Customer',subtitle:'Book rides quickly and safely',icon:Icons.person_rounded,onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'customer',onDone:onLogin)))),
     const SizedBox(height:14),_RoleButton(title:'Continue as Partner',subtitle:'Go online, accept jobs and earn',icon:Icons.directions_bike_rounded,outline:true,onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'provider',onDone:onLogin)))),
-  ]))));
+  ])))));
 }
 
 class _RoleButton extends StatelessWidget{
