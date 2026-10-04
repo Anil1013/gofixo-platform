@@ -186,10 +186,12 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       return res.status(409).json({ error: 'You already have an active booking' });
     }
 
-    // Broadcast the request to every eligible provider within 3 km.
-    // Providers remain online; the first provider to accept atomically wins.
+    // Confirm that at least one eligible provider exists.
+    // Do not lock provider rows here: provider acceptance has its own atomic
+    // checks, and locking every nearby provider can cause false "no provider"
+    // results when another booking is being accepted concurrently.
     const nearby = await client.query(
-      `SELECT id
+      `SELECT 1
        FROM service_providers sp
        WHERE sp.type = $1
          AND sp.is_available = true
@@ -209,8 +211,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
              sin(radians($2)) * sin(radians(sp.current_lat))
            ))
          )) <= 3
-       ORDER BY sp.id
-       FOR UPDATE SKIP LOCKED`,
+       LIMIT 1`,
       [provider_type, pickupLatitude, pickupLongitude]
     );
     if (nearby.rows.length === 0) {
