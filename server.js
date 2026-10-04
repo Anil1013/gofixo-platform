@@ -3,7 +3,6 @@
 // Upload proxy configuration is applied by the backend deploy workflow.
 require('dotenv').config();
 const express = require('express');
-const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const http = require('http');
@@ -157,9 +156,7 @@ ensureRuntimeSchema()
     process.exit(1);
   });
 
-// Ride-request timeout: if the provider who is being buzzed doesn't respond within OFFER_TIMEOUT_SECONDS,
-// they're put offline and the request moves to the next nearest on-duty provider.
-// (Single PM2 process, so a simple interval is enough. Claims in handleDeclineOrTimeout are atomic anyway.)
+// Ride-request timeout: close an unclaimed broadcast request after OFFER_TIMEOUT_SECONDS.
 const OFFER_TIMEOUT_SECONDS = 60;
 const STALE_LOCATION_SECONDS = 5 * 60;
 setInterval(async () => {
