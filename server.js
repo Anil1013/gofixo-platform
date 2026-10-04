@@ -1,4 +1,5 @@
 // Auto-deploy test
+// Login route deployment verification
 // Upload proxy configuration is applied by the backend deploy workflow.
 require('dotenv').config();
 const express = require('express');
