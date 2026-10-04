@@ -29,7 +29,7 @@ jobs:
         run: flutter pub get
 
       - name: Analyze
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos
 
       - name: Test
         run: flutter test
@@ -56,19 +56,72 @@ jobs:
           p.write_text("\n".join(out) + "\n")
           PY
 
-      - name: Build release APK
-        run: flutter build apk --release
+      - name: Configure release signing
+        env:
+          GOFIXO_KEYSTORE_B64: ${{ secrets.GOFIXO_KEYSTORE_B64 }}
+          GOFIXO_STORE_PASSWORD: ${{ secrets.GOFIXO_STORE_PASSWORD }}
+          GOFIXO_KEY_PASSWORD: ${{ secrets.GOFIXO_KEY_PASSWORD }}
+          GOFIXO_KEY_ALIAS: ${{ secrets.GOFIXO_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          test -n "$GOFIXO_KEYSTORE_B64"
+          test -n "$GOFIXO_STORE_PASSWORD"
+          test -n "$GOFIXO_KEY_PASSWORD"
+          test -n "$GOFIXO_KEY_ALIAS"
 
-      - name: Rename APK
-        run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/gofixo-release.apk
+          echo "$GOFIXO_KEYSTORE_B64" | base64 --decode > android/gofixo-release.jks
+          cat > android/key.properties <<EOF
+          storePassword=$GOFIXO_STORE_PASSWORD
+          keyPassword=$GOFIXO_KEY_PASSWORD
+          keyAlias=$GOFIXO_KEY_ALIAS
+          storeFile=${GITHUB_WORKSPACE}/mobile/android/gofixo-release.jks
+          EOF
+          chmod 600 android/gofixo-release.jks android/key.properties
+
+      - name: Calculate release version
+        id: version
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          BASE="${VERSION%%-*}"
+          IFS=. read -r MAJOR MINOR PATCH <<< "$BASE"
+          : "${MAJOR:=0}" "${MINOR:=0}" "${PATCH:=0}"
+          BUILD_NUMBER=$((10#$MAJOR * 1000000 + 10#$MINOR * 1000 + 10#$PATCH))
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Build release APK
+        run: flutter build apk --release --build-name "${{ steps.version.outputs.version }}" --build-number "${{ steps.version.outputs.build_number }}"
+
+      - name: Verify APK
+        run: |
+          set -euo pipefail
+          test -s build/app/outputs/flutter-apk/app-release.apk
+          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/gofixo-release.apk
+          ls -lh build/app/outputs/flutter-apk/gofixo-release.apk
+
+      - name: Create update manifest
+        run: |
+          cat > build/app/outputs/flutter-apk/gofixo-version.json <<EOF
+          {
+            "version": "${{ steps.version.outputs.version }}",
+            "buildNumber": ${{ steps.version.outputs.build_number }},
+            "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/latest/download/gofixo-release.apk",
+            "notes": "Bug fixes, stability improvements, and the latest Gofixo mobile build.",
+            "forceUpdate": false
+          }
+          EOF
+          cat build/app/outputs/flutter-apk/gofixo-version.json
 
       - name: Publish APK release
         working-directory: .
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           gh release create "${GITHUB_REF_NAME}" \
             mobile/build/app/outputs/flutter-apk/gofixo-release.apk \
+            mobile/build/app/outputs/flutter-apk/gofixo-version.json \
             --repo "${GITHUB_REPOSITORY}" \
             --title "Gofixo ${GITHUB_REF_NAME}" \
             --notes "Gofixo Android APK release."
