@@ -102,7 +102,7 @@ class _BookingPageState extends State<BookingPage>{
     const SizedBox(height:12),FilledButton.icon(onPressed:busy?null:calculate,icon:const Icon(Icons.route),label:const Text('Calculate fare')),
     if(route.isNotEmpty&&pos!=null)Padding(padding:const EdgeInsets.only(top:14),child:SizedBox(height:240,child:FlutterMap(options:MapOptions(initialCenter:route.first,initialZoom:13),children:[TileLayer(urlTemplate:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',userAgentPackageName:'com.gofixo.app'),PolylineLayer(polylines:[Polyline(points:route,strokeWidth:5,color:orange)])]))),
     if(distance!=null)Card(child:ListTile(title:Text('Estimated ₹'+fare!.toStringAsFixed(0)),subtitle:Text(distance!.toStringAsFixed(1)+' km • '+type.toUpperCase()),trailing:FilledButton(onPressed:busy?null:book,child:const Text('Book')))),
-   ])));}
+   ]));}
 
 class BookingCard extends StatelessWidget{final Session session;final Map<String,dynamic>b;final Future<void> Function()onChanged;const BookingCard({super.key,required this.session,required this.b,required this.onChanged});
   @override Widget build(BuildContext c){final status=b['status']?.toString()??'';final id=int.tryParse(b['id'].toString())??0;final pin=b['start_pin']?.toString();return Card(margin:const EdgeInsets.only(bottom:12),child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -181,7 +181,7 @@ class _KycPageState extends State<KycPage>{
     Card(child:Padding(padding:const EdgeInsets.all(16),child:Text('KYC status: '+(widget.provider['kyc_status']??'pending').toString().toUpperCase(),style:const TextStyle(fontWeight:FontWeight.w800)))),
     const SizedBox(height:10),const Text('Upload the required documents. Your account can go online after KYC approval and an active subscription.',style:TextStyle(color:muted)),
     const SizedBox(height:12),...required.map((d)=>Card(child:ListTile(leading:const Icon(Icons.description_outlined,color:orange),title:Text(docs[d]??d),trailing:FilledButton(onPressed:busy?null:()=>pick(d),child:const Text('Upload'))))),
-   ])));}
+   ]));}
 }
 
 Future<String> reverse(double lat,double lon)async{try{final u=Uri.https('nominatim.openstreetmap.org','/reverse',{'lat':lat.toString(),'lon':lon.toString(),'format':'json'});final r=await http.get(u,headers:{'User-Agent':'Gofixo/1.0'}).timeout(const Duration(seconds:10));final d=jsonDecode(r.body);return d['display_name']?.toString()??lat.toStringAsFixed(5)+', '+lon.toStringAsFixed(5);}catch(_){return lat.toStringAsFixed(5)+', '+lon.toStringAsFixed(5);}}
