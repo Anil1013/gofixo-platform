@@ -45,8 +45,34 @@ app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 // KYC documents are served only through the authenticated provider document route.
 // Do not expose the uploads directory as a public static folder.
 
+const RELEASE_COMMIT = process.env.GOFIXO_RELEASE_COMMIT || 'unknown';
+
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', service: 'gofixo-backend' });
+  res.json({
+    status: 'ok',
+    service: 'gofixo-backend',
+    releaseCommit: RELEASE_COMMIT,
+  });
+});
+
+app.get('/api/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({
+      status: 'ok',
+      service: 'gofixo-backend',
+      database: 'ok',
+      releaseCommit: RELEASE_COMMIT,
+    });
+  } catch (err) {
+    console.error('Health database check failed:', err.message);
+    res.status(503).json({
+      status: 'degraded',
+      service: 'gofixo-backend',
+      database: 'error',
+      releaseCommit: RELEASE_COMMIT,
+    });
+  }
 });
 
 app.use('/api/providers', providersRoutes);
