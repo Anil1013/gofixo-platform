@@ -72,7 +72,7 @@ class _AuthState extends State<Auth>{
       TextButton(onPressed:()=>setState(()=>mode='register'),child:const Text('New here? Create account')),
       TextButton(onPressed:()=>setState(()=>mode='forgot'),child:const Text('Forgot password?')),
     ]else TextButton(onPressed:()=>setState(()=>mode='login'),child:const Text('Back to login')),
-  ]));}
+   ])));}
 }
 
 class CustomerHome extends StatefulWidget{final Session session;final Future<void> Function() onLogout;const CustomerHome({super.key,required this.session,required this.onLogout});@override State<CustomerHome> createState()=>_CustomerHomeState();}
@@ -86,7 +86,7 @@ class _CustomerHomeState extends State<CustomerHome>{
     const Text('Your bookings',style:TextStyle(fontSize:24,fontWeight:FontWeight.w800,color:navy)),const SizedBox(height:12),
     if(bookings.isEmpty)const Card(child:Padding(padding:EdgeInsets.all(24),child:Text('No bookings yet. Tap the location button to book a ride.'))),
     ...bookings.map((b)=>BookingCard(session:widget.session,b:b,onChanged:load)),
-  ]));}
+   ])));}
 }
 
 class BookingPage extends StatefulWidget{final Session session;final Future<void> Function({bool silent}) onChanged;const BookingPage({super.key,required this.session,required this.onChanged});@override State<BookingPage> createState()=>_BookingPageState();}
@@ -103,7 +103,7 @@ class _BookingPageState extends State<BookingPage>{
     const SizedBox(height:12),FilledButton.icon(onPressed:busy?null:calculate,icon:const Icon(Icons.route),label:const Text('Calculate fare')),
     if(route.isNotEmpty&&pos!=null)Padding(padding:const EdgeInsets.only(top:14),child:SizedBox(height:240,child:FlutterMap(options:MapOptions(initialCenter:route.first,initialZoom:13),children:[TileLayer(urlTemplate:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',userAgentPackageName:'com.gofixo.app'),PolylineLayer(polylines:[Polyline(points:route,strokeWidth:5,color:orange)])]))),
     if(distance!=null)Card(child:ListTile(title:Text('Estimated ₹'+fare!.toStringAsFixed(0)),subtitle:Text(distance!.toStringAsFixed(1)+' km • '+type.toUpperCase()),trailing:FilledButton(onPressed:busy?null:book,child:const Text('Book')))),
-  ]));}
+   ])));}
 }
 
 class BookingCard extends StatelessWidget{final Session session;final Map<String,dynamic>b;final Future<void> Function()onChanged;const BookingCard({super.key,required this.session,required this.b,required this.onChanged});
@@ -137,7 +137,7 @@ class _ProviderHomeState extends State<ProviderHome>{
     const Padding(padding:EdgeInsets.only(top:18,bottom:8),child:Text('My jobs',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800))),
     ...jobs.where((x)=>x['status']!='requested').take(10).map((j)=>JobCard(session:widget.session,b:j,onChanged:load)),
     if(jobs.isEmpty)const Card(child:Padding(padding:EdgeInsets.all(20),child:Text('No active jobs.'))),
-  ]));}
+   ])));}
   Future<void>showPlans(BuildContext c)async{final plans=await ApiService.plans();if(!c.mounted)return;showModalBottomSheet(context:c,isScrollControlled:true,builder:(_)=>SafeArea(child:ListView(padding:const EdgeInsets.all(16),shrinkWrap:true,children:[const Text('Subscription plans',style:TextStyle(fontSize:22,fontWeight:FontWeight.w800)),...plans.where((p)=>p['provider_type']==me?['type']).map((p)=>Card(child:ListTile(title:Text((p['plan_name']??'Plan').toString().toUpperCase()),subtitle:Text('₹'+p['fee'].toString()+' • cap ₹'+p['earning_cap'].toString()),trailing:FilledButton(onPressed:()async{try{await ApiService.subscribe(widget.session.token,int.parse(p['id'].toString()));if(c.mounted)Navigator.pop(c);await load();}catch(e){snack(e.toString());}},child:const Text('Activate')))))])));}
 }
 
@@ -149,7 +149,7 @@ class JobCard extends StatelessWidget{final Session session;final Map<String,dyn
     if(status=='requested')Row(children:[Expanded(child:OutlinedButton(onPressed:()async{await ApiService.declineBooking(session.token,id);await onChanged();},child:const Text('Decline'))),const SizedBox(width:8),Expanded(child:FilledButton(onPressed:()async{try{await ApiService.acceptBooking(session.token,id);await onChanged();}catch(e){ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}},child:const Text('Accept')))]),
     if(status=='accepted')FilledButton(onPressed:()=>start(c,id),child:const Text('Start with customer PIN')),
     if(status=='ongoing')FilledButton(onPressed:()=>finish(c,id,double.tryParse(b['fare_amount']?.toString()??'')??0),child:const Text('Confirm payment / Finish')),
-  ]));}
+   ])));}
   Future<void>start(BuildContext c,int id)async{final x=TextEditingController();await showDialog(context:c,builder:(_)=>AlertDialog(title:const Text('Enter customer PIN'),content:TextField(controller:x,maxLength:4,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'4-digit PIN')),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cancel')),FilledButton(onPressed:()async{try{await ApiService.startBooking(session.token,id,x.text.trim());if(c.mounted)Navigator.pop(c);await onChanged();}catch(e){ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}},child:const Text('Start'))]));x.dispose();}
   Future<void>finish(BuildContext c,int id,double current)async{final x=TextEditingController(text:current.toStringAsFixed(0));await showDialog(context:c,builder:(_)=>AlertDialog(title:const Text('Confirm payment'),content:TextField(controller:x,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Final fare ₹')),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cancel')),FilledButton(onPressed:()async{final fare=double.tryParse(x.text.trim());if(fare==null||fare<=0)return;try{await ApiService.confirmPayment(session.token,id,fare);if(c.mounted)Navigator.pop(c);await onChanged();}catch(e){ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}},child:const Text('Complete'))]));x.dispose();}
 }
@@ -172,7 +172,7 @@ class _KycPageState extends State<KycPage>{
     return ['aadhar_front','aadhar_back','driving_license','vehicle_rc','vehicle_photo_front','vehicle_photo_back'];
   }
   Future<void>pick(String doc)async{
-    final x=await FilePicker.platform.pickFile(type:FileType.custom,allowedExtensions:const['jpg','jpeg','png','webp','pdf']);
+    final x=await FilePicker.pickFile(type:FileType.custom,allowedExtensions:const['jpg','jpeg','png','webp','pdf']);
     if(x==null||x.path==null)return;
     setState(()=>busy=true);
     try{await ApiService.uploadProviderDocument(widget.session.token,int.parse(widget.provider['id'].toString()),doc,x.path!);if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Document uploaded')));}
@@ -183,7 +183,7 @@ class _KycPageState extends State<KycPage>{
     Card(child:Padding(padding:const EdgeInsets.all(16),child:Text('KYC status: '+(widget.provider['kyc_status']??'pending').toString().toUpperCase(),style:const TextStyle(fontWeight:FontWeight.w800)))),
     const SizedBox(height:10),const Text('Upload the required documents. Your account can go online after KYC approval and an active subscription.',style:TextStyle(color:muted)),
     const SizedBox(height:12),...required.map((d)=>Card(child:ListTile(leading:const Icon(Icons.description_outlined,color:orange),title:Text(docs[d]??d),trailing:FilledButton(onPressed:busy?null:()=>pick(d),child:const Text('Upload'))))),
-  ]));}
+   ])));}
 }
 
 Future<String> reverse(double lat,double lon)async{try{final u=Uri.https('nominatim.openstreetmap.org','/reverse',{'lat':lat.toString(),'lon':lon.toString(),'format':'json'});final r=await http.get(u,headers:{'User-Agent':'Gofixo/1.0'}).timeout(const Duration(seconds:10));final d=jsonDecode(r.body);return d['display_name']?.toString()??lat.toStringAsFixed(5)+', '+lon.toStringAsFixed(5);}catch(_){return lat.toStringAsFixed(5)+', '+lon.toStringAsFixed(5);}}
