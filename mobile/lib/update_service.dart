@@ -35,12 +35,23 @@ class UpdateService {
       await prefs.setInt(_checkKey, now);
 
       final packageInfo = await PackageInfo.fromPlatform();
-      final response = await http
+      var response = await http
           .get(
             Uri.parse(_manifestUrl),
             headers: const {'Accept': 'application/json'},
           )
           .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) {
+        response = await http
+            .get(
+              Uri.parse(
+                'https://raw.githubusercontent.com/Anil1013/gofixo-platform/main/mobile/version.json',
+              ),
+              headers: const {'Accept': 'application/json'},
+            )
+            .timeout(const Duration(seconds: 10));
+      }
 
       if (response.statusCode != 200) return;
 
