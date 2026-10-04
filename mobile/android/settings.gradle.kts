@@ -35,26 +35,27 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.4.0" apply false
 }
 
-
 /*
- * Mappls GL 2.0.7 compatibility shim for Flutter 3.47 + AGP 9 built-in Kotlin.
+ * Mappls GL 2.0.7 compatibility shim for AGP 9 + built-in Kotlin.
  *
- * Mappls GL 2.0.7 still applies the legacy Kotlin Gradle Plugin and omits
- * compileSdk in its Android library build file. AGP 9 rejects that plugin
- * application when built-in Kotlin is enabled. Patch the hosted package before
- * Gradle evaluates subprojects so the app can keep the official 2.0.7 package
- * and its native Mappls implementation without maintaining a vendored fork.
+ * AGP 9 already provides Kotlin support, while Mappls GL 2.0.7's Android
+ * build.gradle still uses the legacy Kotlin Android plugin and android.kotlinOptions.
+ * Patch the cached package during Gradle initialization so every clean dependency
+ * restore gets the same compatible package without maintaining a fork.
  */
 fun patchMapplsGlForAgp9() {
     val pubCache = System.getenv("PUB_CACHE")
         ?: File(System.getProperty("user.home"), ".pub-cache").absolutePath
 
-    val packageBuildFile = File(pubCache, "hosted/pub.dev/mappls_gl-2.0.7/android/build.gradle")
+    val packageBuildFile = File(
+        pubCache,
+        "hosted/pub.dev/mappls_gl-2.0.7/android/build.gradle"
+    )
     if (!packageBuildFile.isFile) return
 
     var source = packageBuildFile.readText()
-    val original = source
 
+    // AGP 9 provides Kotlin natively. Remove Mappls' legacy Kotlin plugin.
     source = source.replace(
         Regex("""(?m)^\s*apply plugin:\s*['"](?:org\.jetbrains\.kotlin\.android|kotlin-android)['"]\s*\r?\n?"""),
         ""
@@ -64,6 +65,13 @@ fun patchMapplsGlForAgp9() {
         ""
     )
 
+    // Remove the legacy android.kotlinOptions block.
+    source = source.replace(
+        Regex("""(?s)\n\s*kotlinOptions\s*\{.*?\n\s*\}"""),
+        ""
+    )
+
+    // Mappls 2.0.7 does not declare compileSdk; AGP 9 requires it for libraries.
     if (!Regex("""(?m)\bcompileSdk(?:Version)?\b""").containsMatchIn(source)) {
         source = source.replaceFirst(
             Regex("""android\s*\{"""),
@@ -82,11 +90,11 @@ kotlin {
 """
     }
 
-    if (source != original) {
-        packageBuildFile.writeText(source)
-    }
+    packageBuildFile.writeText(source)
 }
 
-patchMapplsGlForAgp9()
+gradle.settingsEvaluated {
+    patchMapplsGlForAgp9()
+}
 
 include(":app")
