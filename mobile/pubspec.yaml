@@ -18,6 +18,7 @@ dependencies:
   file_picker: ^13.1.0
   package_info_plus: ^10.2.2
   url_launcher: ^6.3.3
+  flutter_ota_kit: ^0.2.5
 
 dev_dependencies:
   flutter_test:
