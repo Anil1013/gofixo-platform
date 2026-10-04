@@ -21,6 +21,7 @@ class GofixoApp extends StatelessWidget{
 class Gate extends StatefulWidget{const Gate({super.key});@override State<Gate> createState()=>_GateState();}
 class _GateState extends State<Gate>{
   Future<Session?>? f;
+  bool updateChecked=false;
   @override void initState(){super.initState();f=ApiService.loadSession();}
   void refresh()=>setState(()=>f=ApiService.loadSession());
   @override Widget build(BuildContext c){
@@ -28,7 +29,10 @@ class _GateState extends State<Gate>{
       future:f,
       builder:(c,s){
         if(s.connectionState!=ConnectionState.done)return const Scaffold(body:Center(child:CircularProgressIndicator()));
-        WidgetsBinding.instance.addPostFrameCallback((_){UpdateService.checkAndPrompt(c);});
+        if(!updateChecked){
+          updateChecked=true;
+          WidgetsBinding.instance.addPostFrameCallback((_){UpdateService.checkAndPrompt(c);});
+        }
         final x=s.data;
         if(x==null)return RoleScreen(onLogin:refresh);
         return x.role=='provider'
