@@ -11,6 +11,7 @@ on:
       - 'services/**'
       - 'utils/**'
       - 'package.json'
+      - 'ecosystem.config.cjs'
       - '.platform/**'
       - '.github/workflows/deploy-backend.yml'
 
@@ -19,19 +20,63 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: SSH into EC2 and deploy
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 5m
           script: |
-            cd ~/gofixo-platform
-            git fetch origin main
+            set -euo pipefail
+
+            cd /home/ubuntu/gofixo-platform
+
+            git fetch --prune origin main
             git reset --hard origin/main
+
+            test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+            test -f server.js
+            test -f ecosystem.config.cjs
+
             npm install --omit=dev
-            if command -v nginx >/dev/null 2>&1; then
-              sudo cp .platform/nginx/conf.d/upload.conf /etc/nginx/conf.d/gofixo-upload.conf
-              sudo nginx -t
-              sudo systemctl reload nginx
+
+            pm2 startOrRestart ecosystem.config.cjs --update-env
+            pm2 save
+
+            for i in $(seq 1 30); do
+              if curl -fsS --max-time 5 http://127.0.0.1:4000/ >/tmp/gofixo-root-health.json; then
+                break
+              fi
+              sleep 2
+            done
+
+            curl -fsS --max-time 10 http://127.0.0.1:4000/ >/tmp/gofixo-root-health.json
+            curl -fsS --max-time 10 http://127.0.0.1:4000/api/auth/health >/tmp/gofixo-auth-health.json
+
+            echo "=== ROOT HEALTH ==="
+            cat /tmp/gofixo-root-health.json
+            echo
+            echo "=== AUTH HEALTH ==="
+            cat /tmp/gofixo-auth-health.json
+            echo
+            echo "=== PM2 ==="
+            pm2 describe gofixo-backend | sed -n '1,80p'
+
+      - name: Verify public API
+        run: |
+          set -euo pipefail
+
+          for i in $(seq 1 30); do
+            code="$(curl -sS --max-time 10 -o /tmp/gofixo-public-health.json -w '%{http_code}' https://backend.mob13r.com/api/auth/health || true)"
+            if [ "$code" = "200" ]; then
+              cat /tmp/gofixo-public-health.json
+              exit 0
             fi
-            pm2 restart gofixo-backend
+
+            echo "Public health check attempt $i returned HTTP $code"
+            cat /tmp/gofixo-public-health.json || true
+            sleep 2
+          done
+
+          echo "Public API health check failed."
+          exit 1
