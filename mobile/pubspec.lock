@@ -168,30 +168,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.1.0"
-  mappls_gl:
-    dependency: "direct main"
-    description:
-      name: mappls_gl
-      sha256: "9c21913570f7b85ec33ab7d8ecdf6d89b8567cf4d8b3d8fecd99a695e124fea8"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.7"
-  mappls_gl_platform_interface:
-    dependency: transitive
-    description:
-      name: mappls_gl_platform_interface
-      sha256: "8a16953a6560c0781d6a0b247d007ba947cd01ab6a83881ac6030e51b42fc1ef"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.1"
-  mappls_gl_web:
-    dependency: transitive
-    description:
-      name: mappls_gl_web
-      sha256: ac7a1f77c273cb3fb2ab08afbb730a8c8fc89eb94308c4fe86f1040217c2ce63
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.2"
   matcher:
     dependency: transitive
     description:
