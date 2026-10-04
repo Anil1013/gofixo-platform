@@ -1,0 +1,114 @@
+
+name: Gofixo Base Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gofixo-base-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read release version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(python3 -c 'import json; print(json.load(open("version.json"))["version"])')"
+          BUILD="$(python3 -c 'import json; print(json.load(open("version.json"))["buildNumber"])')"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether release already exists
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: "v${{ steps.version.outputs.version }}"
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Flutter
+        if: steps.existing.outputs.exists != 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        if: steps.existing.outputs.exists != 'true'
+        run: flutter pub get
+
+      - name: Analyze
+        if: steps.existing.outputs.exists != 'true'
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test
+        if: steps.existing.outputs.exists != 'true'
+        run: flutter test
+
+      - name: Configure release signing
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          GOFIXO_KEYSTORE_B64: ${{ secrets.GOFIXO_KEYSTORE_B64 }}
+          GOFIXO_STORE_PASSWORD: ${{ secrets.GOFIXO_STORE_PASSWORD }}
+          GOFIXO_KEY_PASSWORD: ${{ secrets.GOFIXO_KEY_PASSWORD }}
+          GOFIXO_KEY_ALIAS: ${{ secrets.GOFIXO_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          test -n "$GOFIXO_KEYSTORE_B64"
+          echo "$GOFIXO_KEYSTORE_B64" | base64 --decode > android/gofixo-release.jks
+          cat > android/key.properties <<EOF
+          storePassword=$GOFIXO_STORE_PASSWORD
+          keyPassword=$GOFIXO_KEY_PASSWORD
+          keyAlias=$GOFIXO_KEY_ALIAS
+          storeFile=$GITHUB_WORKSPACE/mobile/android/gofixo-release.jks
+          EOF
+          chmod 600 android/gofixo-release.jks android/key.properties
+
+      - name: Build release APK
+        if: steps.existing.outputs.exists != 'true'
+        run: |
+          flutter build apk --release             --build-name "${{ steps.version.outputs.version }}"             --build-number "${{ steps.version.outputs.build }}"
+
+      - name: Create release manifest
+        if: steps.existing.outputs.exists != 'true'
+        run: |
+          cat > build/app/outputs/flutter-apk/gofixo-version.json <<EOF
+          {
+            "version": "${{ steps.version.outputs.version }}",
+            "buildNumber": ${{ steps.version.outputs.build }},
+            "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/latest/download/gofixo-release.apk",
+            "notes": "OTA-enabled Gofixo Android release.",
+            "forceUpdate": false
+          }
+          EOF
+
+      - name: Publish release
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/gofixo-release.apk
+          gh release create "v${{ steps.version.outputs.version }}"             build/app/outputs/flutter-apk/gofixo-release.apk             build/app/outputs/flutter-apk/gofixo-version.json             --repo "$GITHUB_REPOSITORY"             --title "Gofixo v${{ steps.version.outputs.version }}"             --notes "OTA-enabled Gofixo Android base release."
+
+      - name: Finish
+        if: steps.existing.outputs.exists == 'true'
+        run: echo "Base release already exists; nothing to do."
