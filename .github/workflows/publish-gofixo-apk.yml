@@ -37,13 +37,16 @@ jobs:
       - name: Build release APK
         run: flutter build apk --release
 
+      - name: Rename APK
+        run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/gofixo-release.apk
+
       - name: Publish APK release
         working-directory: .
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${GITHUB_REF_NAME}" \
-            mobile/build/app/outputs/flutter-apk/app-release.apk \
+            mobile/build/app/outputs/flutter-apk/gofixo-release.apk \
             --repo "${GITHUB_REPOSITORY}" \
             --title "Gofixo ${GITHUB_REF_NAME}" \
             --notes "Gofixo Android APK release."
