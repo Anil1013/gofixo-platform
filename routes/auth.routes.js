@@ -81,6 +81,15 @@ router.get('/customer/profile-photo', requireAuth(['customer']), async (req, res
   } catch (err) { next(err); }
 });
 
+router.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'auth',
+    customerLogin: '/api/auth/customer/login',
+    providerLogin: '/api/auth/provider/login',
+  });
+});
+
 // Login (customer or provider) — phone + password
 async function loginHandler(req, res, next) {
   try {
