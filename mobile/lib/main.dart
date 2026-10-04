@@ -8,10 +8,16 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'api_service.dart';
 import 'update_service.dart';
+import 'ota_service.dart';
+import 'package:flutter_ota_kit/flutter_ota_kit.dart';
 
 const orange=Color(0xFFFF6B00), navy=Color(0xFF172B4D), muted=Color(0xFF64748B);
 
-void main(){WidgetsFlutterBinding.ensureInitialized();runApp(const GofixoApp());}
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await FlutterPatcher.init();
+  runApp(const GofixoApp());
+}
 
 class GofixoApp extends StatelessWidget{
   const GofixoApp({super.key});
@@ -31,7 +37,10 @@ class _GateState extends State<Gate>{
         if(s.connectionState!=ConnectionState.done)return const Scaffold(body:Center(child:CircularProgressIndicator()));
         if(!updateChecked){
           updateChecked=true;
-          WidgetsBinding.instance.addPostFrameCallback((_){UpdateService.checkAndPrompt(c);});
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            UpdateService.checkAndPrompt(c);
+            OtaService.checkAndApply();
+          });
         }
         final x=s.data;
         if(x==null)return RoleScreen(onLogin:refresh);
