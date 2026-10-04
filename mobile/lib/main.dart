@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
@@ -128,7 +129,7 @@ class _ProviderHomeState extends State<ProviderHome>{
   Future<void>sendLocation(String token,{bool silent=false})async{try{final p=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.high));await ApiService.updateProviderLocation(widget.session.token,int.parse(me!['id'].toString()),p.latitude,p.longitude);}catch(e){if(!silent&&mounted)snack(e.toString());}}
   void snack(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.replaceFirst('Exception: ',''))));
   Future<void>toggle()async{if(me==null)return;setState(()=>busy=true);try{final available=me!['is_available']==true;if(!available)await sendLocation(widget.session.token);final x=await ApiService.setAvailability(widget.session.token,int.parse(me!['id'].toString()),!available);setState(()=>me=x);}catch(e){snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
-  @override Widget build(BuildContext c){final m=me??{};final status=m['kyc_status']?.toString()??'pending';return Scaffold(appBar:AppBar(title:const Text('Partner dashboard'),actions:[IconButton(onPressed:()=>showPlans(c),icon:const Icon(Icons.card_membership)),IconButton(onPressed:widget.onLogout,icon:const Icon(Icons.logout))]),body:RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[
+  @override Widget build(BuildContext c){final m=me??{};final status=m['kyc_status']?.toString()??'pending';return Scaffold(appBar:AppBar(title:const Text('Partner dashboard'),actions:[IconButton(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>KycPage(session:widget.session,provider:me??{}))).then((_)=>load()),icon:const Icon(Icons.verified_user)),IconButton(onPressed:()=>showPlans(c),icon:const Icon(Icons.card_membership)),IconButton(onPressed:widget.onLogout,icon:const Icon(Icons.logout))]),body:RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[
     Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(m['name']?.toString()??'',style:const TextStyle(fontSize:22,fontWeight:FontWeight.w800,color:navy)),Text((m['generated_id']??'').toString()),const SizedBox(height:10),Text('KYC: '+status),if(sub!=null)Text('Plan: '+(sub!['plan_name']??'').toString()+' • Earned ₹'+(sub!['total_earned_this_cycle']??0).toString()),const SizedBox(height:12),SwitchListTile(contentPadding:EdgeInsets.zero,title:Text(m['is_available']==true?'ONLINE':'OFFLINE'),subtitle:Text(m['is_available']==true?'Receiving nearby requests':'Tap to go online'),value:m['is_available']==true,onChanged:busy?null:(_)=>toggle())])),
     if(jobs.any((x)=>x['status']=='requested'))...[
       const Padding(padding:EdgeInsets.only(top:12,bottom:8),child:Text('New requests',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800))),
@@ -152,6 +153,38 @@ class JobCard extends StatelessWidget{final Session session;final Map<String,dyn
   ]));}
   Future<void>start(BuildContext c,int id)async{final x=TextEditingController();await showDialog(context:c,builder:(_)=>AlertDialog(title:const Text('Enter customer PIN'),content:TextField(controller:x,maxLength:4,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'4-digit PIN')),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cancel')),FilledButton(onPressed:()async{try{await ApiService.startBooking(session.token,id,x.text.trim());if(c.mounted)Navigator.pop(c);await onChanged();}catch(e){ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}},child:const Text('Start'))]));x.dispose();}
   Future<void>finish(BuildContext c,int id,double current)async{final x=TextEditingController(text:current.toStringAsFixed(0));await showDialog(context:c,builder:(_)=>AlertDialog(title:const Text('Confirm payment'),content:TextField(controller:x,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Final fare ₹')),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cancel')),FilledButton(onPressed:()async{final fare=double.tryParse(x.text.trim());if(fare==null||fare<=0)return;try{await ApiService.confirmPayment(session.token,id,fare);if(c.mounted)Navigator.pop(c);await onChanged();}catch(e){ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}},child:const Text('Complete'))]));x.dispose();}
+}
+
+class KycPage extends StatefulWidget{
+  final Session session;final Map<String,dynamic> provider;
+  const KycPage({super.key,required this.session,required this.provider});
+  @override State<KycPage> createState()=>_KycPageState();
+}
+class _KycPageState extends State<KycPage>{
+  bool busy=false;
+  final docs=<String,String>{
+    'aadhar_front':'Aadhar front','aadhar_back':'Aadhar back','driving_license':'Driving license',
+    'vehicle_rc':'Vehicle RC','vehicle_photo_front':'Vehicle photo front','vehicle_photo_back':'Vehicle photo back',
+    'profile_photo':'Profile photo','police_verification':'Police verification'
+  };
+  List<String> requiredDocs(){
+    final t=widget.provider['type']?.toString()??'bike';
+    if(t=='general_worker'||t=='skilled_worker')return ['aadhar_front','aadhar_back','profile_photo','police_verification'];
+    return ['aadhar_front','aadhar_back','driving_license','vehicle_rc','vehicle_photo_front','vehicle_photo_back'];
+  }
+  Future<void>pick(String doc)async{
+    final x=await FilePicker.platform.pickFiles(type:FileType.custom,allowedExtensions:const['jpg','jpeg','png','webp','pdf']);
+    if(x==null||x.files.single.path==null)return;
+    setState(()=>busy=true);
+    try{await ApiService.uploadProviderDocument(widget.session.token,int.parse(widget.provider['id'].toString()),doc,x.files.single.path!);if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Document uploaded')));}
+    catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
+    finally{if(mounted)setState(()=>busy=false);}
+  }
+  @override Widget build(BuildContext c){final required=requiredDocs();return Scaffold(appBar:AppBar(title:const Text('KYC documents')),body:ListView(padding:const EdgeInsets.all(16),children:[
+    Card(child:Padding(padding:const EdgeInsets.all(16),child:Text('KYC status: '+(widget.provider['kyc_status']??'pending').toString().toUpperCase(),style:const TextStyle(fontWeight:FontWeight.w800)))),
+    const SizedBox(height:10),const Text('Upload the required documents. Your account can go online after KYC approval and an active subscription.',style:TextStyle(color:muted)),
+    const SizedBox(height:12),...required.map((d)=>Card(child:ListTile(leading:const Icon(Icons.description_outlined,color:orange),title:Text(docs[d]??d),trailing:FilledButton(onPressed:busy?null:()=>pick(d),child:const Text('Upload'))))),
+  ]));}
 }
 
 Future<String> reverse(double lat,double lon)async{try{final u=Uri.https('nominatim.openstreetmap.org','/reverse',{'lat':lat.toString(),'lon':lon.toString(),'format':'json'});final r=await http.get(u,headers:{'User-Agent':'Gofixo/1.0'}).timeout(const Duration(seconds:10));final d=jsonDecode(r.body);return d['display_name']?.toString()??lat.toStringAsFixed(5)+', '+lon.toStringAsFixed(5);}catch(_){return lat.toStringAsFixed(5)+', '+lon.toStringAsFixed(5);}}
