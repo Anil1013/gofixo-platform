@@ -10,13 +10,6 @@ buildscript {
     }
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url = uri("https://maven.mappls.com/repository/mappls/") }
-    }
-}
 
 val newBuildDir: Directory =
     rootProject.layout.buildDirectory
