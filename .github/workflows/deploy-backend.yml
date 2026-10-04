@@ -40,6 +40,7 @@ jobs:
 
             npm install --omit=dev
 
+            export GOFIXO_RELEASE_COMMIT="$(git rev-parse HEAD)"
             pm2 startOrRestart ecosystem.config.cjs --update-env
             pm2 save
 
@@ -52,12 +53,16 @@ jobs:
 
             curl -fsS --max-time 10 http://127.0.0.1:4000/ >/tmp/gofixo-root-health.json
             curl -fsS --max-time 10 http://127.0.0.1:4000/api/auth/health >/tmp/gofixo-auth-health.json
+            curl -fsS --max-time 10 http://127.0.0.1:4000/api/health >/tmp/gofixo-api-health.json
 
             echo "=== ROOT HEALTH ==="
             cat /tmp/gofixo-root-health.json
             echo
             echo "=== AUTH HEALTH ==="
             cat /tmp/gofixo-auth-health.json
+            echo
+            echo "=== API HEALTH ==="
+            cat /tmp/gofixo-api-health.json
             echo
             echo "=== PM2 ==="
             pm2 describe gofixo-backend | sed -n '1,80p'
@@ -67,7 +72,7 @@ jobs:
           set -euo pipefail
 
           for i in $(seq 1 30); do
-            code="$(curl -sS --max-time 10 -o /tmp/gofixo-public-health.json -w '%{http_code}' https://backend.mob13r.com/api/auth/health || true)"
+            code="$(curl -sS --max-time 10 -o /tmp/gofixo-public-health.json -w '%{http_code}' https://backend.mob13r.com/api/health || true)"
             if [ "$code" = "200" ]; then
               cat /tmp/gofixo-public-health.json
               exit 0
