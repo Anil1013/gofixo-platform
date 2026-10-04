@@ -82,7 +82,7 @@ router.get('/customer/profile-photo', requireAuth(['customer']), async (req, res
 });
 
 // Login (customer or provider) — phone + password
-router.post('/:role/login', async (req, res, next) => {
+async function loginHandler(req, res, next) {
   try {
     const { role } = req.params;
     const { phone, password } = req.body;
@@ -123,8 +123,14 @@ router.post('/:role/login', async (req, res, next) => {
     res.json({ token, user });
   } catch (err) {
     next(err);
-  }
-});
+  };
+}
+
+
+router.post('/customer/login', loginHandler);
+router.post('/provider/login', loginHandler);
+// Keep the role-based route for backwards compatibility.
+router.post('/:role/login', loginHandler);
 
 // Request a password reset without revealing whether the phone exists.
 // This creates an admin-visible request; it does not change the password by itself.
