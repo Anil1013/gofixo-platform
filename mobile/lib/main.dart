@@ -127,7 +127,7 @@ class _AuthScreenState extends State<AuthScreen> {
           TextButton(onPressed: () => setState(() { _mode = 'register'; _error = null; _message = null; }), child: const Text('New here? Create account')),
           if (isCustomer) TextButton(onPressed: () => setState(() { _mode = 'forgot'; _error = null; _message = null; }), child: const Text('Forgot password?')),
         ] else TextButton(onPressed: () => setState(() { _mode = 'login'; _error = null; _message = null; }), child: const Text('Back to login')),
-      ])));
+      ]))));
   }
 }
 
@@ -145,7 +145,7 @@ class RoleHome extends StatelessWidget {
         Text(provider ? 'Partner account' : 'Customer account', style: const TextStyle(color: Color(0xFF64748B))),
         const SizedBox(height: 24),
         Text(provider ? 'Partner dashboard is next.' : 'Customer home, booking and Mappls flow is next.'),
-      ])))));
+      ]))))));
   }
 }
 
@@ -156,5 +156,5 @@ class _RoleCard extends StatelessWidget {
     Container(width: 54, height: 54, decoration: BoxDecoration(color: outlined ? const Color(0xFFFFF1E6) : Colors.white.withValues(alpha: .18), borderRadius: BorderRadius.circular(16)), child: Icon(icon, size: 28, color: outlined ? const Color(0xFFFF6B00) : Colors.white)),
     const SizedBox(width: 16), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: outlined ? const Color(0xFF172B4D) : Colors.white)), const SizedBox(height: 4), Text(subtitle, style: TextStyle(fontSize: 13, color: outlined ? const Color(0xFF64748B) : Colors.white.withValues(alpha: .88)))])),
     Icon(Icons.arrow_forward_ios_rounded, size: 17, color: outlined ? const Color(0xFFFF6B00) : Colors.white),
-  ])));
+  ]))));
 }
