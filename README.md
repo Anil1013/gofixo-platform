@@ -1,82 +1,113 @@
 # Gofixo Backend
 
-Ride (Bike/Auto/Cab) + Home Services platform — subscription-based provider model.
+Gofixo is a Ride (Bike/Auto/Car) + Home Services backend with customer/provider authentication, provider KYC, subscriptions, booking matching, ratings, earnings and realtime tracking support.
 
-## Setup
+## Production deployment
 
-1. `npm install`
-2. Copy `.env.example` to `.env`, fill in real DATABASE_URL and JWT_SECRET
-3. Create the `gofixo-db` database on the RDS instance, then run:
-   ```
-   psql $DATABASE_URL -f config/schema.sql
-   ```
-4. `npm run dev` (local) or `npm start` (production, e.g. on EC2 via PM2)
+The production process is pinned to `/home/ubuntu/gofixo-platform/server.js` through `ecosystem.config.cjs`. GitHub Actions deploys the `main` branch, restarts PM2, verifies the local API health endpoints, and then verifies the public API at `https://backend.mob13r.com/api/auth/health`. A deployment is considered failed when the public health endpoint is not HTTP 200.
 
-## Structure
-
-- `server.js` — app entry point
-- `config/db.js` — PostgreSQL pool connection
-- `config/schema.sql` — full database schema (providers, subscriptions, bookings, ratings, earnings log)
-- `routes/providers.routes.js` — provider registration + lookup
-- `routes/subscriptions.routes.js` — plan subscribe/renew + status check
-- `routes/bookings.routes.js` — create booking, provider payment-confirmation (gates next booking + checks earning cap)
+The backend listens on port 4000 by default.
 
 ## Authentication
 
-Phone + password login for both customers and providers — no SMS/OTP needed:
-- `POST /api/auth/customer/register` — body: `{ name?, phone, password }`. Creates a customer account.
-- Providers get their password set as part of `POST /api/providers/register` — body: `{ name, phone, type, password }`.
-- `POST /api/auth/:role/login` (role = `customer` or `provider`) — body: `{ phone, password }`. Returns `{ token, user }`.
-- `POST /api/auth/:role/reset-password` — body: `{ phone, current_password, new_password }`. Requires the current password; changing the password invalidates older JWT sessions.
-- Send the token as `Authorization: Bearer <token>` on protected routes. Creating a booking requires a customer token; starting/confirming a booking requires the assigned provider's token.
+Customer:
+- `POST /api/auth/customer/register`
+- `POST /api/auth/customer/login`
+- `POST /api/auth/customer/forgot-password`
 
-## Ride-request matching (buzzer, Accept/Decline)
+Provider:
+- `POST /api/providers/register`
+- `POST /api/auth/provider/login`
+- `POST /api/auth/provider/forgot-password`
 
-- `POST /api/bookings` no longer takes `provider_id` — it always finds the **nearest on-duty, KYC-approved provider** of the requested `provider_type` (Haversine distance) and offers them the job. That provider's app buzzes (sound + vibration) with an Accept/Decline card and a 30-second countdown.
-- `POST /api/bookings/:id/accept` (provider auth) — claims the request. Fails with 409 if it already timed out or was taken.
-- `POST /api/bookings/:id/decline` (provider auth) — the provider stays on duty; the request is immediately offered to the next-nearest provider.
-- If nobody responds in 30s (`services/matching.js` + the sweeper in `server.js`, runs every 5s), that provider is put **offline** (they didn't respond, so they must explicitly go available again) and the request moves on. A provider who explicitly declines stays online.
-- If every nearby provider of that type is exhausted, the booking's status becomes `no_provider` and the customer sees a "try again" screen.
-- Booking status flow: `requested` → `accepted` → `ongoing` (PIN entered) → `completed`.
-- Privacy: the customer only sees the provider's name/phone/live location once status is `accepted` or later. The provider only sees the customer's phone once they've accepted. The customer's `start_pin` is never sent to the provider's own bookings endpoint — they must get it verbally.
-- Run migrations `config/migration_001_location.sql` through `config/migration_008_password_sessions.sql` once against the existing `gofixo-db` in order. Do not blindly rerun non-idempotent older migrations.
+Password rules: minimum 8 characters with at least one letter and one number.
 
-## Maps & location (free, no API key)
+Protected requests use:
+`Authorization: Bearer <token>`
 
-- `app/src/utils/geo.js` — OpenStreetMap Nominatim for reverse-geocoding (coordinates → address) and address search, OSRM's public demo server for route line / distance / ETA. Swappable later for Mapbox/HERE/Google if volume needs it — only this file changes.
-- `app/src/components/MapView.jsx` — Leaflet + OpenStreetMap tiles, shows pickup/provider/destination pins and the route line.
-- "Navigate" links open Google Maps turn-by-turn (no key needed, just a URL).
+## Booking lifecycle
 
-## Ride/job start PIN
+`requested -> accepted -> ongoing -> completed`
 
-Replaces OTP verification for starting a booking:
-- When a booking is created (`POST /api/bookings`), the response includes a `start_pin` (4 digits) — this is what the customer's app/dashboard shows them.
-- The customer reads this PIN out to the provider in person when the provider arrives.
-- `POST /api/bookings/:id/start` (provider auth) — body: `{ pin }`. If it matches, an `accepted` booking moves to `ongoing` and the one-time PIN is cleared. Wrong PIN or wrong provider is rejected.
-- Payment confirmation (`/api/bookings/:id/confirm-payment`) still happens separately at the end, same as before.
+Customers can cancel before the booking starts. Providers accept or decline requests from the provider dashboard. The current implementation broadcasts an eligible request to providers within 3 km; the first eligible provider to atomically accept wins. A request that remains unclaimed for 60 seconds becomes `no_provider`.
 
-## Matching & location
+For ride bookings, the customer app calculates the route and estimated fare before calling `POST /api/bookings`. The server validates the supplied distance and estimated fare bounds.
 
-- `PATCH /api/providers/:id/location` (provider auth) — body: `{ lat, lng }`. The driver/worker app should call this periodically while online.
-- `PATCH /api/providers/:id/availability` (provider auth) — body: `{ is_available }`. Blocked if the provider's subscription isn't active.
-- `POST /api/bookings` — if `provider_id` is omitted, pass `provider_type` + `pickup_lat`/`pickup_lng` instead; the nearest available, KYC-approved provider of that type is auto-matched (Haversine distance in SQL) and marked busy.
-- Provider location is considered fresh for 5 minutes. The provider app refreshes GPS every 15 seconds while online; the customer refreshes the assigned provider location every 15 seconds during an active booking.
+## Provider eligibility
 
-## Admin auth
+A provider must have:
+- approved KYC
+- an active subscription
+- an available/online status
+- a recent GPS location
+- no other accepted/ongoing booking
 
-The admin panel now requires a login key before showing any data. Set `ADMIN_SECRET` in the backend's `.env`, and enter the same value in the admin panel's login screen (stored in the browser's sessionStorage, sent as the `x-admin-key` header on admin actions like KYC approve/reject).
+Location is considered fresh for 5 minutes.
+
+## Booking start PIN
+
+A 4-digit start PIN is created with the booking. The customer sees it; the provider must receive it from the customer in person.
+
+`POST /api/bookings/:id/start`
+
+Body:
+`{ "pin": "1234" }`
+
+A successful start clears the PIN and changes the booking to `ongoing`.
+
+## Payment and earnings
+
+`POST /api/bookings/:id/confirm-payment`
+
+Completing an ongoing booking:
+- marks the booking completed
+- records the final fare
+- records the provider earning
+- updates the active subscription's earning total
+- exhausts the plan at its earning cap
+- controls whether the provider can go available again
 
 ## KYC documents
 
-- `POST /api/providers/:id/documents` (provider auth, multipart form: `doc_type` + `file`) — uploads JPG/PNG/PDF documents. Ride providers require Aadhar front/back, driving license, RC, and vehicle photos; home-service workers require Aadhar front/back, profile photo, and police verification.
-- Files are stored on the backend disk under `uploads/providers/:id/` with randomized filenames. They are not publicly served; provider and admin document endpoints stream them only after authorization.
-- `GET /api/providers` returns provider KYC/plan metadata and document metadata (ID + type) for the admin panel; `GET /api/providers/admin/:id/documents/:documentId` streams a document only with the admin key.
-- Run `config/migration_002_documents.sql` once against `gofixo-db`.
+Provider documents are uploaded with:
+`POST /api/providers/:id/documents`
 
-## Remaining product work
+The upload is multipart with `doc_type` and `file`.
 
-- Notify the matched provider (push notification) that a booking was assigned to them
-- Expand matching radius/fallback if no provider is found nearby
-- For true background GPS tracking when the provider app is backgrounded, use a native location service; browser timers can be throttled by mobile OSes
+Allowed file types: JPG, JPEG, PNG, WEBP and PDF. Maximum file size is 15 MB. Stored KYC files are not publicly exposed.
 
-Auto-deploy via GitHub Actions is now active for backend changes.
+## Maps and routing
+
+The Flutter mobile app uses:
+- OpenStreetMap tiles
+- Nominatim for address lookup/reverse geocoding
+- OSRM public routing
+
+These public services are intended for a low-cost MVP. High-volume production traffic should move to a hosted/self-managed provider later.
+
+## Realtime
+
+The backend provides:
+`/api/realtime?token=<JWT>`
+
+Authenticated customer/provider sockets can subscribe to a booking and receive provider-location events. The mobile app also has polling as a fallback.
+
+## Database
+
+Run `config/schema.sql` for a new database. Production startup also applies additive compatibility changes for fields/tables introduced after the initial schema.
+
+## Mobile releases
+
+Flutter mobile code lives in `mobile/`.
+
+GitHub tag releases `v*` build a signed APK and publish:
+- `gofixo-release.apk`
+- `gofixo-version.json`
+
+Release signing uses GitHub Actions secrets:
+- `GOFIXO_KEYSTORE_B64`
+- `GOFIXO_STORE_PASSWORD`
+- `GOFIXO_KEY_PASSWORD`
+- `GOFIXO_KEY_ALIAS`
+
+Never commit `.env`, signing keys, VAPID private keys, or uploaded documents.
