@@ -172,9 +172,10 @@ class _KycPageState extends State<KycPage>{
   Future<void>pick(String doc)async{
     final x=await FilePicker.pickFile(type:FileType.custom,allowedExtensions:const['jpg','jpeg','png','webp','pdf']);
     if(x==null||x.path==null)return;
+    final providerId=int.tryParse(widget.provider['id']?.toString()??'');if(providerId==null){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Provider profile ID is missing')));return;}
     if(!mounted)return;
     setState(()=>busy=true);
-    final providerId=int.tryParse(widget.provider['id']?.toString()??'');if(providerId==null){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Provider profile ID is missing')));return;}try{await ApiService.uploadProviderDocument(widget.session.token,providerId,doc,x.path!);if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Document uploaded')));}
+    try{await ApiService.uploadProviderDocument(widget.session.token,providerId,doc,x.path!);if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Document uploaded')));}
     catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
     finally{if(mounted)setState(()=>busy=false);}
   }
