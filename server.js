@@ -6,6 +6,8 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 
 const providersRoutes = require('./routes/providers.routes');
 const subscriptionsRoutes = require('./routes/subscriptions.routes');
@@ -54,6 +56,49 @@ app.get('/', (req, res) => {
     releaseCommit: RELEASE_COMMIT,
   });
 });
+
+const OTA_DIR = path.join(__dirname, 'ota');
+const OTA_MANIFEST = path.join(OTA_DIR, 'latest.json');
+
+app.get('/api/mobile/ota/check', (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  try {
+    const appVersionCode = Number.parseInt(String(req.query.app_version_code || ''), 10);
+    const abi = String(req.query.abi || '');
+    const currentPatch = String(req.query.current_patch || '');
+    if (!Number.isFinite(appVersionCode) || !abi) return res.json({ hasUpdate: false });
+
+    const latest = JSON.parse(fs.readFileSync(OTA_MANIFEST, 'utf8'));
+    const patch = latest.patches?.[abi];
+    if (!patch || Number(patch.targetVersionCode) !== appVersionCode) return res.json({ hasUpdate: false });
+    if (currentPatch && currentPatch === patch.version) return res.json({ hasUpdate: false });
+
+    return res.json({
+      hasUpdate: true,
+      patch: {
+        version: patch.version,
+        patchUrl: `https://gofixo.mob13r.com/api/mobile/ota/files/${encodeURIComponent(patch.filename)}`,
+        md5: patch.md5,
+        signature: patch.signature || '',
+        targetVersionCode: Number(patch.targetVersionCode)
+      },
+      shouldForceUpdate: true,
+      message: latest.message || 'A new Gofixo update is ready.',
+      gitCommitHash: latest.gitCommitHash || ''
+    });
+  } catch (err) {
+    console.error('OTA check error:', err.message);
+    return res.json({ hasUpdate: false });
+  }
+});
+
+app.use('/api/mobile/ota/files', express.static(OTA_DIR, {
+  index: false,
+  dotfiles: 'deny',
+  setHeaders(res) {
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+}));
 
 app.get('/api/health', async (req, res) => {
   try {
