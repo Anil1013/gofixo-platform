@@ -127,8 +127,13 @@ async function loginHandler(req, res, next) {
 }
 
 
-router.post('/customer/login', loginHandler);
-router.post('/provider/login', loginHandler);
+const loginForRole = (role) => (req, res, next) => {
+  req.params.role = role;
+  return loginHandler(req, res, next);
+};
+
+router.post('/customer/login', loginForRole('customer'));
+router.post('/provider/login', loginForRole('provider'));
 // Keep the role-based route for backwards compatibility.
 router.post('/:role/login', loginHandler);
 
