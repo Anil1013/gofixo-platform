@@ -72,7 +72,7 @@ jobs:
           set -euo pipefail
 
           for i in $(seq 1 30); do
-            code="$(curl -sS --max-time 10 -o /tmp/gofixo-public-health.json -w '%{http_code}' https://backend.mob13r.com/api/health || true)"
+            code="$(curl -sS --max-time 10 -o /tmp/gofixo-public-health.json -w '%{http_code}' https://gofixo.mob13r.com/api/health || true)"
             if [ "$code" = "200" ]; then
               cat /tmp/gofixo-public-health.json
               exit 0
