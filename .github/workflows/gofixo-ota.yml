@@ -107,43 +107,64 @@ jobs:
           cp dist/latest.json ota-upload/
           ls -lh ota-upload
 
-      - name: Upload and verify OTA on Gofixo EC2
+      - name: Upload OTA payload to Gofixo EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "mobile/ota-upload/*"
+          target: "/home/ubuntu/gofixo-platform/ota/"
+          strip_components: 1
+          overwrite: true
+
+      - name: Verify OTA endpoint
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          command_timeout: 5m
+          command_timeout: 3m
           script: |
-            set -euo pipefail
+            set -eo pipefail
 
             OTA_DIR="/home/ubuntu/gofixo-platform/ota"
-            mkdir -p "$OTA_DIR"
+            MANIFEST="$OTA_DIR/latest.json"
+            PATCH_FILE="$OTA_DIR/patch-${{ github.sha }}.zip"
 
-            cat > "$OTA_DIR/latest.json" <<'MANIFEST_EOF'
-            $(cat latest.json)
-            MANIFEST_EOF
-
-            base64 -d > "$OTA_DIR/patch-${GITHUB_SHA}.zip.b64" <<'PATCH_EOF'
-            $(base64 -w0 "ota-upload/patch-${GITHUB_SHA}.zip")
-            PATCH_EOF
-            mv "$OTA_DIR/patch-${GITHUB_SHA}.zip.b64" "$OTA_DIR/patch-${GITHUB_SHA}.zip"
-
-            test -s "$OTA_DIR/latest.json"
-            test -s "$OTA_DIR/patch-${GITHUB_SHA}.zip"
-            python3 -m json.tool "$OTA_DIR/latest.json" >/dev/null
-
-            echo "=== OTA DIRECTORY ==="
+            echo "=== OTA FILES ==="
             ls -lah "$OTA_DIR"
+
+            if [ ! -s "$MANIFEST" ]; then
+              echo "ERROR: latest.json is missing or empty at $MANIFEST"
+              exit 1
+            fi
+
+            if [ ! -s "$PATCH_FILE" ]; then
+              echo "ERROR: patch file is missing or empty: $PATCH_FILE"
+              echo "Files currently present:"
+              find "$OTA_DIR" -maxdepth 1 -type f -printf '%f %s bytes\\n' | sort
+              exit 1
+            fi
+
+            python3 -m json.tool "$MANIFEST" >/dev/null
             echo "=== OTA MANIFEST ==="
-            cat "$OTA_DIR/latest.json"
+            cat "$MANIFEST"
 
             URL="http://127.0.0.1:4000/api/mobile/ota/check?app_version_code=${{ steps.base.outputs.build }}&abi=arm64-v8a"
-            HTTP_CODE="$(curl -sS --max-time 10 -o /tmp/gofixo-ota-check.json -w '%{http_code}' "$URL" || true)"
-            BODY="$(cat /tmp/gofixo-ota-check.json 2>/dev/null || true)"
-            echo "OTA check HTTP $HTTP_CODE"
-            echo "$BODY"
+            for attempt in $(seq 1 18); do
+              HTTP_CODE="$(curl -sS --max-time 10 -o /tmp/gofixo-ota-check.json -w '%{http_code}' "$URL" || true)"
+              BODY="$(cat /tmp/gofixo-ota-check.json 2>/dev/null || true)"
+              echo "Attempt $attempt/18: HTTP $HTTP_CODE"
+              echo "$BODY"
 
-            test "$HTTP_CODE" = "200"
-            python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("hasUpdate") is True' <<<"$BODY"
-            echo "OTA endpoint verification passed."
+              if [ "$HTTP_CODE" = "200" ] && python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("hasUpdate") is True' <<<"$BODY"; then
+                echo "OTA endpoint verification passed."
+                exit 0
+              fi
+              sleep 5
+            done
+
+            echo "ERROR: OTA endpoint verification failed."
+            curl -sS --max-time 10 http://127.0.0.1:4000/api/mobile/ota/check?app_version_code=${{ steps.base.outputs.build }}\\&abi=arm64-v8a || true
+            exit 1
