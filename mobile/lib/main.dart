@@ -11,6 +11,7 @@ import 'api_service.dart';
 import 'update_service.dart';
 import 'ota_service.dart';
 import 'package:flutter_ota_kit/flutter_ota_kit.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 const orange=Color(0xFFFF6B00), navy=Color(0xFF172B4D), muted=Color(0xFF64748B);
 
@@ -75,8 +76,10 @@ class Auth extends StatefulWidget{
   @override State<Auth> createState()=>_AuthState();
 }
 class _AuthState extends State<Auth>{
-  final form=GlobalKey<FormState>();final name=TextEditingController(),phone=TextEditingController(),pass=TextEditingController();String mode='login',type='bike';bool busy=false;String? error,msg;
+  final form=GlobalKey<FormState>();final name=TextEditingController(),phone=TextEditingController(),pass=TextEditingController();String mode='login',type='bike';bool busy=false;String? error,msg;String appVersion='';String buildNumber='';
   bool get provider=>widget.role=='provider';
+  @override void initState(){super.initState();_loadAppVersion();}
+  Future<void> _loadAppVersion() async {try{final info=await PackageInfo.fromPlatform();if(mounted)setState((){appVersion=info.version;buildNumber=info.buildNumber;});}catch(_){}}
   @override void dispose(){name.dispose();phone.dispose();pass.dispose();super.dispose();}
   Future<void> submit()async{if(!form.currentState!.validate())return;setState((){busy=true;error=null;msg=null;});try{
     if(mode=='register'){if(provider)await ApiService.registerProvider(name.text.trim(),phone.text.trim(),type,pass.text);else await ApiService.registerCustomer(name.text.trim(),phone.text.trim(),pass.text);if(!mounted)return;setState((){mode='login';msg='Account created. Please log in.';});}
@@ -84,6 +87,8 @@ class _AuthState extends State<Auth>{
     else{await ApiService.login(widget.role,phone.text.trim(),pass.text);if(mounted){Navigator.pop(context);widget.onDone();}}
   }catch(e){if(mounted)setState(()=>error=e.toString().replaceFirst('Exception: ',''));}finally{if(mounted)setState(()=>busy=false);}}
   @override Widget build(BuildContext c){final reg=mode=='register',forgot=mode=='forgot';return Scaffold(appBar:AppBar(title:Text(provider?'Partner':'Customer')),body:Form(key:form,child:ListView(padding:const EdgeInsets.all(24),children:[
+    Align(alignment:Alignment.topRight,child:Text(appVersion.isEmpty?'Version':'v$appVersion • Build $buildNumber',style:const TextStyle(fontSize:12,color:muted,fontWeight:FontWeight.w600))),
+    const SizedBox(height:8),
     Text(forgot?'Forgot password':reg?'Create account':'Log in',style:const TextStyle(fontSize:28,fontWeight:FontWeight.w800,color:navy)),const SizedBox(height:22),
     if(reg)TextFormField(controller:name,decoration:const InputDecoration(labelText:'Name',border:OutlineInputBorder()),validator:(v)=>v==null||v.trim().isEmpty?'Enter your name':null),
     if(reg)const SizedBox(height:14),
