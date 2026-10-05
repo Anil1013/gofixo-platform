@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:file_picker/file_picker.dart';
@@ -133,6 +134,7 @@ class _BookingPageState extends State<BookingPage>{
   List<Map<String,dynamic>> destinationSuggestions=[];
   Map<String,dynamic>? selectedDestination;
   Timer? searchDebounce;
+  String? placeSessionToken;
 
   @override void dispose(){
     searchDebounce?.cancel();
@@ -140,19 +142,38 @@ class _BookingPageState extends State<BookingPage>{
     super.dispose();
   }
 
+  String _newPlaceSessionToken(){
+    final r=Random.secure();
+    String hex(int n)=>n.toRadixString(16).padLeft(2,'0');
+    final bytes=List<int>.generate(16,(_)=>r.nextInt(256));
+    bytes[6]=(bytes[6]&0x0f)|0x40;
+    bytes[8]=(bytes[8]&0x3f)|0x80;
+    return [
+      bytes.sublist(0,4).map(hex).join(),
+      bytes.sublist(4,6).map(hex).join(),
+      bytes.sublist(6,8).map(hex).join(),
+      bytes.sublist(8,10).map(hex).join(),
+      bytes.sublist(10,16).map(hex).join(),
+    ].join('-');
+  }
+
   void _searchDestination(String value){
+    final hadSelection=selectedDestination!=null;
     selectedDestination=null;
     searchDebounce?.cancel();
     final q=value.trim();
     if(q.length<2){
+      placeSessionToken=null;
       if(mounted)setState(()=>destinationSuggestions=[]);
       return;
     }
+    if(hadSelection||placeSessionToken==null)placeSessionToken=_newPlaceSessionToken();
+    final sessionToken=placeSessionToken;
     searchDebounce=Timer(const Duration(milliseconds:350),()async{
       if(!mounted)return;
       setState(()=>searching=true);
       try{
-        final suggestions=await ApiService.placeAutocomplete(q);
+        final suggestions=await ApiService.placeAutocomplete(q,sessionToken:sessionToken);
         if(mounted&&drop.text.trim()==q)setState(()=>destinationSuggestions=suggestions);
       }catch(_){
         if(mounted&&drop.text.trim()==q)setState(()=>destinationSuggestions=[]);
@@ -168,7 +189,11 @@ class _BookingPageState extends State<BookingPage>{
     setState(()=>busy=true);
     try{
       if(placeId!=null&&placeId.isNotEmpty){
-        final details=await ApiService.placeDetails(placeId);
+        final details=await ApiService.placeDetails(
+          placeId,
+          sessionToken:placeSessionToken,
+        );
+        placeSessionToken=null;
         final lat=double.tryParse(details['lat']?.toString()??'');
         final lng=double.tryParse(details['lng']?.toString()??'');
         if(lat==null||lng==null)throw Exception('This location has no map coordinates');
