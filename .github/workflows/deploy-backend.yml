@@ -21,11 +21,14 @@ jobs:
     steps:
       - name: SSH into EC2 and deploy
         uses: appleboy/ssh-action@v1.2.5
+        env:
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           command_timeout: 5m
+          envs: GOOGLE_MAPS_API_KEY
           script: |
             set -euo pipefail
 
@@ -39,6 +42,14 @@ jobs:
             test -f ecosystem.config.cjs
 
             npm install --omit=dev
+
+            if [ -n "${GOOGLE_MAPS_API_KEY:-}" ]; then
+              touch .env
+              grep -v '^GOOGLE_MAPS_API_KEY=' .env > .env.tmp || true
+              printf 'GOOGLE_MAPS_API_KEY=%s\n' "$GOOGLE_MAPS_API_KEY" >> .env.tmp
+              mv .env.tmp .env
+              chmod 600 .env
+            fi
 
             export GOFIXO_RELEASE_COMMIT="$(git rev-parse HEAD)"
             pm2 startOrRestart ecosystem.config.cjs --update-env
