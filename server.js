@@ -139,6 +139,9 @@ app.get('/api/places/autocomplete', async (req, res) => {
         input,
         languageCode: 'en',
         regionCode: 'IN',
+        ...(String(req.query.sessionToken || '').trim()
+          ? { sessionToken: String(req.query.sessionToken).trim() }
+          : {}),
       },
     );
 
@@ -175,7 +178,11 @@ app.get('/api/places/details/:placeId', async (req, res) => {
   if (!placeId) return res.status(400).json({ error: 'Place ID is required' });
 
   try {
-    const url = 'https://places.googleapis.com/v1/places/' + encodeURIComponent(placeId);
+    const sessionToken = String(req.query.sessionToken || '').trim();
+    const query = sessionToken
+      ? '?sessionToken=' + encodeURIComponent(sessionToken)
+      : '';
+    const url = 'https://places.googleapis.com/v1/places/' + encodeURIComponent(placeId) + query;
     const response = await fetch(url, {
       headers: {
         'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
