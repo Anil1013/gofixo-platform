@@ -107,49 +107,31 @@ jobs:
           cp dist/latest.json ota-upload/
           ls -lh ota-upload
 
-      - name: Upload OTA payload to Gofixo EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "mobile/ota-upload/*"
-          target: "/home/ubuntu/gofixo-platform/ota/"
-          strip_components: 1
-          overwrite: true
-
-      - name: Verify OTA endpoint
+      - name: Upload and verify OTA on Gofixo EC2
         uses: appleboy/ssh-action@v1.2.5
+        env:
+          OTA_MANIFEST_B64: ${{ steps.manifest.outputs.content_b64 }}
+          OTA_PATCH_B64: ${{ steps.patch.outputs.content_b64 }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          command_timeout: 3m
+          command_timeout: 5m
           script: |
             set -eo pipefail
 
             OTA_DIR="/home/ubuntu/gofixo-platform/ota"
-            MANIFEST="$OTA_DIR/latest.json"
-            PATCH_FILE="$OTA_DIR/patch-${{ github.sha }}.zip"
+            mkdir -p "$OTA_DIR"
+
+            printf '%s' "$OTA_MANIFEST_B64" | base64 -d > "$OTA_DIR/latest.json"
+            printf '%s' "$OTA_PATCH_B64" | base64 -d > "$OTA_DIR/patch-${{ github.sha }}.zip"
+
+            test -s "$OTA_DIR/latest.json"
+            test -s "$OTA_DIR/patch-${{ github.sha }}.zip"
+            python3 -m json.tool "$OTA_DIR/latest.json" >/dev/null
 
             echo "=== OTA FILES ==="
             ls -lah "$OTA_DIR"
-
-            if [ ! -s "$MANIFEST" ]; then
-              echo "ERROR: latest.json is missing or empty at $MANIFEST"
-              exit 1
-            fi
-
-            if [ ! -s "$PATCH_FILE" ]; then
-              echo "ERROR: patch file is missing or empty: $PATCH_FILE"
-              echo "Files currently present:"
-              find "$OTA_DIR" -maxdepth 1 -type f -printf '%f %s bytes\\n' | sort
-              exit 1
-            fi
-
-            python3 -m json.tool "$MANIFEST" >/dev/null
-            echo "=== OTA MANIFEST ==="
-            cat "$MANIFEST"
 
             URL="http://127.0.0.1:4000/api/mobile/ota/check?app_version_code=${{ steps.base.outputs.build }}&abi=arm64-v8a"
             for attempt in $(seq 1 18); do
@@ -166,5 +148,6 @@ jobs:
             done
 
             echo "ERROR: OTA endpoint verification failed."
-            curl -sS --max-time 10 http://127.0.0.1:4000/api/mobile/ota/check?app_version_code=${{ steps.base.outputs.build }}\\&abi=arm64-v8a || true
+            echo "Backend root:"
+            curl -sS --max-time 10 http://127.0.0.1:4000/ || true
             exit 1
