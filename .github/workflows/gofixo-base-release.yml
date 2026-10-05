@@ -107,13 +107,32 @@ jobs:
 
       - name: Verify APK signing and identity
         if: steps.existing.outputs.exists != 'true'
+        shell: bash
         run: |
           set -euo pipefail
+
           APK="build/app/outputs/flutter-apk/app-release.apk"
           test -s "$APK"
-          apksigner verify --verbose "$APK"
+
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          if [ -z "$SDK_ROOT" ] || [ ! -d "$SDK_ROOT/build-tools" ]; then
+            echo "::error title=Android SDK not found::ANDROID_SDK_ROOT/ANDROID_HOME is not pointing to an Android SDK."
+            exit 1
+          fi
+
+          APK_SIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+
+          if [ -z "$APK_SIGNER" ] || [ ! -x "$APK_SIGNER" ]; then
+            echo "::error title=apksigner not found::Could not locate apksigner under Android SDK build-tools."
+            find "$SDK_ROOT/build-tools" -maxdepth 2 -type f -name apksigner -print || true
+            exit 1
+          fi
+
+          echo "Using apksigner: $APK_SIGNER"
+          "$APK_SIGNER" verify --verbose "$APK"
+
           echo "APK signing certificate:"
-          apksigner verify --print-certs "$APK" | grep -E 'Signer #1 certificate SHA-256 digest:|Signer #1 certificate DN:'
+          "$APK_SIGNER" verify --print-certs "$APK"             | grep -E 'Signer #1 certificate SHA-256 digest:|Signer #1 certificate DN:'
 
       - name: Create release manifest
         if: steps.existing.outputs.exists != 'true'
