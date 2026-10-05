@@ -1,4 +1,3 @@
-
 name: Gofixo OTA
 
 on:
@@ -125,10 +124,27 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          command_timeout: 2m
+          command_timeout: 3m
           script: |
             set -euo pipefail
-            test -s /home/ubuntu/gofixo-platform/ota/latest.json
-            python3 -m json.tool /home/ubuntu/gofixo-platform/ota/latest.json >/dev/null
-            curl -fsS --max-time 10 "http://127.0.0.1:4000/api/mobile/ota/check?app_version_code=${{ steps.base.outputs.build }}&abi=arm64-v8a" >/tmp/gofixo-ota-check.json
-            cat /tmp/gofixo-ota-check.json
+
+            OTA_DIR="/home/ubuntu/gofixo-platform/ota"
+            MANIFEST="$OTA_DIR/latest.json"
+            test -s "$MANIFEST"
+            python3 -m json.tool "$MANIFEST" >/dev/null
+
+            URL="http://127.0.0.1:4000/api/mobile/ota/check?app_version_code=${{ steps.base.outputs.build }}&abi=arm64-v8a"
+            last=""
+            for attempt in $(seq 1 18); do
+              if last="$(curl -fsS --max-time 10 "$URL" 2>&1)"; then
+                echo "$last"
+                python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("hasUpdate") is True' <<<"$last"
+                echo "OTA endpoint verification passed."
+                exit 0
+              fi
+              echo "OTA endpoint not ready yet (attempt $attempt/18): $last"
+              sleep 5
+            done
+
+            echo "OTA endpoint verification failed after retries."
+            exit 1
