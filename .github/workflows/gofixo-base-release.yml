@@ -1,9 +1,13 @@
-
 name: Gofixo Base Release
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
+    paths:
+      - 'mobile/version.json'
+      - 'mobile/android/**'
+      - '.github/workflows/gofixo-base-release.yml'
 
 permissions:
   contents: write
@@ -18,8 +22,10 @@ jobs:
     defaults:
       run:
         working-directory: mobile
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Read release version
         id: version
@@ -28,6 +34,8 @@ jobs:
           set -euo pipefail
           VERSION="$(python3 -c 'import json; print(json.load(open("version.json"))["version"])')"
           BUILD="$(python3 -c 'import json; print(json.load(open("version.json"))["buildNumber"])')"
+          test -n "$VERSION"
+          test "$BUILD" -gt 0
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "build=$BUILD" >> "$GITHUB_OUTPUT"
 
@@ -72,7 +80,15 @@ jobs:
           GOFIXO_KEY_ALIAS: ${{ secrets.GOFIXO_KEY_ALIAS }}
         run: |
           set -euo pipefail
-          test -n "$GOFIXO_KEYSTORE_B64"
+
+          for name in GOFIXO_KEYSTORE_B64 GOFIXO_STORE_PASSWORD GOFIXO_KEY_PASSWORD GOFIXO_KEY_ALIAS; do
+            if [ -z "${!name}" ]; then
+              echo "::error title=Missing signing secret::GitHub Actions secret $name is not configured."
+              echo "Add the four Gofixo signing secrets in Settings > Secrets and variables > Actions, then run this workflow again."
+              exit 1
+            fi
+          done
+
           echo "$GOFIXO_KEYSTORE_B64" | base64 --decode > android/gofixo-release.jks
           cat > android/key.properties <<EOF
           storePassword=$GOFIXO_STORE_PASSWORD
@@ -82,10 +98,22 @@ jobs:
           EOF
           chmod 600 android/gofixo-release.jks android/key.properties
 
+          keytool -list -keystore android/gofixo-release.jks             -storepass "$GOFIXO_STORE_PASSWORD"             -alias "$GOFIXO_KEY_ALIAS" >/dev/null
+
       - name: Build release APK
         if: steps.existing.outputs.exists != 'true'
         run: |
           flutter build apk --release             --build-name "${{ steps.version.outputs.version }}"             --build-number "${{ steps.version.outputs.build }}"
+
+      - name: Verify APK signing and identity
+        if: steps.existing.outputs.exists != 'true'
+        run: |
+          set -euo pipefail
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          test -s "$APK"
+          apksigner verify --verbose "$APK"
+          echo "APK signing certificate:"
+          apksigner verify --print-certs "$APK" | grep -E 'Signer #1 certificate SHA-256 digest:|Signer #1 certificate DN:'
 
       - name: Create release manifest
         if: steps.existing.outputs.exists != 'true'
@@ -95,7 +123,7 @@ jobs:
             "version": "${{ steps.version.outputs.version }}",
             "buildNumber": ${{ steps.version.outputs.build }},
             "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/latest/download/gofixo-release.apk",
-            "notes": "OTA-enabled Gofixo Android release.",
+            "notes": "OTA-enabled Gofixo Android base release.",
             "forceUpdate": false
           }
           EOF
@@ -111,4 +139,4 @@ jobs:
 
       - name: Finish
         if: steps.existing.outputs.exists == 'true'
-        run: echo "Base release already exists; nothing to do."
+        run: echo "Base release v${{ steps.version.outputs.version }} already exists; nothing to do."
