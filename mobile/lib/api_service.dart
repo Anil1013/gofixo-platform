@@ -14,14 +14,17 @@ class ApiService {
   static Future<void> saveSession(String t,Map<String,dynamic> u,String r)async{final p=await SharedPreferences.getInstance();await p.setString('gofixo_token',t);await p.setString('gofixo_user',jsonEncode(u));await p.setString('gofixo_role',r);}
   static Future<void> clearSession()async{final p=await SharedPreferences.getInstance();await p.remove('gofixo_token');await p.remove('gofixo_user');await p.remove('gofixo_role');}
   static Future<dynamic> _request(String m,String path,{Map<String,dynamic>? body,String? token})async{final h=<String,String>{'Content-Type':'application/json','Accept':'application/json'};if(token!=null)h['Authorization']='Bearer '+token;final u=Uri.parse(apiBase+path);late http.Response x;if(m=='GET')x=await http.get(u,headers:h).timeout(const Duration(seconds:20));else if(m=='PATCH')x=await http.patch(u,headers:h,body:jsonEncode(body??{})).timeout(const Duration(seconds:20));else x=await http.post(u,headers:h,body:jsonEncode(body??{})).timeout(const Duration(seconds:20));dynamic d;try{d=jsonDecode(x.body);}catch(_){d={};}if(x.statusCode<200||x.statusCode>=300){if(x.statusCode==401&&token!=null)await clearSession();final message=d is Map?(d['error']??d['message'])?.toString():null;throw Exception(message??'Request failed ('+x.statusCode.toString()+')');}return d;}
-  static Future<List<Map<String,dynamic>>> placeAutocomplete(String input)async{
-    final d=await _request('GET','/places/autocomplete?input='+Uri.encodeQueryComponent(input));
+  static Future<List<Map<String,dynamic>>> placeAutocomplete(String input,{String? sessionToken})async{
+    final q='?input='+Uri.encodeQueryComponent(input)+
+        (sessionToken==null?'':'&sessionToken='+Uri.encodeQueryComponent(sessionToken));
+    final d=await _request('GET','/places/autocomplete'+q);
     return d is Map&&d['suggestions'] is List
         ?(d['suggestions'] as List).map((e)=>Map<String,dynamic>.from(e as Map)).toList()
         :[];
   }
-  static Future<Map<String,dynamic>> placeDetails(String placeId)async{
-    final d=await _request('GET','/places/details/'+Uri.encodeComponent(placeId));
+  static Future<Map<String,dynamic>> placeDetails(String placeId,{String? sessionToken})async{
+    final q=sessionToken==null?'':'?sessionToken='+Uri.encodeQueryComponent(sessionToken);
+    final d=await _request('GET','/places/details/'+Uri.encodeComponent(placeId)+q);
     return Map<String,dynamic>.from(d as Map);
   }
   static Future<Map<String,dynamic>> resolvePlace(String input)async{
