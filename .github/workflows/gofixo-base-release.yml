@@ -132,7 +132,7 @@ jobs:
           "$APK_SIGNER" verify --verbose "$APK"
 
           echo "APK signing certificate:"
-          "$APK_SIGNER" verify --print-certs "$APK"             | grep -E 'Signer #1 certificate SHA-256 digest:|Signer #1 certificate DN:'
+          "$APK_SIGNER" verify --print-certs "$APK"
 
       - name: Create release manifest
         if: steps.existing.outputs.exists != 'true'
