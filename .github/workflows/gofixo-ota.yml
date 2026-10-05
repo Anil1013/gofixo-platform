@@ -133,18 +133,33 @@ jobs:
             test -s "$MANIFEST"
             python3 -m json.tool "$MANIFEST" >/dev/null
 
+            echo "=== OTA DIRECTORY ==="
+            ls -lah "$OTA_DIR"
+            echo "=== OTA MANIFEST ==="
+            cat "$MANIFEST"
+
+            PATCH_FILE="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["patches"]["arm64-v8a"]["filename"])' "$MANIFEST")"
+            test -s "$OTA_DIR/$PATCH_FILE"
+            echo "Patch file present: $OTA_DIR/$PATCH_FILE"
+
             URL="http://127.0.0.1:4000/api/mobile/ota/check?app_version_code=${{ steps.base.outputs.build }}&abi=arm64-v8a"
-            last=""
             for attempt in $(seq 1 18); do
-              if last="$(curl -fsS --max-time 10 "$URL" 2>&1)"; then
-                echo "$last"
-                python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("hasUpdate") is True' <<<"$last"
-                echo "OTA endpoint verification passed."
-                exit 0
+              HTTP_CODE="$(curl -sS --max-time 10 -o /tmp/gofixo-ota-check.json -w '%{http_code}' "$URL" || true)"
+              BODY="$(cat /tmp/gofixo-ota-check.json 2>/dev/null || true)"
+              echo "Attempt $attempt/18: HTTP $HTTP_CODE"
+              echo "$BODY"
+
+              if [ "$HTTP_CODE" = "200" ]; then
+                if python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("hasUpdate") is True' <<<"$BODY"; then
+                  echo "OTA endpoint verification passed."
+                  exit 0
+                fi
+                echo "Endpoint responded, but hasUpdate is not true yet."
               fi
-              echo "OTA endpoint not ready yet (attempt $attempt/18): $last"
               sleep 5
             done
 
             echo "OTA endpoint verification failed after retries."
+            echo "Backend release commit:"
+            curl -sS --max-time 10 http://127.0.0.1:4000/ || true
             exit 1
