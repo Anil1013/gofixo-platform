@@ -100,6 +100,140 @@ app.use('/api/mobile/ota/files', express.static(OTA_DIR, {
   }
 }));
 
+
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
+
+async function googlePlacesRequest(url, fieldMask, body) {
+  if (!GOOGLE_MAPS_API_KEY) {
+    const err = new Error('Google Places is not configured on the Gofixo server');
+    err.status = 503;
+    throw err;
+  }
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+      'X-Goog-FieldMask': fieldMask,
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const err = new Error(data?.error?.message || 'Google Places request failed');
+    err.status = response.status >= 500 ? 502 : 400;
+    throw err;
+  }
+  return data;
+}
+
+app.get('/api/places/autocomplete', async (req, res) => {
+  const input = String(req.query.input || '').trim();
+  if (input.length < 2) return res.json({ suggestions: [] });
+
+  try {
+    const data = await googlePlacesRequest(
+      'https://places.googleapis.com/v1/places:autocomplete',
+      'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat,suggestions.queryPrediction.text',
+      {
+        input,
+        languageCode: 'en',
+        regionCode: 'IN',
+        includeQueryPredictions: true,
+      },
+    );
+
+    const suggestions = (data.suggestions || []).map((item) => {
+      const p = item.placePrediction;
+      if (p) {
+        return {
+          type: 'place',
+          placeId: p.placeId,
+          text: p.text?.text || '',
+          mainText: p.structuredFormat?.mainText?.text || p.text?.text || '',
+          secondaryText: p.structuredFormat?.secondaryText?.text || '',
+        };
+      }
+      const q = item.queryPrediction;
+      return q ? {
+        type: 'query',
+        placeId: null,
+        text: q.text?.text || '',
+        mainText: q.text?.text || '',
+        secondaryText: '',
+      } : null;
+    }).filter(Boolean);
+
+    res.json({ suggestions });
+  } catch (err) {
+    console.error('Google Places autocomplete error:', err.message);
+    res.status(err.status || 502).json({ error: err.message || 'Address search failed' });
+  }
+});
+
+app.get('/api/places/details/:placeId', async (req, res) => {
+  const placeId = String(req.params.placeId || '').trim();
+  if (!placeId) return res.status(400).json({ error: 'Place ID is required' });
+
+  try {
+    const url = 'https://places.googleapis.com/v1/places/' + encodeURIComponent(placeId);
+    const response = await fetch(url, {
+      headers: {
+        'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+        'X-Goog-FieldMask': 'id,displayName,formattedAddress,location',
+      },
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const err = new Error(data?.error?.message || 'Google Place details failed');
+      err.status = response.status >= 500 ? 502 : 400;
+      throw err;
+    }
+    res.json({
+      placeId: data.id || placeId,
+      name: data.displayName?.text || '',
+      address: data.formattedAddress || '',
+      lat: data.location?.latitude,
+      lng: data.location?.longitude,
+    });
+  } catch (err) {
+    console.error('Google Place details error:', err.message);
+    res.status(err.status || 502).json({ error: err.message || 'Address details failed' });
+  }
+});
+
+app.get('/api/places/resolve', async (req, res) => {
+  const input = String(req.query.input || '').trim();
+  if (!input) return res.status(400).json({ error: 'Address is required' });
+
+  try {
+    const data = await googlePlacesRequest(
+      'https://places.googleapis.com/v1/places:searchText',
+      'places.id,places.displayName,places.formattedAddress,places.location',
+      {
+        textQuery: input,
+        languageCode: 'en',
+        regionCode: 'IN',
+        maxResultCount: 5,
+      },
+    );
+
+    const places = (data.places || []).map((p) => ({
+      placeId: p.id || '',
+      name: p.displayName?.text || '',
+      address: p.formattedAddress || '',
+      lat: p.location?.latitude,
+      lng: p.location?.longitude,
+    })).filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+
+    if (!places.length) return res.status(404).json({ error: 'Destination not found' });
+    res.json({ place: places[0], candidates: places });
+  } catch (err) {
+    console.error('Google Place resolve error:', err.message);
+    res.status(err.status || 502).json({ error: err.message || 'Address search failed' });
+  }
+});
+
 app.get('/api/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
