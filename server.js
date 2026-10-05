@@ -139,7 +139,6 @@ app.get('/api/places/autocomplete', async (req, res) => {
         input,
         languageCode: 'en',
         regionCode: 'IN',
-        includeQueryPredictions: true,
       },
     );
 
