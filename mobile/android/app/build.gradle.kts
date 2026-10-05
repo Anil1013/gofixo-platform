@@ -21,7 +21,7 @@ android {
     }
     defaultConfig {
         applicationId = "com.gofixo.app"
-        minSdk = 23
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
