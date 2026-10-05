@@ -115,21 +115,243 @@ class _CustomerHomeState extends State<CustomerHome>{
     ...bookings.map((b)=>BookingCard(session:widget.session,b:b,onChanged:load)),
    ])));}
 
-class BookingPage extends StatefulWidget{final Session session;final Future<void> Function({bool silent}) onChanged;const BookingPage({super.key,required this.session,required this.onChanged});@override State<BookingPage> createState()=>_BookingPageState();}
+class BookingPage extends StatefulWidget{
+  final Session session;
+  final Future<void> Function({bool silent}) onChanged;
+  const BookingPage({super.key,required this.session,required this.onChanged});
+  @override State<BookingPage> createState()=>_BookingPageState();
+}
+
 class _BookingPageState extends State<BookingPage>{
-  final drop=TextEditingController();Position? pos;String pickup='Current location';String type='bike';double? distance,fare;bool busy=false;List<LatLng> route=[];
-  @override void dispose(){drop.dispose();super.dispose();}
-  Future<void> locate()async{setState(()=>busy=true);try{if(!await Geolocator.isLocationServiceEnabled())throw Exception('Please turn on Location Services');var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)throw Exception('Location permission is required');final x=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.high));final addr=await reverse(x.latitude,x.longitude);if(mounted)setState((){pos=x;pickup=addr;});}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}finally{if(mounted)setState(()=>busy=false);}}
-  Future<void> calculate()async{if(pos==null)await locate();if(pos==null||drop.text.trim().isEmpty||!mounted)return;setState(()=>busy=true);try{final d=await geocode(drop.text.trim());if(!mounted||pos==null)return;final r=await routeFor(pos!.latitude,pos!.longitude,d.latitude,d.longitude);if(!mounted)return;final km=(r['distance'] as num).toDouble()/1000;final rate=type=='bike'?15:type=='auto'?20:25;setState((){distance=km;fare=(km*rate+20).roundToDouble();route=(r['points'] as List<LatLng>);});}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}finally{if(mounted)setState(()=>busy=false);}}
-  Future<void>book()async{if(pos==null||distance==null||fare==null)return;setState(()=>busy=true);try{await ApiService.createBooking(widget.session.token,providerType:type,pickup:pickup,drop:drop.text.trim(),lat:pos!.latitude,lng:pos!.longitude,fare:fare!,distanceKm:distance!);if(mounted){Navigator.pop(context);widget.onChanged();}}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}finally{if(mounted)setState(()=>busy=false);}}
-  @override Widget build(BuildContext c)=>Scaffold(appBar:AppBar(title:const Text('Book a ride')),body:ListView(padding:const EdgeInsets.all(16),children:[
-    SegmentedButton<String>(segments:const[ButtonSegment(value:'bike',label:Text('Bike')),ButtonSegment(value:'auto',label:Text('Auto')),ButtonSegment(value:'car',label:Text('Car'))],selected:{type},onSelectionChanged:(s)=>setState(()=>type=s.first)),
-    const SizedBox(height:14),Card(child:ListTile(leading:const Icon(Icons.my_location,color:orange),title:Text(pickup),subtitle:const Text('Pickup'),trailing:IconButton(onPressed:busy?null:locate,icon:const Icon(Icons.gps_fixed)))),
-    const SizedBox(height:12),TextField(controller:drop,minLines:2,maxLines:3,decoration:const InputDecoration(labelText:'Where to?',hintText:'Enter destination address',border:OutlineInputBorder())),
-    const SizedBox(height:12),FilledButton.icon(onPressed:busy?null:calculate,icon:const Icon(Icons.route),label:const Text('Calculate fare')),
-    if(route.isNotEmpty&&pos!=null)Padding(padding:const EdgeInsets.only(top:14),child:SizedBox(height:240,child:FlutterMap(options:MapOptions(initialCenter:route.first,initialZoom:13),children:[TileLayer(urlTemplate:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',userAgentPackageName:'com.gofixo.app'),PolylineLayer(polylines:[Polyline(points:route,strokeWidth:5,color:orange)])]))),
-    if(distance!=null)Card(child:ListTile(title:Text('Estimated ₹'+fare!.toStringAsFixed(0)),subtitle:Text(distance!.toStringAsFixed(1)+' km • '+type.toUpperCase()),trailing:FilledButton(onPressed:busy?null:book,child:const Text('Book')))),
-   ]));}
+  final drop=TextEditingController();
+  Position? pos;
+  String pickup='Current location';
+  String type='bike';
+  double? distance,fare;
+  bool busy=false,searching=false;
+  List<LatLng> route=[];
+  List<Map<String,dynamic>> destinationSuggestions=[];
+  Map<String,dynamic>? selectedDestination;
+  Timer? searchDebounce;
+
+  @override void dispose(){
+    searchDebounce?.cancel();
+    drop.dispose();
+    super.dispose();
+  }
+
+  void _searchDestination(String value){
+    selectedDestination=null;
+    searchDebounce?.cancel();
+    final q=value.trim();
+    if(q.length<2){
+      if(mounted)setState(()=>destinationSuggestions=[]);
+      return;
+    }
+    searchDebounce=Timer(const Duration(milliseconds:350),()async{
+      if(!mounted)return;
+      setState(()=>searching=true);
+      try{
+        final suggestions=await ApiService.placeAutocomplete(q);
+        if(mounted&&drop.text.trim()==q)setState(()=>destinationSuggestions=suggestions);
+      }catch(_){
+        if(mounted&&drop.text.trim()==q)setState(()=>destinationSuggestions=[]);
+      }finally{
+        if(mounted)setState(()=>searching=false);
+      }
+    });
+  }
+
+  Future<void> _selectDestination(Map<String,dynamic> suggestion)async{
+    final placeId=suggestion['placeId']?.toString();
+    final fallbackText=suggestion['text']?.toString()??'';
+    setState(()=>busy=true);
+    try{
+      if(placeId!=null&&placeId.isNotEmpty){
+        final details=await ApiService.placeDetails(placeId);
+        final lat=double.tryParse(details['lat']?.toString()??'');
+        final lng=double.tryParse(details['lng']?.toString()??'');
+        if(lat==null||lng==null)throw Exception('This location has no map coordinates');
+        if(!mounted)return;
+        setState((){
+          selectedDestination=details;
+          drop.text=details['address']?.toString()??fallbackText;
+          destinationSuggestions=[];
+        });
+      }else{
+        if(mounted)setState((){
+          drop.text=fallbackText;
+          destinationSuggestions=[];
+        });
+      }
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));
+    }finally{
+      if(mounted)setState(()=>busy=false);
+    }
+  }
+
+  Future<void> locate()async{
+    setState(()=>busy=true);
+    try{
+      if(!await Geolocator.isLocationServiceEnabled())throw Exception('Please turn on Location Services');
+      var p=await Geolocator.checkPermission();
+      if(p==LocationPermission.denied)p=await Geolocator.requestPermission();
+      if(p==LocationPermission.denied||p==LocationPermission.deniedForever)throw Exception('Location permission is required');
+      final x=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.high));
+      final addr=await reverse(x.latitude,x.longitude);
+      if(mounted)setState((){pos=x;pickup=addr;});
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));
+    }finally{
+      if(mounted)setState(()=>busy=false);
+    }
+  }
+
+  Future<void> calculate()async{
+    if(pos==null)await locate();
+    if(pos==null||drop.text.trim().isEmpty||!mounted)return;
+    setState(()=>busy=true);
+    try{
+      LatLng d;
+      String resolvedAddress=drop.text.trim();
+      if(selectedDestination!=null){
+        final lat=double.tryParse(selectedDestination!['lat']?.toString()??'');
+        final lng=double.tryParse(selectedDestination!['lng']?.toString()??'');
+        if(lat!=null&&lng!=null)d=LatLng(lat,lng);
+        else throw Exception('Selected destination coordinates are invalid');
+      }else{
+        final place=await ApiService.resolvePlace(resolvedAddress);
+        final lat=double.tryParse(place['lat']?.toString()??'');
+        final lng=double.tryParse(place['lng']?.toString()??'');
+        if(lat==null||lng==null)throw Exception('Destination not found');
+        d=LatLng(lat,lng);
+        resolvedAddress=place['address']?.toString()??resolvedAddress;
+        if(mounted)setState((){
+          selectedDestination=place;
+          drop.text=resolvedAddress;
+          destinationSuggestions=[];
+        });
+      }
+      if(!mounted||pos==null)return;
+      final r=await routeFor(pos!.latitude,pos!.longitude,d.latitude,d.longitude);
+      if(!mounted)return;
+      final km=(r['distance'] as num).toDouble()/1000;
+      final rate=type=='bike'?15:type=='auto'?20:25;
+      setState((){
+        distance=km;
+        fare=(km*rate+20).roundToDouble();
+        route=(r['points'] as List<LatLng>);
+      });
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));
+    }finally{
+      if(mounted)setState(()=>busy=false);
+    }
+  }
+
+  Future<void>book()async{
+    if(pos==null||distance==null||fare==null)return;
+    setState(()=>busy=true);
+    try{
+      final destination=selectedDestination?['address']?.toString()??drop.text.trim();
+      await ApiService.createBooking(
+        widget.session.token,
+        providerType:type,
+        pickup:pickup,
+        drop:destination,
+        lat:pos!.latitude,
+        lng:pos!.longitude,
+        fare:fare!,
+        distanceKm:distance!,
+      );
+      if(mounted){Navigator.pop(context);widget.onChanged();}
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));
+    }finally{
+      if(mounted)setState(()=>busy=false);
+    }
+  }
+
+  @override Widget build(BuildContext c)=>Scaffold(
+    appBar:AppBar(title:const Text('Book a ride')),
+    body:ListView(padding:const EdgeInsets.all(16),children:[
+      SegmentedButton<String>(
+        segments:const[
+          ButtonSegment(value:'bike',label:Text('Bike')),
+          ButtonSegment(value:'auto',label:Text('Auto')),
+          ButtonSegment(value:'car',label:Text('Car'))
+        ],
+        selected:{type},
+        onSelectionChanged:(s)=>setState(()=>type=s.first)
+      ),
+      const SizedBox(height:14),
+      Card(child:ListTile(
+        leading:const Icon(Icons.my_location,color:orange),
+        title:Text(pickup),
+        subtitle:const Text('Pickup'),
+        trailing:IconButton(onPressed:busy?null:locate,icon:const Icon(Icons.gps_fixed))
+      )),
+      const SizedBox(height:12),
+      TextField(
+        controller:drop,
+        minLines:1,
+        maxLines:3,
+        onChanged:_searchDestination,
+        decoration:InputDecoration(
+          labelText:'Where to?',
+          hintText:'Search any address, place, landmark or PIN code',
+          border:const OutlineInputBorder(),
+          suffixIcon:searching
+            ?const Padding(padding:EdgeInsets.all(12),child:SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2)))
+            :const Icon(Icons.search),
+        )
+      ),
+      if(destinationSuggestions.isNotEmpty)Card(
+        margin:const EdgeInsets.only(top:4),
+        child:Column(children:[
+          ...destinationSuggestions.take(6).map((s)=>ListTile(
+            dense:true,
+            leading:const Icon(Icons.location_on_outlined,color:orange),
+            title:Text(s['mainText']?.toString()??s['text']?.toString()??''),
+            subtitle:(s['secondaryText']?.toString()??'').isEmpty?null:Text(s['secondaryText'].toString()),
+            onTap:busy?null:()=>_selectDestination(s),
+          )),
+          const Padding(
+            padding:EdgeInsets.fromLTRB(16,4,16,10),
+            child:Align(alignment:Alignment.centerLeft,child:Text('Powered by Google',style:TextStyle(fontSize:11,color:muted)))
+          ),
+        ])
+      ),
+      const SizedBox(height:12),
+      FilledButton.icon(
+        onPressed:busy?null:calculate,
+        icon:const Icon(Icons.route),
+        label:const Text('Calculate fare')
+      ),
+      if(route.isNotEmpty&&pos!=null)Padding(
+        padding:const EdgeInsets.only(top:14),
+        child:SizedBox(
+          height:240,
+          child:FlutterMap(
+            options:MapOptions(initialCenter:route.first,initialZoom:13),
+            children:[
+              TileLayer(urlTemplate:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',userAgentPackageName:'com.gofixo.app'),
+              PolylineLayer(polylines:[Polyline(points:route,strokeWidth:5,color:orange)])
+            ]
+          )
+        )
+      ),
+      if(distance!=null)Card(
+        child:ListTile(
+          title:Text('Estimated ₹'+fare!.toStringAsFixed(0)),
+          subtitle:Text(distance!.toStringAsFixed(1)+' km • '+type.toUpperCase()),
+          trailing:FilledButton(onPressed:busy?null:book,child:const Text('Book'))
+        )
+      ),
+    ])
+  );
+}
 
 class BookingCard extends StatelessWidget{final Session session;final Map<String,dynamic>b;final Future<void> Function()onChanged;const BookingCard({super.key,required this.session,required this.b,required this.onChanged});
   @override Widget build(BuildContext c){final status=b['status']?.toString()??'';final id=int.tryParse(b['id'].toString())??0;final pin=b['start_pin']?.toString();return Card(margin:const EdgeInsets.only(bottom:12),child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
