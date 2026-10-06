@@ -4,13 +4,6 @@ on:
   push:
     tags:
       - "v*"
-    paths:
-      - "mobile/version.json"
-      - "mobile/lib/update_service.dart"
-      - "mobile/android/**"
-      - "mobile/pubspec.yaml"
-      - ".github/workflows/publish-gofixo-apk.yml"
-  workflow_dispatch:
 
 permissions:
   contents: write
