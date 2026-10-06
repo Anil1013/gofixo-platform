@@ -132,19 +132,155 @@ class _AuthState extends State<Auth>{
    ])));}
 }
 
-class CustomerHome extends StatefulWidget{final Session session;final Future<void> Function() onLogout;const CustomerHome({super.key,required this.session,required this.onLogout});@override State<CustomerHome> createState()=>_CustomerHomeState();}
+
+class CustomerHome extends StatefulWidget{
+  final Session session; final Future<void> Function() onLogout;
+  const CustomerHome({super.key,required this.session,required this.onLogout});
+  @override State<CustomerHome> createState()=>_CustomerHomeState();
+}
 class _CustomerHomeState extends State<CustomerHome>{
-  List<Map<String,dynamic>> bookings=[];Timer? timer;bool loading=true;
+  List<Map<String,dynamic>> bookings=[]; Timer? timer; bool loading=true; int tab=0;
   @override void initState(){super.initState();load();timer=Timer.periodic(const Duration(seconds:5),(_)=>load(silent:true));}
   @override void dispose(){timer?.cancel();super.dispose();}
   Future<void> load({bool silent=false})async{try{final b=await ApiService.customerBookings(widget.session.token);if(mounted)setState((){bookings=b;loading=false;});}catch(e){if(!silent&&mounted)_snack(e.toString());}}
-  void _snack(String s){ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.replaceFirst('Exception: ',''))));}
-  @override Widget build(BuildContext c)=>Scaffold(appBar:AppBar(title:const Text('Gofixo'),actions:[IconButton(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>BookingPage(session:widget.session,onChanged:load))),icon:const Icon(Icons.add_location_alt)),IconButton(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>const AppInfoPage())),tooltip:'App information',icon:const Icon(Icons.settings_outlined)),IconButton(onPressed:widget.onLogout,icon:const Icon(Icons.logout))]),body:loading?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[
-    const Text('Your bookings',style:TextStyle(fontSize:24,fontWeight:FontWeight.w800,color:navy)),const SizedBox(height:12),
-    if(bookings.isEmpty)const Card(child:Padding(padding:EdgeInsets.all(24),child:Text('No bookings yet. Tap the location button to book a ride.'))),
-    ...bookings.map((b)=>BookingCard(session:widget.session,b:b,onChanged:load)),
-   ])));}
-
+  void _snack(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.replaceFirst('Exception: ',''))));
+  void _book()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>BookingPage(session:widget.session,onChanged:load)));
+  Widget _logo()=>Row(children:[
+    Container(width:34,height:34,decoration:BoxDecoration(color:orange,borderRadius:BorderRadius.circular(11)),child:const Icon(Icons.location_on_rounded,color:Colors.white,size:24)),
+    const SizedBox(width:8),const Text('Gofi',style:TextStyle(fontSize:25,fontWeight:FontWeight.w900,color:navy)),const Text('xo',style:TextStyle(fontSize:25,fontWeight:FontWeight.w900,color:orange))
+  ]);
+  Widget _header()=>Padding(padding:const EdgeInsets.fromLTRB(16,12,12,8),child:Row(children:[
+    Expanded(child:_logo()),
+    IconButton(onPressed:()=>_snack('No new notifications'),icon:const Icon(Icons.notifications_none_rounded,color:navy)),
+    CircleAvatar(radius:18,backgroundColor:const Color(0xFFFFE8D1),child:Text(
+      (widget.session.name??'G').trim().isEmpty?'G':(widget.session.name??'G').trim()[0].toUpperCase(),
+      style:const TextStyle(color:navy,fontWeight:FontWeight.w900)))
+  ]));
+  Widget _hero()=>Container(
+    margin:const EdgeInsets.fromLTRB(16,4,16,14),height:205,
+    decoration:BoxDecoration(borderRadius:BorderRadius.circular(24),gradient:const LinearGradient(colors:[Color(0xFFDDF0FF),Color(0xFFF5FAFF)])),
+    child:Stack(children:[
+      const Positioned(left:18,top:18,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text('Your City',style:TextStyle(fontSize:27,fontWeight:FontWeight.w900,color:navy)),
+        Text('Your Services',style:TextStyle(fontSize:27,fontWeight:FontWeight.w900,color:orange)),
+        SizedBox(height:6),Text('Rides, Home Services\nand more – All in One App',style:TextStyle(fontSize:13,color:Color(0xFF334155),height:1.35))
+      ])),
+      Positioned(right:8,bottom:9,child:Row(children:[
+        _HeroVehicle(Icons.two_wheeler_rounded,'Bike',const Color(0xFFFFEBD4)),
+        const SizedBox(width:7),_HeroVehicle(Icons.airport_shuttle_rounded,'Auto',const Color(0xFFE3F7E8)),
+        const SizedBox(width:7),_HeroVehicle(Icons.directions_car_filled_rounded,'Car',const Color(0xFFE2EEFF))
+      ]))
+    ])
+  );
+  Widget _ride(String title,String sub,IconData icon,Color bg)=>Expanded(child:InkWell(
+    onTap:_book,borderRadius:BorderRadius.circular(18),child:Container(padding:const EdgeInsets.all(9),
+    decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(18),border:Border.all(color:const Color(0xFFE4EAF0))),
+    child:Column(children:[
+      Container(width:58,height:58,decoration:BoxDecoration(color:bg,borderRadius:BorderRadius.circular(15)),child:Icon(icon,size:34,color:navy)),
+      const SizedBox(height:6),Text(title,style:const TextStyle(fontWeight:FontWeight.w800,color:navy)),
+      Text(sub,style:const TextStyle(fontSize:9,color:muted),textAlign:TextAlign.center)
+    ]))));
+  Widget _service(String title,IconData icon)=>Expanded(child:InkWell(
+    onTap:()=>_snack(title+' service coming soon'),child:Column(children:[
+      Container(width:58,height:58,decoration:BoxDecoration(color:const Color(0xFFF3F6F9),borderRadius:BorderRadius.circular(15)),child:Icon(icon,color:navy,size:28)),
+      const SizedBox(height:5),Text(title,style:const TextStyle(fontSize:10,fontWeight:FontWeight.w700,color:navy),textAlign:TextAlign.center,maxLines:1,overflow:TextOverflow.ellipsis)
+    ])));
+  Widget _section(String title,VoidCallback onTap)=>Padding(padding:const EdgeInsets.fromLTRB(16,0,16,10),child:Row(children:[
+    Expanded(child:Text(title,style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900,color:navy))),
+    TextButton(onPressed:onTap,child:const Text('See all',style:TextStyle(color:Color(0xFF2876C7),fontWeight:FontWeight.w700)))
+  ]));
+  Widget _home()=>RefreshIndicator(onRefresh:load,child:ListView(physics:const AlwaysScrollableScrollPhysics(),padding:const EdgeInsets.only(bottom:100),children:[
+    _header(),_hero(),
+    Padding(padding:const EdgeInsets.symmetric(horizontal:16),child:InkWell(onTap:_book,borderRadius:BorderRadius.circular(28),child:Container(height:58,padding:const EdgeInsets.symmetric(horizontal:16),
+      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(28),border:Border.all(color:const Color(0xFFE3E9F0))),
+      child:const Row(children:[Icon(Icons.location_on_rounded,color:navy),SizedBox(width:10),Expanded(child:Text('Where are you going?',style:TextStyle(color:muted,fontSize:15))),Icon(Icons.my_location_rounded,color:navy)])))),
+    const SizedBox(height:18),_section('Book a Ride',_book),
+    Padding(padding:const EdgeInsets.symmetric(horizontal:16),child:Row(children:[
+      _ride('Bike','Fast & Affordable',Icons.two_wheeler_rounded,const Color(0xFFFFEBD4)),const SizedBox(width:9),
+      _ride('Auto','Comfortable Rides',Icons.airport_shuttle_rounded,const Color(0xFFE3F7E8)),const SizedBox(width:9),
+      _ride('Car','Spacious & Safe',Icons.directions_car_filled_rounded,const Color(0xFFE2EEFF))
+    ])),
+    const SizedBox(height:20),_section('Home Services',()=>setState(()=>tab=2)),
+    Padding(padding:const EdgeInsets.symmetric(horizontal:16),child:Column(children:[
+      Row(children:[_service('Electrician',Icons.electrical_services_rounded),_service('Plumber',Icons.plumbing_rounded),_service('AC Service',Icons.ac_unit_rounded),_service('Cleaning',Icons.cleaning_services_rounded)]),
+      const SizedBox(height:14),
+      Row(children:[_service('Painter',Icons.format_paint_rounded),_service('Carpenter',Icons.handyman_rounded),_service('Appliance',Icons.local_laundry_service_rounded),_service('More',Icons.apps_rounded)])
+    ])),
+    const SizedBox(height:20),
+    Container(margin:const EdgeInsets.symmetric(horizontal:16),padding:const EdgeInsets.all(15),decoration:BoxDecoration(
+      borderRadius:BorderRadius.circular(20),gradient:const LinearGradient(colors:[Color(0xFFE3F4FF),Color(0xFFF7FBFF)]),border:Border.all(color:const Color(0xFFD7EAF7))),
+      child:Row(children:[
+        const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text('Trusted Professionals',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900,color:navy)),
+          Text('for Your Home',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900,color:navy)),
+          SizedBox(height:5),Text('✓ Verified   ✓ Affordable   ✓ On-Time',style:TextStyle(fontSize:9,color:muted))
+        ])),
+        Container(width:80,height:92,decoration:BoxDecoration(color:const Color(0xFFBDE0F6),borderRadius:BorderRadius.circular(40)),child:const Icon(Icons.engineering_rounded,color:navy,size:52))
+      ])),
+    const SizedBox(height:20),
+    const Padding(padding:EdgeInsets.symmetric(horizontal:16),child:Text('Why Gofixo?',style:TextStyle(fontSize:19,fontWeight:FontWeight.w900,color:navy))),
+    const SizedBox(height:10),
+    Padding(padding:const EdgeInsets.symmetric(horizontal:16),child:Row(children:[
+      _Benefit(icon:Icons.verified_user_rounded,title:'Verified',subtitle:'Drivers & Experts'),const SizedBox(width:7),
+      _Benefit(icon:Icons.currency_rupee_rounded,title:'Affordable',subtitle:'Pricing'),const SizedBox(width:7),
+      _Benefit(icon:Icons.schedule_rounded,title:'On-Time',subtitle:'Service'),const SizedBox(width:7),
+      _Benefit(icon:Icons.headset_mic_rounded,title:'24/7',subtitle:'Support')
+    ]))
+  ]));
+  Widget _bookings()=>RefreshIndicator(onRefresh:load,child:ListView(physics:const AlwaysScrollableScrollPhysics(),padding:const EdgeInsets.fromLTRB(16,20,16,100),children:[
+    const Text('My Bookings',style:TextStyle(fontSize:26,fontWeight:FontWeight.w900,color:navy)),const SizedBox(height:12),
+    if(bookings.isEmpty)const Card(child:Padding(padding:EdgeInsets.all(24),child:Text('No bookings yet. Book a ride from Home.'))),
+    ...bookings.map((b)=>BookingCard(session:widget.session,b:b,onChanged:load))
+  ]));
+  Widget _services()=>ListView(padding:const EdgeInsets.fromLTRB(16,20,16,100),children:[
+    const Text('Services',style:TextStyle(fontSize:26,fontWeight:FontWeight.w900,color:navy)),const SizedBox(height:14),
+    Wrap(spacing:9,runSpacing:9,children:[
+      _ServiceTile('Electrician',Icons.electrical_services_rounded),_ServiceTile('Plumber',Icons.plumbing_rounded),
+      _ServiceTile('AC Service',Icons.ac_unit_rounded),_ServiceTile('Cleaning',Icons.cleaning_services_rounded),
+      _ServiceTile('Painter',Icons.format_paint_rounded),_ServiceTile('Carpenter',Icons.handyman_rounded),
+      _ServiceTile('Appliance Repair',Icons.local_laundry_service_rounded)
+    ])
+  ]);
+  Widget _simple(String title,IconData icon,String msg)=>Center(child:Padding(padding:const EdgeInsets.all(32),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+    Container(width:80,height:80,decoration:BoxDecoration(color:const Color(0xFFFFEBD8),borderRadius:BorderRadius.circular(24)),child:Icon(icon,color:orange,size:42)),
+    const SizedBox(height:16),Text(title,style:const TextStyle(fontSize:26,fontWeight:FontWeight.w900,color:navy)),const SizedBox(height:8),
+    Text(msg,textAlign:TextAlign.center,style:const TextStyle(color:muted))
+  ])));
+  @override Widget build(BuildContext c){
+    Widget body;
+    switch(tab){case 1:body=_bookings();break;case 2:body=_services();break;case 3:body=_simple('Wallet',Icons.account_balance_wallet_rounded,'Your wallet and payment history will appear here.');break;case 4:body=_simple('Profile',Icons.person_rounded,'Manage your Gofixo profile and account settings.');break;default:body=_home();}
+    return Scaffold(backgroundColor:const Color(0xFFF7F9FC),body:SafeArea(child:loading&&tab==0?const Center(child:CircularProgressIndicator()):body),
+      floatingActionButton:tab==0?FloatingActionButton(backgroundColor:orange,foregroundColor:Colors.white,onPressed:_book,child:const Icon(Icons.add_location_alt_rounded)):null,
+      bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:(i)=>setState(()=>tab=i),backgroundColor:Colors.white,indicatorColor:const Color(0xFFFFEAD5),destinations:const[
+        NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home_rounded),label:'Home'),
+        NavigationDestination(icon:Icon(Icons.receipt_long_outlined),selectedIcon:Icon(Icons.receipt_long_rounded),label:'My Bookings'),
+        NavigationDestination(icon:Icon(Icons.grid_view_rounded),label:'Services'),
+        NavigationDestination(icon:Icon(Icons.account_balance_wallet_outlined),label:'Wallet'),
+        NavigationDestination(icon:Icon(Icons.person_outline_rounded),label:'Profile')
+      ]));
+  }
+}
+class _HeroVehicle extends StatelessWidget{
+  final IconData icon;final String label;final Color color;
+  const _HeroVehicle(this.icon,this.label,this.color);
+  @override Widget build(BuildContext c)=>Column(children:[
+    Container(width:62,height:52,decoration:BoxDecoration(color:color,borderRadius:BorderRadius.circular(15)),child:Icon(icon,size:33,color:navy)),
+    const SizedBox(height:3),Container(padding:const EdgeInsets.symmetric(horizontal:9,vertical:3),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(10)),child:Text(label,style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800,color:navy)))
+  ]);
+}
+class _Benefit extends StatelessWidget{
+  final IconData icon;final String title,subtitle;
+  const _Benefit({required this.icon,required this.title,required this.subtitle});
+  @override Widget build(BuildContext c)=>Expanded(child:Container(padding:const EdgeInsets.symmetric(horizontal:4,vertical:10),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(15),border:Border.all(color:const Color(0xFFE4EAF0))),child:Column(children:[
+    Icon(icon,size:21,color:orange),const SizedBox(height:4),Text(title,style:const TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:navy)),const SizedBox(height:2),Text(subtitle,style:const TextStyle(fontSize:7,color:muted),textAlign:TextAlign.center)
+  ])));
+}
+class _ServiceTile extends StatelessWidget{
+  final String title;final IconData icon;const _ServiceTile(this.title,this.icon);
+  @override Widget build(BuildContext c)=>SizedBox(width:104,height:104,child:Card(margin:EdgeInsets.zero,child:InkWell(onTap:()=>ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(title+' service coming soon'))),borderRadius:BorderRadius.circular(15),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+    Icon(icon,color:navy,size:32),const SizedBox(height:7),Text(title,style:const TextStyle(fontWeight:FontWeight.w700,fontSize:11,color:navy),textAlign:TextAlign.center)
+  ]))));
+}
 class BookingPage extends StatefulWidget{
   final Session session;
   final Future<void> Function({bool silent}) onChanged;
@@ -178,138 +314,84 @@ class _BookingPageState extends State<BookingPage>{
     bytes[6]=(bytes[6]&0x0f)|0x40;
     bytes[8]=(bytes[8]&0x3f)|0x80;
     return [
-      bytes.sublist(0,4).map(hex).join(),
-      bytes.sublist(4,6).map(hex).join(),
-      bytes.sublist(6,8).map(hex).join(),
-      bytes.sublist(8,10).map(hex).join(),
-      bytes.sublist(10,16).map(hex).join(),
-    ].join('-');
-  }
-
-  void _searchDestination(String value){
-    final hadSelection=selectedDestination!=null;
-    selectedDestination=null;
-    searchDebounce?.cancel();
-    final q=value.trim();
-    if(q.length<2){
-      placeSessionToken=null;
-      if(mounted)setState(()=>destinationSuggestions=[]);
-      return;
-    }
-    if(hadSelection||placeSessionToken==null)placeSessionToken=_newPlaceSessionToken();
-    final sessionToken=placeSessionToken;
-    searchDebounce=Timer(const Duration(milliseconds:350),()async{
-      if(!mounted)return;
-      setState(()=>searching=true);
-      try{
-        final suggestions=await ApiService.placeAutocomplete(q,sessionToken:sessionToken);
-        if(mounted&&drop.text.trim()==q)setState(()=>destinationSuggestions=suggestions);
-      }catch(_){
-        if(mounted&&drop.text.trim()==q)setState(()=>destinationSuggestions=[]);
-      }finally{
-        if(mounted)setState(()=>searching=false);
-      }
-    });
-  }
-
-  Future<void> _selectDestination(Map<String,dynamic> suggestion)async{
-    final placeId=suggestion['placeId']?.toString();
-    final fallbackText=suggestion['text']?.toString()??'';
-    setState(()=>busy=true);
-    try{
-      if(placeId!=null&&placeId.isNotEmpty){
-        final details=await ApiService.placeDetails(
-          placeId,
-          sessionToken:placeSessionToken,
-        );
-        placeSessionToken=null;
-        final lat=double.tryParse(details['lat']?.toString()??'');
-        final lng=double.tryParse(details['lng']?.toString()??'');
-        if(lat==null||lng==null)throw Exception('This location has no map coordinates');
-        if(!mounted)return;
-        setState((){
-          selectedDestination=details;
-          drop.text=details['address']?.toString()??fallbackText;
-          destinationSuggestions=[];
-        });
-      }else{
-        if(mounted)setState((){
-          drop.text=fallbackText;
-          destinationSuggestions=[];
-        });
-      }
-    }catch(e){
-      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));
-    }finally{
-      if(mounted)setState(()=>busy=false);
-    }
-  }
-
-  Future<void> locate()async{
-    setState(()=>busy=true);
-    try{
-      if(!await Geolocator.isLocationServiceEnabled())throw Exception('Please turn on Location Services');
-      var p=await Geolocator.checkPermission();
-      if(p==LocationPermission.denied)p=await Geolocator.requestPermission();
-      if(p==LocationPermission.denied||p==LocationPermission.deniedForever)throw Exception('Location permission is required');
-      final x=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.high));
-      final addr=await reverse(x.latitude,x.longitude);
-      if(mounted)setState((){pos=x;pickup=addr;});
-    }catch(e){
-      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));
-    }finally{
-      if(mounted)setState(()=>busy=false);
-    }
-  }
-
-  Future<void> calculate()async{
-    if(pos==null)await locate();
-    if(pos==null||drop.text.trim().isEmpty||!mounted)return;
-    setState(()=>busy=true);
-    try{
-      LatLng d;
-      String resolvedAddress=drop.text.trim();
-      if(selectedDestination!=null){
-        final lat=double.tryParse(selectedDestination!['lat']?.toString()??'');
-        final lng=double.tryParse(selectedDestination!['lng']?.toString()??'');
-        if(lat!=null&&lng!=null)d=LatLng(lat,lng);
-        else throw Exception('Selected destination coordinates are invalid');
-      }else{
-        final place=await ApiService.resolvePlace(resolvedAddress);
-        final lat=double.tryParse(place['lat']?.toString()??'');
-        final lng=double.tryParse(place['lng']?.toString()??'');
-        if(lat==null||lng==null)throw Exception('Destination not found');
-        d=LatLng(lat,lng);
-        resolvedAddress=place['address']?.toString()??resolvedAddress;
-        if(mounted)setState((){
-          selectedDestination=place;
-          drop.text=resolvedAddress;
-          destinationSuggestions=[];
-        });
-      }
-      if(!mounted||pos==null)return;
-      final r=await routeFor(pos!.latitude,pos!.longitude,d.latitude,d.longitude);
-      if(!mounted)return;
-      final km=(r['distance'] as num).toDouble()/1000;
-      final rate=type=='bike'?15:type=='auto'?20:25;
-      setState((){
-        distance=km;
-        fare=(km*rate+20).roundToDouble();
-        route=(r['points'] as List<LatLng>);
-      });
-    }catch(e){
-      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));
-    }finally{
-      if(mounted)setState(()=>busy=false);
-    }
-  }
-
-  Future<void>book()async{
-    if(pos==null||distance==null||fare==null)return;
-    setState(()=>busy=true);
-    try{
-      final destination=selectedDestination?['address']?.toString()??drop.text.trim();
-      await ApiService.createBooking(
+      bytes.sublist(0,4).map(hex).join()
+class ProviderHome extends StatefulWidget{
+  final Session session;final Future<void> Function() onLogout;
+  const ProviderHome({super.key,required this.session,required this.onLogout});
+  @override State<ProviderHome> createState()=>_ProviderHomeState();
+}
+class _ProviderHomeState extends State<ProviderHome>{
+  Map<String,dynamic>? me,sub;List<Map<String,dynamic>> jobs=[];Timer? timer;bool busy=false;int tab=0;
+  @override void initState(){super.initState();load();timer=Timer.periodic(const Duration(seconds:5),(_)=>load(silent:true));}
+  @override void dispose(){timer?.cancel();super.dispose();}
+  Future<void>load({bool silent=false})async{try{final m=await ApiService.providerMe(widget.session.token);final j=await ApiService.providerBookings(widget.session.token);final id=int.tryParse(m['id']?.toString()??'')??widget.session.userId;final s=id==null?null:await ApiService.subscription(widget.session.token,id);if(m['is_available']==true&&id!=null)await sendLocation(silent:true,providerId:id);if(mounted)setState((){me=m;sub=s;jobs=j;});}catch(e){if(!silent&&mounted)snack(e.toString());}}
+  Future<void>sendLocation({bool silent=false,int? providerId})async{try{final id=providerId??int.tryParse(me?['id']?.toString()??'');if(id==null)throw Exception('Provider profile ID is missing');final p=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.high));await ApiService.updateProviderLocation(widget.session.token,id,p.latitude,p.longitude);}catch(e){if(!silent&&mounted)snack(e.toString());}}
+  void snack(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.replaceFirst('Exception: ',''))));
+  Future<void>toggle()async{if(me==null)return;setState(()=>busy=true);try{final available=me!['is_available']==true;final id=int.tryParse(me!['id']?.toString()??'');if(id==null)throw Exception('Provider profile ID is missing');if(!available)await sendLocation(providerId:id);final x=await ApiService.setAvailability(widget.session.token,id,!available);if(mounted)setState(()=>me=x);}catch(e){if(mounted)snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
+  Widget _logo()=>Row(children:[Container(width:32,height:32,decoration:BoxDecoration(color:const Color(0xFF16A05D),borderRadius:BorderRadius.circular(10)),child:const Icon(Icons.location_on_rounded,color:Colors.white,size:23)),const SizedBox(width:7),const Text('Gofi',style:TextStyle(fontSize:24,fontWeight:FontWeight.w900,color:navy)),const Text('xo',style:TextStyle(fontSize:24,fontWeight:FontWeight.w900,color:Color(0xFF16A05D)))]);
+  Widget _header(){final online=me?['is_available']==true;return Padding(padding:const EdgeInsets.fromLTRB(16,12,12,10),child:Row(children:[
+    Expanded(child:_logo()),InkWell(onTap:busy?null:toggle,borderRadius:BorderRadius.circular(20),child:Container(padding:const EdgeInsets.symmetric(horizontal:11,vertical:8),decoration:BoxDecoration(color:online?const Color(0xFFE9F9F0):Colors.white,borderRadius:BorderRadius.circular(18),border:Border.all(color:online?const Color(0xFFBFE6CF):const Color(0xFFE0E7EE))),child:Row(children:[Container(width:8,height:8,decoration:BoxDecoration(color:online?const Color(0xFF12B85F):const Color(0xFF9AA6B6),shape:BoxShape.circle)),const SizedBox(width:6),Text(online?'Online':'Offline',style:TextStyle(fontSize:12,fontWeight:FontWeight.w800,color:online?const Color(0xFF07894A):muted))]))),
+    IconButton(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const AppInfoPage())),icon:const Icon(Icons.settings_outlined,color:navy))
+  ]));}
+  Widget _profile(){final m=me??{};final name=(m['name']??'Partner').toString();final type=(m['type']??'bike').toString();final vehicle=type.isEmpty?'Partner':type[0].toUpperCase()+type.substring(1);return Container(margin:const EdgeInsets.symmetric(horizontal:16),padding:const EdgeInsets.all(13),decoration:BoxDecoration(borderRadius:BorderRadius.circular(20),border:Border.all(color:const Color(0xFFDDE7E1)),gradient:const LinearGradient(colors:[Colors.white,Color(0xFFF2FBF6)])),child:Row(children:[
+    CircleAvatar(radius:29,backgroundColor:const Color(0xFFDFF3E7),child:Text(name.isEmpty?'G':name[0].toUpperCase(),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w900,color:Color(0xFF0D8F50)))),
+    const SizedBox(width:11),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Text(name,style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:navy)),const SizedBox(height:3),
+      Text('★ 4.8  •  '+jobs.length.toString()+' rides',style:const TextStyle(fontSize:11,color:Color(0xFF4B5D74),fontWeight:FontWeight.w700)),
+      const SizedBox(height:3),Text(vehicle+'  •  '+(m['generated_id']??'Partner').toString(),style:const TextStyle(fontSize:10,color:muted))
+    ])),IconButton(onPressed:widget.onLogout,icon:const Icon(Icons.logout_rounded,color:muted))
+  ]));}
+  Widget _stat(IconData icon,String value,String label,Color bg)=>Expanded(child:Container(height:78,padding:const EdgeInsets.all(9),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(17),border:Border.all(color:const Color(0xFFE1E8EE))),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+    Container(width:26,height:26,decoration:BoxDecoration(color:bg,borderRadius:BorderRadius.circular(8)),child:Icon(icon,size:14,color:navy)),const SizedBox(height:3),Text(value,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:navy)),Text(label,style:const TextStyle(fontSize:8,color:muted,fontWeight:FontWeight.w700))
+  ])));
+  Widget _request(){final req=jobs.where((x)=>x['status']=='requested').toList();if(req.isEmpty)return Container(margin:const EdgeInsets.fromLTRB(16,0,16,12),padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(18),border:Border.all(color:const Color(0xFFE1E8EE))),child:const Row(children:[Icon(Icons.inbox_outlined,color:muted,size:28),SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('Incoming Bookings',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900,color:navy)),SizedBox(height:3),Text('Stay online to receive nearby ride requests.',style:TextStyle(fontSize:10,color:muted))]))]));final j=req.first;final id=int.tryParse(j['id']?.toString()??'')??0;return Container(margin:const EdgeInsets.fromLTRB(16,0,16,12),padding:const EdgeInsets.all(13),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(20),border:Border.all(color:const Color(0xFFDDE7E1))),child:Column(children:[
+    Row(children:[Container(width:42,height:42,decoration:BoxDecoration(color:const Color(0xFFEAF8F1),borderRadius:BorderRadius.circular(13)),child:const Icon(Icons.two_wheeler_rounded,color:Color(0xFF0D8F50),size:25)),const SizedBox(width:10),const Expanded(child:Text('New Ride Request',style:TextStyle(fontWeight:FontWeight.w900,color:navy))),Text('₹'+(j['fare_amount']??'0').toString(),style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:navy))]),
+    const Divider(height:22),
+    Row(children:[const Icon(Icons.trip_origin_rounded,color:Color(0xFF16A05D),size:16),const SizedBox(width:7),Expanded(child:Text((j['pickup_location']??'Pickup').toString(),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:navy)))]),
+    const SizedBox(height:7),Row(children:[const Icon(Icons.location_on_rounded,color:orange,size:16),const SizedBox(width:7),Expanded(child:Text((j['drop_or_service_address']??'Destination').toString(),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:navy)))]),
+    const SizedBox(height:12),Row(children:[
+      Expanded(child:OutlinedButton(onPressed:()async{await ApiService.declineBooking(widget.session.token,id);await load();},style:OutlinedButton.styleFrom(foregroundColor:Colors.redAccent,side:const BorderSide(color:Color(0xFFF0B7B7))),child:const Text('Reject'))),
+      const SizedBox(width:9),Expanded(child:FilledButton(onPressed:()async{try{await ApiService.acceptBooking(widget.session.token,id);await load();}catch(e){snack(e.toString());}},style:FilledButton.styleFrom(backgroundColor:const Color(0xFF0D9F54)),child:const Text('Accept')))
+    ])
+  ]));}
+  Widget _home()=>RefreshIndicator(onRefresh:load,child:ListView(physics:const AlwaysScrollableScrollPhysics(),padding:const EdgeInsets.only(bottom:100),children:[
+    _header(),_profile(),
+    Padding(padding:const EdgeInsets.fromLTRB(16,10,16,12),child:Row(children:[
+      _stat(Icons.route_rounded,jobs.length.toString(),'Today Rides',const Color(0xFFEAF3FF)),const SizedBox(width:8),
+      _stat(Icons.currency_rupee_rounded,'₹'+(sub?['total_earned_this_cycle']??0).toString(),'Earnings',const Color(0xFFE9F9EF)),const SizedBox(width:8),
+      _stat(Icons.star_rounded,'4.8','Rating',const Color(0xFFFFF3E2))
+    ])),
+    Container(margin:const EdgeInsets.fromLTRB(16,0,16,13),padding:const EdgeInsets.all(13),decoration:BoxDecoration(borderRadius:BorderRadius.circular(18),gradient:const LinearGradient(colors:[Color(0xFFE8F9EF),Color(0xFFF8FFFB)]),border:Border.all(color:const Color(0xFFCDEBDA))),child:const Row(children:[
+      Icon(Icons.emoji_events_rounded,color:Color(0xFF0D8F50),size:34),SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('Keep Going!',style:TextStyle(fontSize:15,fontWeight:FontWeight.w900,color:Color(0xFF0D7F4D))),SizedBox(height:2),Text('You are doing great today',style:TextStyle(fontSize:10,color:muted))])),Icon(Icons.chevron_right_rounded,color:muted)
+    ])),
+    const Padding(padding:EdgeInsets.fromLTRB(16,2,16,9),child:Text('Incoming Bookings',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:navy))),
+    _request(),
+    if(jobs.isNotEmpty)Container(margin:const EdgeInsets.fromLTRB(16,0,16,12),height:185,clipBehavior:Clip.antiAlias,decoration:BoxDecoration(borderRadius:BorderRadius.circular(18),border:Border.all(color:const Color(0xFFDDE7E1))),child:FlutterMap(
+      options:MapOptions(initialCenter:const LatLng(28.4595,77.0266),initialZoom:12),children:[TileLayer(urlTemplate:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',userAgentPackageName:'com.gofixo.app')]))),
+    Padding(padding:const EdgeInsets.fromLTRB(16,0,16,12),child:Row(children:[
+      const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('You are Online',style:TextStyle(fontSize:14,fontWeight:FontWeight.w900,color:navy)),SizedBox(height:2),Text('Getting ride requests nearby',style:TextStyle(fontSize:9,color:muted))])),
+      FilledButton(onPressed:busy?null:toggle,style:FilledButton.styleFrom(backgroundColor:me?['is_available']==true?Colors.redAccent:const Color(0xFF0D9F54)),child:Text(me?['is_available']==true?'Go Offline':'Go Online'))
+    ])),
+    if(jobs.isNotEmpty)Padding(padding:const EdgeInsets.fromLTRB(16,0,16,12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      const Text('Recent Jobs',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:navy)),const SizedBox(height:8),
+      ...jobs.where((x)=>x['status']!='requested').take(3).map((j)=>JobCard(session:widget.session,b:j,onChanged:load))
+    ]))
+  ]));
+  Widget _list(bool requested)=>RefreshIndicator(onRefresh:load,child:ListView(physics:const AlwaysScrollableScrollPhysics(),padding:const EdgeInsets.fromLTRB(16,20,16,100),children:[
+    Text(requested?'Incoming Requests':'Rides',style:const TextStyle(fontSize:26,fontWeight:FontWeight.w900,color:navy)),const SizedBox(height:12),
+    ...(requested?jobs.where((x)=>x['status']=='requested'):jobs.where((x)=>x['status']!='requested')).map((j)=>JobCard(session:widget.session,b:j,onChanged:load))
+  ]));
+  Widget _simple(String title,IconData icon,String msg)=>Center(child:Padding(padding:const EdgeInsets.all(32),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+    Container(width:80,height:80,decoration:BoxDecoration(color:const Color(0xFFE5F7ED),borderRadius:BorderRadius.circular(24)),child:Icon(icon,color:const Color(0xFF0D8F50),size:42)),const SizedBox(height:16),Text(title,style:const TextStyle(fontSize:26,fontWeight:FontWeight.w900,color:navy)),const SizedBox(height:8),Text(msg,textAlign:TextAlign.center,style:const TextStyle(color:muted))
+  ])));
+  @override Widget build(BuildContext c){Widget body;switch(tab){case 1:body=_simple('Earnings',Icons.bar_chart_rounded,'Your earnings and subscription summary will appear here.');break;case 2:body=_list(false);break;case 3:body=_simple('Profile',Icons.person_rounded,'Manage your partner profile, KYC and vehicle details.');break;default:body=_home();}return Scaffold(backgroundColor:const Color(0xFFF7FBF9),body:SafeArea(child:body),bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:(i)=>setState(()=>tab=i),backgroundColor:Colors.white,indicatorColor:const Color(0xFFE5F7ED),destinations:const[
+    NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home_rounded),label:'Home'),
+    NavigationDestination(icon:Icon(Icons.bar_chart_outlined),selectedIcon:Icon(Icons.bar_chart_rounded),label:'Earnings'),
+    NavigationDestination(icon:Icon(Icons.list_alt_outlined),selectedIcon:Icon(Icons.list_alt_rounded),label:'Rides'),
+    NavigationDestination(icon:Icon(Icons.person_outline_rounded),selectedIcon:Icon(Icons.person_rounded),label:'Profile')
+  ]));}
+}
+t ApiService.createBooking(
         widget.session.token,
         providerType:type,
         pickup:pickup,
