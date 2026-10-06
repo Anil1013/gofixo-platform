@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/main.dart';
 
 void main() {
-  testWidgets('Gofixo role screen renders', (tester) async {
+  testWidgets('Gofixo reference entry screen renders', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         title: 'Gofixo',
@@ -17,9 +17,10 @@ void main() {
     await tester.pump();
 
     expect(find.text('Gofixo'), findsWidgets);
-    expect(find.text('Welcome to Gofixo'), findsOneWidget);
-    expect(find.text('Continue as Customer'), findsOneWidget);
-    expect(find.text('Continue as Partner'), findsOneWidget);
+    expect(find.text('Choose your ride'), findsOneWidget);
+    expect(find.text('Home services'), findsOneWidget);
+    expect(find.text('Book now'), findsOneWidget);
+    expect(find.text('Partner with Gofixo'), findsOneWidget);
   });
 }
 
