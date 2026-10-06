@@ -83,7 +83,10 @@ jobs:
 
       - name: Build OTA base APK
         run: |
-          flutter build apk --release             --build-name "${{ steps.base.outputs.version }}"             --build-number "${{ steps.base.outputs.build }}"
+          flutter build apk --release \
+            --build-name "${{ steps.base.outputs.version }}" \
+            --build-number "${{ steps.base.outputs.build }}" \
+            --dart-define=GOFIXO_GIT_SHA=${{ github.sha }}
 
       - name: Build OTA patch
         env:
