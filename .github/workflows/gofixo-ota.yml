@@ -55,6 +55,32 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "build=$BUILD" >> "$GITHUB_OUTPUT"
 
+      - name: Configure persistent Android signing
+        shell: bash
+        env:
+          GOFIXO_KEYSTORE_B64: ${{ secrets.GOFIXO_KEYSTORE_B64 }}
+          GOFIXO_STORE_PASSWORD: ${{ secrets.GOFIXO_STORE_PASSWORD }}
+          GOFIXO_KEY_PASSWORD: ${{ secrets.GOFIXO_KEY_PASSWORD }}
+          GOFIXO_KEY_ALIAS: ${{ secrets.GOFIXO_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          test -n "$GOFIXO_KEYSTORE_B64"
+          test -n "$GOFIXO_STORE_PASSWORD"
+          test -n "$GOFIXO_KEY_PASSWORD"
+          test -n "$GOFIXO_KEY_ALIAS"
+
+          printf '%s' "$GOFIXO_KEYSTORE_B64" | base64 --decode > android/gofixo-release.jks
+
+          cat > android/key.properties <<EOF
+          storePassword=$GOFIXO_STORE_PASSWORD
+          keyPassword=$GOFIXO_KEY_PASSWORD
+          keyAlias=$GOFIXO_KEY_ALIAS
+          storeFile=../gofixo-release.jks
+          EOF
+
+          chmod 600 android/gofixo-release.jks android/key.properties
+          keytool -list -v             -keystore android/gofixo-release.jks             -storepass "$GOFIXO_STORE_PASSWORD"             -alias "$GOFIXO_KEY_ALIAS"             | grep -E 'Alias name:|SHA256:' | head -2
+
       - name: Build OTA base APK
         run: |
           flutter build apk --release             --build-name "${{ steps.base.outputs.version }}"             --build-number "${{ steps.base.outputs.build }}"
