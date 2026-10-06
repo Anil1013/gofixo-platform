@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - 'mobile/version.json'
+      - 'mobile/lib/update_service.dart'
+      - 'mobile/pubspec.yaml'
       - 'mobile/android/**'
       - '.github/workflows/gofixo-base-release.yml'
 
