@@ -1,19 +1,24 @@
 package com.gofixo.app
 
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
 import java.security.MessageDigest
 
 class MainActivity : FlutterActivity() {
-    private val channelName = "gofixo/app_info"
+    private val appInfoChannel = "gofixo/app_info"
+    private val updateChannel = "gofixo/update"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, appInfoChannel)
             .setMethodCallHandler { call, result ->
                 if (call.method != "getInfo") {
                     result.notImplemented()
@@ -29,6 +34,56 @@ class MainActivity : FlutterActivity() {
                     )
                 )
             }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, updateChannel)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "installApk" -> {
+                        val path = call.argument<String>("path")
+                        if (path.isNullOrBlank()) {
+                            result.error("INVALID_PATH", "APK path is missing.", null)
+                            return@setMethodCallHandler
+                        }
+
+                        try {
+                            installApk(File(path))
+                            result.success(null)
+                        } catch (error: Exception) {
+                            result.error(
+                                "INSTALLER_ERROR",
+                                error.message ?: "Could not open Android installer.",
+                                null
+                            )
+                        }
+                    }
+
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    private fun installApk(apkFile: File) {
+        require(apkFile.exists()) { "Downloaded APK was not found." }
+
+        val apkUri: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            FileProvider.getUriForFile(
+                this,
+                "$packageName.fileprovider",
+                apkFile
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            Uri.fromFile(apkFile)
+        }
+
+        val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+            data = apkUri
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+        }
+
+        startActivity(intent)
     }
 
     private fun signingSha256(): String {
