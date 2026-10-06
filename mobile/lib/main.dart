@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:geolocator/geolocator.dart';
@@ -64,32 +65,124 @@ class RoleScreen extends StatelessWidget{
 
   @override
   Widget build(BuildContext c)=>Scaffold(
-    appBar: AppBar(
-      title: const Text('Gofixo'),
-      actions: [
+    backgroundColor:const Color(0xFFF4F7FB),
+    appBar:AppBar(
+      backgroundColor:Colors.white,
+      elevation:0,
+      title:const Text('Gofixo',style:TextStyle(fontWeight:FontWeight.w900,color:navy)),
+      actions:[
         IconButton(
-          tooltip: 'App information',
-          onPressed: ()=>Navigator.push(
-            c,
-            MaterialPageRoute(builder:(_)=>const AppInfoPage()),
-          ),
-          icon: const Icon(Icons.settings_outlined),
+          tooltip:'App information',
+          onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>const AppInfoPage())),
+          icon:const Icon(Icons.settings_outlined),
         ),
       ],
     ),
-    body:SafeArea(child:Center(child:SingleChildScrollView(padding:const EdgeInsets.all(24),child:Column(children:[
-      const SizedBox(height:20),
-      Container(width:86,height:86,decoration:BoxDecoration(color:orange,borderRadius:BorderRadius.circular(25)),child:const Icon(Icons.location_on_rounded,color:Colors.white,size:50)),
-      const SizedBox(height:16),
-      const Text('Gofixo',style:TextStyle(fontSize:38,fontWeight:FontWeight.w800,color:navy)),
-      const Text('Your City. Your Services.',style:TextStyle(color:muted,fontSize:16)),
-      const SizedBox(height:45),
-      const Text('Welcome to Gofixo',style:TextStyle(fontSize:25,fontWeight:FontWeight.w700)),
-      const SizedBox(height:24),
-      _RoleButton(title:'Continue as Customer',subtitle:'Book rides quickly and safely',icon:Icons.person_rounded,onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'customer',onDone:onLogin)))),
-      const SizedBox(height:14),
-      _RoleButton(title:'Continue as Partner',subtitle:'Go online, accept jobs and earn',icon:Icons.directions_bike_rounded,outline:true,onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'provider',onDone:onLogin)))),
-    ])))));
+    body:SafeArea(
+      child:SingleChildScrollView(
+        padding:const EdgeInsets.fromLTRB(14,12,14,28),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Container(
+            width:double.infinity,
+            padding:const EdgeInsets.fromLTRB(18,18,10,12),
+            decoration:BoxDecoration(
+              gradient:const LinearGradient(
+                colors:[Color(0xFF12B85F),Color(0xFF0A9F50)],
+                begin:Alignment.topLeft,end:Alignment.bottomRight,
+              ),
+              borderRadius:BorderRadius.circular(26),
+            ),
+            child:Row(children:[
+              Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                const Text('Gofixo',style:TextStyle(color:Colors.white,fontSize:30,fontWeight:FontWeight.w900)),
+                const SizedBox(height:4),
+                const Text('Rides & services, right at your doorstep.',style:TextStyle(color:Colors.white,fontSize:15,fontWeight:FontWeight.w600)),
+                const SizedBox(height:14),
+                FilledButton(
+                  style:FilledButton.styleFrom(backgroundColor:Colors.white,foregroundColor:orange),
+                  onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'customer',onDone:onLogin))),
+                  child:const Text('Book now',style:TextStyle(fontWeight:FontWeight.w800)),
+                ),
+              ])),
+              SizedBox(
+                width:128,height:128,
+                child:SvgPicture.asset('assets/illustrations/car.svg',fit:BoxFit.contain),
+              ),
+            ]),
+          ),
+          const SizedBox(height:18),
+          const Text('Choose your ride',style:TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:navy)),
+          const SizedBox(height:10),
+          Row(children:[
+            Expanded(child:_EntryCard(title:'Bike',asset:'bike.svg',onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'customer',onDone:onLogin))))),
+            const SizedBox(width:8),
+            Expanded(child:_EntryCard(title:'Auto',asset:'auto.svg',onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'customer',onDone:onLogin))))),
+            const SizedBox(width:8),
+            Expanded(child:_EntryCard(title:'Car',asset:'car.svg',onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'customer',onDone:onLogin))))),
+          ]),
+          const SizedBox(height:18),
+          const Text('Home services',style:TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:navy)),
+          const SizedBox(height:10),
+          Wrap(spacing:8,runSpacing:8,children:[
+            _MiniService('Electrician','electrician.svg'),
+            _MiniService('Plumber','plumber.svg'),
+            _MiniService('AC service','ac_service.svg'),
+            _MiniService('Cleaning','cleaning.svg'),
+            _MiniService('Painter','painter.svg'),
+            _MiniService('Carpenter','carpenter.svg'),
+          ]),
+          const SizedBox(height:20),
+          Container(
+            width:double.infinity,
+            padding:const EdgeInsets.all(18),
+            decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:const Color(0xFFE4E9F1))),
+            child:Row(children:[
+              Container(width:48,height:48,decoration:BoxDecoration(color:const Color(0xFFEFFFF5),borderRadius:BorderRadius.circular(15)),child:const Icon(Icons.handyman_rounded,color:orange)),
+              const SizedBox(width:12),
+              const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                Text('Partner with Gofixo',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900,color:navy)),
+                SizedBox(height:3),
+                Text('Go online, accept jobs and earn.',style:TextStyle(color:muted)),
+              ])),
+              IconButton(
+                onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'provider',onDone:onLogin))),
+                icon:const Icon(Icons.arrow_forward_rounded,color:orange),
+              ),
+            ]),
+          ),
+        ]),
+      ),
+    ),
+  );
+}
+
+class _EntryCard extends StatelessWidget{
+  final String title,asset;final VoidCallback onTap;
+  const _EntryCard({required this.title,required this.asset,required this.onTap});
+  @override Widget build(BuildContext c)=>InkWell(
+    onTap:onTap,borderRadius:BorderRadius.circular(20),
+    child:Container(
+      height:132,padding:const EdgeInsets.all(8),
+      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(20),border:Border.all(color:const Color(0xFFE4E9F1))),
+      child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+        Expanded(child:SvgPicture.asset('assets/illustrations/$asset',fit:BoxFit.contain)),
+        Text(title,style:const TextStyle(fontWeight:FontWeight.w800,color:navy)),
+      ]),
+    ),
+  );
+}
+
+class _MiniService extends StatelessWidget{
+  final String title,asset;
+  const _MiniService(this.title,this.asset);
+  @override Widget build(BuildContext c)=>Container(
+    width:112,height:96,padding:const EdgeInsets.all(8),
+    decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(18),border:Border.all(color:const Color(0xFFE4E9F1))),
+    child:Column(children:[
+      Expanded(child:SvgPicture.asset('assets/illustrations/$asset',fit:BoxFit.contain)),
+      Text(title,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:navy)),
+    ]),
+  );
 }
 
 class _RoleButton extends StatelessWidget{
