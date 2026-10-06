@@ -68,7 +68,10 @@ app.get('/api/mobile/ota/check', (req, res) => {
     const currentPatch = String(req.query.current_patch || '');
     if (!Number.isFinite(appVersionCode) || !abi) return res.json({ hasUpdate: false });
 
-    const latest = JSON.parse(fs.readFileSync(OTA_MANIFEST, 'utf8'));
+    const manifestPath = appVersionCode === 1000004
+      ? path.join(OTA_DIR, 'legacy-1000004.json')
+      : OTA_MANIFEST;
+    const latest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
     const patch = latest.patches?.[abi];
     if (!patch || Number(patch.targetVersionCode) !== appVersionCode) return res.json({ hasUpdate: false });
     if (currentPatch && currentPatch === patch.version) return res.json({ hasUpdate: false });
