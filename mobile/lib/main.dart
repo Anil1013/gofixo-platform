@@ -15,7 +15,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'app_info_page.dart';
 import 'mobile_reference_ui.dart';
 
-const orange=Color(0xFFFF6B00), navy=Color(0xFF172B4D), muted=Color(0xFF64748B);
+const orange=Color(0xFF12B85F), navy=Color(0xFF172B4D), muted=Color(0xFF64748B);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
