@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - "v*"
+    paths:
+      - "mobile/version.json"
+      - "mobile/lib/update_service.dart"
+      - "mobile/android/**"
+      - "mobile/pubspec.yaml"
+      - ".github/workflows/publish-gofixo-apk.yml"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -21,7 +28,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.47.5"
+          flutter-version: "3.47.6"
           channel: stable
           cache: true
 
@@ -80,15 +87,26 @@ jobs:
 
       - name: Calculate release version
         id: version
+        shell: bash
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
-          BASE="${VERSION%%-*}"
-          IFS=. read -r MAJOR MINOR PATCH <<< "$BASE"
-          : "${MAJOR:=0}" "${MINOR:=0}" "${PATCH:=0}"
-          BUILD_NUMBER=$((10#$MAJOR * 1000000 + 10#$MINOR * 1000 + 10#$PATCH))
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+            BASE="${VERSION%%-*}"
+            IFS=. read -r MAJOR MINOR PATCH <<< "$BASE"
+            : "${MAJOR:=0}" "${MINOR:=0}" "${PATCH:=0}"
+            BUILD_NUMBER=$((10#${MAJOR} * 1000000 + 10#${MINOR} * 1000 + 10#${PATCH}))
+          else
+            VERSION="$(python3 -c 'import json; print(json.load(open("version.json"))["version"])')"
+            BUILD_NUMBER="$(python3 -c 'import json; print(json.load(open("version.json"))["buildNumber"])')"
+          fi
+
+          test -n "$VERSION"
+          test "$BUILD_NUMBER" -gt 0
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "Release version: $VERSION ($BUILD_NUMBER)"
 
       - name: Build release APK
         run: flutter build apk --release --build-name "${{ steps.version.outputs.version }}" --build-number "${{ steps.version.outputs.build_number }}"
@@ -96,9 +114,20 @@ jobs:
       - name: Verify APK
         run: |
           set -euo pipefail
-          test -s build/app/outputs/flutter-apk/app-release.apk
-          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/gofixo-release.apk
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          test -s "$APK"
+          cp "$APK" build/app/outputs/flutter-apk/gofixo-release.apk
           ls -lh build/app/outputs/flutter-apk/gofixo-release.apk
+
+      - name: Verify APK signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="build/app/outputs/flutter-apk/gofixo-release.apk"
+          APK_SIGNER="$(find "${ANDROID_SDK_ROOT:-${ANDROID_HOME}}/build-tools" -type f -name apksigner -perm -111 | sort -V | tail -n 1)"
+          test -x "$APK_SIGNER"
+          "$APK_SIGNER" verify --verbose --min-sdk-version 24 "$APK"
+          "$APK_SIGNER" verify --print-certs "$APK"
 
       - name: Create update manifest
         run: |
@@ -107,8 +136,8 @@ jobs:
             "version": "${{ steps.version.outputs.version }}",
             "buildNumber": ${{ steps.version.outputs.build_number }},
             "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/latest/download/gofixo-release.apk",
-            "notes": "Bug fixes, stability improvements, and the latest Gofixo mobile build.",
-            "forceUpdate": false
+            "notes": "Reliable in-app APK download and Android installer flow.",
+            "forceUpdate": true
           }
           EOF
           cat build/app/outputs/flutter-apk/gofixo-version.json
@@ -119,9 +148,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release create "${GITHUB_REF_NAME}" \
+          TAG="v${{ steps.version.outputs.version }}"
+
+          if gh release view "$TAG" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; refusing to overwrite it."
+            exit 1
+          fi
+
+          gh release create "$TAG" \
             mobile/build/app/outputs/flutter-apk/gofixo-release.apk \
             mobile/build/app/outputs/flutter-apk/gofixo-version.json \
             --repo "${GITHUB_REPOSITORY}" \
-            --title "Gofixo ${GITHUB_REF_NAME}" \
+            --title "Gofixo ${TAG}" \
             --notes "Gofixo Android APK release."
