@@ -11,6 +11,9 @@ on:
       - "mobile/**"
       - ".github/workflows/mobile-ci.yml"
 
+permissions:
+  contents: read
+
 jobs:
   flutter:
     runs-on: ubuntu-latest
@@ -24,7 +27,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.47.5"
+          flutter-version: "3.47.6"
           channel: stable
           cache: true
 
@@ -40,8 +43,52 @@ jobs:
       - name: Test
         run: flutter test
 
+      - name: Configure persistent Android signing
+        env:
+          GOFIXO_KEYSTORE_B64: ${{ secrets.GOFIXO_KEYSTORE_B64 }}
+          GOFIXO_STORE_PASSWORD: ${{ secrets.GOFIXO_STORE_PASSWORD }}
+          GOFIXO_KEY_PASSWORD: ${{ secrets.GOFIXO_KEY_PASSWORD }}
+          GOFIXO_KEY_ALIAS: ${{ secrets.GOFIXO_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          test -n "$GOFIXO_KEYSTORE_B64"
+          test -n "$GOFIXO_STORE_PASSWORD"
+          test -n "$GOFIXO_KEY_PASSWORD"
+          test -n "$GOFIXO_KEY_ALIAS"
+
+          printf '%s' "$GOFIXO_KEYSTORE_B64" | base64 --decode > android/gofixo-release.jks
+
+          cat > android/key.properties <<EOF
+          storePassword=$GOFIXO_STORE_PASSWORD
+          keyPassword=$GOFIXO_KEY_PASSWORD
+          keyAlias=$GOFIXO_KEY_ALIAS
+          storeFile=$GITHUB_WORKSPACE/mobile/android/gofixo-release.jks
+          EOF
+
+          chmod 600 android/gofixo-release.jks android/key.properties
+
+          keytool -list -keystore android/gofixo-release.jks \
+            -storepass "$GOFIXO_STORE_PASSWORD" \
+            -alias "$GOFIXO_KEY_ALIAS" >/dev/null
+
+          echo "Persistent Gofixo signing key verified."
+
       - name: Build release APK
         run: flutter build apk --release
+
+      - name: Verify APK signing and identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          test -s "$APK"
+
+          APK_SIGNER="$(find "${ANDROID_SDK_ROOT:-${ANDROID_HOME}}/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$APK_SIGNER"
+
+          "$APK_SIGNER" verify --verbose "$APK"
+          echo "APK signing certificate:"
+          "$APK_SIGNER" verify --print-certs "$APK"
 
       - name: Verify APK exists
         run: |
