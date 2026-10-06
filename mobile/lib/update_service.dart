@@ -109,7 +109,7 @@ class UpdateService {
       if (apiResponse.statusCode == 200) {
         final envelope = jsonDecode(apiResponse.body);
         if (envelope is Map && envelope['content'] != null) {
-          final encoded = envelope['content'].toString().replaceAll(RegExp(r'\\s'), '');
+          final encoded = envelope['content'].toString().replaceAll(RegExp(r'\s'), '');
           final decoded = utf8.decode(base64.decode(encoded));
           final data = jsonDecode(decoded);
           if (data is Map<String, dynamic>) return data;
