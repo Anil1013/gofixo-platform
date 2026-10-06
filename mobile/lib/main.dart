@@ -56,14 +56,37 @@ class _GateState extends State<Gate>{
 }
 
 class RoleScreen extends StatelessWidget{
-  final VoidCallback onLogin;const RoleScreen({super.key,required this.onLogin});
-  @override Widget build(BuildContext c)=>Scaffold(body:SafeArea(child:Center(child:SingleChildScrollView(padding:const EdgeInsets.all(24),child:Column(children:[
-    const SizedBox(height:35),Container(width:86,height:86,decoration:BoxDecoration(color:orange,borderRadius:BorderRadius.circular(25)),child:const Icon(Icons.location_on_rounded,color:Colors.white,size:50)),
-    const SizedBox(height:16),const Text('Gofixo',style:TextStyle(fontSize:38,fontWeight:FontWeight.w800,color:navy)),const Text('Your City. Your Services.',style:TextStyle(color:muted,fontSize:16)),
-    const SizedBox(height:45),const Text('Welcome to Gofixo',style:TextStyle(fontSize:25,fontWeight:FontWeight.w700)),const SizedBox(height:24),
-    _RoleButton(title:'Continue as Customer',subtitle:'Book rides quickly and safely',icon:Icons.person_rounded,onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'customer',onDone:onLogin)))),
-    const SizedBox(height:14),_RoleButton(title:'Continue as Partner',subtitle:'Go online, accept jobs and earn',icon:Icons.directions_bike_rounded,outline:true,onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'provider',onDone:onLogin)))),
-  ])))));
+  final VoidCallback onLogin;
+  const RoleScreen({super.key,required this.onLogin});
+
+  @override
+  Widget build(BuildContext c)=>Scaffold(
+    appBar: AppBar(
+      title: const Text('Gofixo'),
+      actions: [
+        IconButton(
+          tooltip: 'App information',
+          onPressed: ()=>Navigator.push(
+            c,
+            MaterialPageRoute(builder:(_)=>const AppInfoPage()),
+          ),
+          icon: const Icon(Icons.settings_outlined),
+        ),
+      ],
+    ),
+    body:SafeArea(child:Center(child:SingleChildScrollView(padding:const EdgeInsets.all(24),child:Column(children:[
+      const SizedBox(height:20),
+      Container(width:86,height:86,decoration:BoxDecoration(color:orange,borderRadius:BorderRadius.circular(25)),child:const Icon(Icons.location_on_rounded,color:Colors.white,size:50)),
+      const SizedBox(height:16),
+      const Text('Gofixo',style:TextStyle(fontSize:38,fontWeight:FontWeight.w800,color:navy)),
+      const Text('Your City. Your Services.',style:TextStyle(color:muted,fontSize:16)),
+      const SizedBox(height:45),
+      const Text('Welcome to Gofixo',style:TextStyle(fontSize:25,fontWeight:FontWeight.w700)),
+      const SizedBox(height:24),
+      _RoleButton(title:'Continue as Customer',subtitle:'Book rides quickly and safely',icon:Icons.person_rounded,onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'customer',onDone:onLogin)))),
+      const SizedBox(height:14),
+      _RoleButton(title:'Continue as Partner',subtitle:'Go online, accept jobs and earn',icon:Icons.directions_bike_rounded,outline:true,onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'provider',onDone:onLogin)))),
+    ]))));
 }
 
 class _RoleButton extends StatelessWidget{
