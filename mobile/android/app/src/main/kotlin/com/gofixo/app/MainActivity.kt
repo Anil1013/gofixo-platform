@@ -37,13 +37,13 @@ class MainActivity : FlutterActivity() {
                 packageManager.getPackageInfo(
                     packageName,
                     PackageManager.GET_SIGNING_CERTIFICATES
-                ).signingInfo.apkContentsSigners
+                ).signingInfo?.apkContentsSigners.orEmpty()
             } else {
                 @Suppress("DEPRECATION")
                 packageManager.getPackageInfo(
                     packageName,
                     @Suppress("DEPRECATION") PackageManager.GET_SIGNATURES
-                ).signatures
+                ).signatures.orEmpty()
             }
 
             signatures.firstOrNull()?.toByteArray()?.let { bytes ->
