@@ -27,23 +27,22 @@ android {
         versionName = flutter.versionName
     }
     signingConfigs {
-        if (keystorePropertiesFile.exists()) {
-            create("release") {
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
-                storeFile = keystoreProperties.getProperty("storeFile")?.let { file(it) }
-                storePassword = keystoreProperties.getProperty("storePassword")
-            }
+        create("release") {
+            keyAlias = keystoreProperties.getProperty("keyAlias")
+                ?: error("Missing keyAlias in android/key.properties")
+            keyPassword = keystoreProperties.getProperty("keyPassword")
+                ?: error("Missing keyPassword in android/key.properties")
+            storeFile = keystoreProperties.getProperty("storeFile")
+                ?.let { file(it) }
+                ?: error("Missing storeFile in android/key.properties")
+            storePassword = keystoreProperties.getProperty("storePassword")
+                ?: error("Missing storePassword in android/key.properties")
         }
     }
 
     buildTypes {
         release {
-            signingConfig = if (keystorePropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             isShrinkResources = false
         }
