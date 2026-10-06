@@ -185,12 +185,6 @@ class _MiniService extends StatelessWidget{
   );
 }
 
-class _RoleButton extends StatelessWidget{
-  final String title,subtitle;final IconData icon;final bool outline;final VoidCallback onTap;
-  const _RoleButton({required this.title,required this.subtitle,required this.icon,required this.onTap,this.outline=false});
-  @override Widget build(BuildContext c)=>Card(color:outline?Colors.white:orange,child:InkWell(onTap:onTap,borderRadius:BorderRadius.circular(18),child:Padding(padding:const EdgeInsets.all(18),child:Row(children:[Icon(icon,size:32,color:outline?orange:Colors.white),const SizedBox(width:16),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(title,style:TextStyle(fontWeight:FontWeight.w700,color:outline?navy:Colors.white,fontSize:16)),Text(subtitle,style:TextStyle(color:outline?muted:Colors.white70))])),Icon(Icons.arrow_forward_ios,size:16,color:outline?orange:Colors.white)]))));
-}
-
 class Auth extends StatefulWidget{
   final String role;final VoidCallback onDone;const Auth({super.key,required this.role,required this.onDone});
   @override State<Auth> createState()=>_AuthState();
