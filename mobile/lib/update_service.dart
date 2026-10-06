@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class UpdateInfo {
   final String version;
@@ -10,6 +12,7 @@ class UpdateInfo {
   final String downloadUrl;
   final String notes;
   final bool forceUpdate;
+
   const UpdateInfo({
     required this.version,
     required this.buildNumber,
@@ -22,6 +25,8 @@ class UpdateInfo {
 class UpdateService {
   static const _manifestUrl =
       'https://raw.githubusercontent.com/Anil1013/gofixo-platform/main/mobile/version.json';
+
+  static const _installerChannel = MethodChannel('gofixo/update');
 
   static Future<void> checkAndPrompt(BuildContext context) async {
     try {
@@ -67,8 +72,7 @@ class UpdateService {
         version: latestVersion,
         buildNumber: buildNumber,
         downloadUrl: downloadUrl,
-        notes: data['notes']?.toString() ??
-            'Bug fixes and improvements.',
+        notes: data['notes']?.toString() ?? 'Bug fixes and improvements.',
         forceUpdate: data['forceUpdate'] == true,
       );
 
@@ -88,60 +92,8 @@ class UpdateService {
               ),
             FilledButton(
               onPressed: () async {
-                final uri = Uri.tryParse(info.downloadUrl);
-                if (uri == null ||
-                    (uri.scheme != 'https' && uri.scheme != 'http')) {
-                  if (dialogContext.mounted) {
-                    ScaffoldMessenger.of(dialogContext).showSnackBar(
-                      const SnackBar(
-                        content: Text('Update link is invalid. Please try again.'),
-                      ),
-                    );
-                  }
-                  return;
-                }
-
-                // Do not call canLaunchUrl() here. On Android it can return
-                // false unless package visibility <queries> are configured,
-                // even when the URL can actually be opened.
-                var launched = false;
-                try {
-                  launched = await launchUrl(
-                    uri,
-                    mode: LaunchMode.externalApplication,
-                  );
-                } catch (_) {
-                  launched = false;
-                }
-
-                // Fallback for devices where an external browser is not
-                // available but an in-app browser/custom tab is supported.
-                if (!launched) {
-                  try {
-                    launched = await launchUrl(
-                      uri,
-                      mode: LaunchMode.inAppBrowserView,
-                    );
-                  } catch (_) {
-                    launched = false;
-                  }
-                }
-
-                if (!dialogContext.mounted) return;
-
-                if (launched) {
-                  if (!info.forceUpdate) {
-                    Navigator.pop(dialogContext);
-                  }
-                } else {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Could not open the update. Please check your internet connection and try again.',
-                      ),
-                    ),
-                  );
-                }
+                Navigator.pop(dialogContext);
+                await _downloadAndInstall(context, info);
               },
               child: const Text('Update'),
             ),
@@ -149,6 +101,139 @@ class UpdateService {
         ),
       );
     } catch (_) {}
+  }
+
+  static Future<void> _downloadAndInstall(
+    BuildContext context,
+    UpdateInfo info,
+  ) async {
+    final uri = Uri.tryParse(info.downloadUrl);
+    if (uri == null || uri.scheme != 'https') {
+      _showError(context, 'Update link is invalid. Please try again.');
+      return;
+    }
+
+    final progressNotifier = ValueNotifier<double?>(0);
+    var dialogOpen = true;
+
+    if (context.mounted) {
+      unawaited(showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => PopScope(
+          canPop: false,
+          child: AlertDialog(
+            title: Text('Downloading Gofixo ${info.version}'),
+            content: ValueListenableBuilder<double?>(
+              valueListenable: progressNotifier,
+              builder: (_, progress, __) {
+                final percent =
+                    progress == null ? 'Preparing…' : '${(progress * 100).toStringAsFixed(0)}%';
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    LinearProgressIndicator(value: progress),
+                    const SizedBox(height: 12),
+                    Text(percent, textAlign: TextAlign.center),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Please keep Gofixo open until the installer appears.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ));
+    }
+
+    File? apkFile;
+    try {
+      final client = http.Client();
+      try {
+        final request = http.Request('GET', uri);
+        final response = await client.send(request).timeout(
+              const Duration(minutes: 5),
+            );
+
+        if (response.statusCode != 200) {
+          throw HttpException('HTTP ${response.statusCode}');
+        }
+
+        final tempDir = Directory.systemTemp;
+        apkFile = File(
+          '${tempDir.path}/gofixo-update-${info.buildNumber}.apk',
+        );
+
+        if (await apkFile.exists()) {
+          await apkFile.delete();
+        }
+
+        final sink = apkFile.openWrite();
+        var received = 0;
+        final total = response.contentLength;
+
+        await for (final chunk in response.stream) {
+          sink.add(chunk);
+          received += chunk.length;
+          if (total != null && total > 0) {
+            progressNotifier.value = received / total;
+          } else {
+            progressNotifier.value = null;
+          }
+        }
+        await sink.flush();
+        await sink.close();
+
+        if (!await apkFile.exists() || await apkFile.length() < 1024 * 1024) {
+          throw const FileSystemException('Downloaded APK is incomplete');
+        }
+      } finally {
+        client.close();
+      }
+
+      progressNotifier.value = 1;
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+
+      await _installerChannel.invokeMethod<void>(
+        'installApk',
+        <String, dynamic>{'path': apkFile.path},
+      );
+
+      if (context.mounted && info.forceUpdate) {
+        // Android's package installer now owns the user-facing install flow.
+      }
+    } catch (e) {
+      if (apkFile != null) {
+        try {
+          if (await apkFile.exists()) {
+            await apkFile.delete();
+          }
+        } catch (_) {}
+      }
+      if (context.mounted) {
+        _showError(
+          context,
+          'Update download failed. Please check your internet connection and try again.',
+        );
+      }
+    } finally {
+      progressNotifier.dispose();
+      if (dialogOpen && context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        dialogOpen = false;
+      }
+    }
+  }
+
+  static void _showError(BuildContext context, String message) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   static bool _isNewer(
