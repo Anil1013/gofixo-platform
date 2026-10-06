@@ -7,6 +7,8 @@ on:
       - 'mobile/lib/**'
       - 'mobile/assets/**'
       - 'mobile/pubspec.yaml'
+      - 'mobile/version.json'
+      - 'mobile/test/**'
       - '.github/workflows/gofixo-ota.yml'
 
 permissions:
