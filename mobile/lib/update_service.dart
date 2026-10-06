@@ -26,27 +26,16 @@ class UpdateInfo {
 class UpdateService {
   static const _manifestUrl =
       'https://raw.githubusercontent.com/Anil1013/gofixo-platform/main/mobile/version.json';
+  static const _githubManifestApi =
+      'https://api.github.com/repos/Anil1013/gofixo-platform/contents/mobile/version.json?ref=main';
 
   static const _installerChannel = MethodChannel('gofixo/update');
 
   static Future<void> checkAndPrompt(BuildContext context) async {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
-      final cacheBust = DateTime.now().millisecondsSinceEpoch;
-      final response = await http
-          .get(
-            Uri.parse('$_manifestUrl?check=$cacheBust'),
-            headers: const {
-              'Accept': 'application/json',
-              'Cache-Control': 'no-cache',
-            },
-          )
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode != 200) return;
-
-      final data = jsonDecode(response.body);
-      if (data is! Map) return;
+      final data = await _fetchManifest();
+      if (data == null) return;
 
       final latestVersion = data['version']?.toString();
       final buildNumber =
@@ -102,6 +91,48 @@ class UpdateService {
         ),
       );
     } catch (_) {}
+  }
+
+  static Future<Map<String, dynamic>?> _fetchManifest() async {
+    // Prefer the GitHub Contents API so the checker is not dependent on a
+    // cached release asset. Fall back to raw.githubusercontent.com if needed.
+    try {
+      final apiResponse = await http.get(
+        Uri.parse(_githubManifestApi),
+        headers: const {
+          'Accept': 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+          'Cache-Control': 'no-cache',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (apiResponse.statusCode == 200) {
+        final envelope = jsonDecode(apiResponse.body);
+        if (envelope is Map && envelope['content'] != null) {
+          final encoded = envelope['content'].toString().replaceAll(RegExp(r'\\s'), '');
+          final decoded = utf8.decode(base64.decode(encoded));
+          final data = jsonDecode(decoded);
+          if (data is Map<String, dynamic>) return data;
+          if (data is Map) return Map<String, dynamic>.from(data);
+        }
+      }
+    } catch (_) {}
+
+    try {
+      final cacheBust = DateTime.now().millisecondsSinceEpoch;
+      final response = await http.get(
+        Uri.parse('$_manifestUrl?check=$cacheBust'),
+        headers: const {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache',
+        },
+      ).timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) return null;
+      final data = jsonDecode(response.body);
+      if (data is Map<String, dynamic>) return data;
+      if (data is Map) return Map<String, dynamic>.from(data);
+    } catch (_) {}
+    return null;
   }
 
   static Future<void> _downloadAndInstall(
