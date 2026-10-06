@@ -89,6 +89,7 @@ jobs:
             --build-name "${{ steps.base.outputs.version }}" \
             --build-number "${{ steps.base.outputs.build }}" \
             --dart-define=GOFIXO_GIT_SHA=${{ github.sha }}
+          cp build/app/outputs/flutter-apk/app-release.apk /tmp/gofixo-current-release.apk
 
       - name: Build OTA patch
         env:
@@ -130,12 +131,55 @@ jobs:
           PY
           cat dist/latest.json
 
+      - name: Build 1.0.4 migration patch
+        env:
+          LEGACY_PATCH_VERSION: "migrate-1000004-${{ github.sha }}"
+        run: |
+          set -euo pipefail
+          rm -rf legacy-dist
+          flutter build apk --release \
+            --build-name "1.0.4" \
+            --build-number "1000004" \
+            --dart-define=GOFIXO_GIT_SHA=${{ github.sha }}
+          dart run flutter_ota_kit:pack \
+            --apk build/app/outputs/flutter-apk/app-release.apk \
+            --version "$LEGACY_PATCH_VERSION" \
+            --target-version-code "1000004" \
+            --out legacy-dist
+          test -s legacy-dist/patch.zip
+          test -s legacy-dist/manifest.json
+          cp legacy-dist/patch.zip "legacy-dist/patch-1000004-${{ github.sha }}.zip"
+          MD5="$(md5sum "legacy-dist/patch-1000004-${{ github.sha }}.zip" | awk '{print $1}')"
+          export MD5 LEGACY_PATCH_VERSION
+          python3 - <<'PY'
+          import json, os
+          manifest = {
+            "schemaVersion": 1,
+            "gitCommitHash": os.environ["GITHUB_SHA"],
+            "message": "Gofixo 1.0.4 migration update",
+            "patches": {}
+          }
+          for abi in ("arm64-v8a", "armeabi-v7a", "x86_64"):
+            manifest["patches"][abi] = {
+              "version": os.environ["LEGACY_PATCH_VERSION"],
+              "filename": f"patch-1000004-{os.environ['GITHUB_SHA']}.zip",
+              "md5": os.environ["MD5"],
+              "signature": "",
+              "targetVersionCode": 1000004
+            }
+          open("legacy-dist/legacy-1000004.json", "w").write(json.dumps(manifest, indent=2) + "\n")
+          PY
+          cp /tmp/gofixo-current-release.apk build/app/outputs/flutter-apk/app-release.apk
+          test -s build/app/outputs/flutter-apk/app-release.apk
+
       - name: Prepare OTA upload
         run: |
           set -euo pipefail
           mkdir -p ota-upload
           cp "dist/patch-$GITHUB_SHA.zip" ota-upload/
           cp dist/latest.json ota-upload/
+          cp "legacy-dist/patch-1000004-$GITHUB_SHA.zip" ota-upload/
+          cp legacy-dist/legacy-1000004.json ota-upload/
           ls -lh ota-upload
 
       - name: Upload OTA payload to Gofixo EC2
@@ -144,7 +188,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "mobile/ota-upload/latest.json,mobile/ota-upload/patch-${{ github.sha }}.zip"
+          source: "mobile/ota-upload/latest.json,mobile/ota-upload/patch-${{ github.sha }}.zip,mobile/ota-upload/legacy-1000004.json,mobile/ota-upload/patch-1000004-${{ github.sha }}.zip"
           target: "/home/ubuntu/gofixo-platform/ota/"
           strip_components: 2
           overwrite: true
@@ -235,11 +279,29 @@ jobs:
               echo "$BODY"
 
               if [ "$HTTP_CODE" = "200" ] && python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("hasUpdate") is True' <<<"$BODY"; then
-                echo "OTA endpoint verification passed."
+                echo "Current OTA endpoint verification passed."
+                break
+              fi
+              sleep 5
+              if [ "$attempt" = "18" ]; then
+                echo "ERROR: Current OTA endpoint verification failed."
+                exit 1
+              fi
+            done
+
+            LEGACY_URL="http://127.0.0.1:4000/api/mobile/ota/check?app_version_code=1000004&abi=arm64-v8a"
+            for attempt in $(seq 1 18); do
+              HTTP_CODE="$(curl -sS --max-time 10 -o /tmp/gofixo-ota-legacy-check.json -w '%{http_code}' "$LEGACY_URL" || true)"
+              BODY="$(cat /tmp/gofixo-ota-legacy-check.json 2>/dev/null || true)"
+              echo "Legacy attempt $attempt/18: HTTP $HTTP_CODE"
+              echo "$BODY"
+
+              if [ "$HTTP_CODE" = "200" ] && python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("hasUpdate") is True and d.get("patch",{}).get("targetVersionCode") == 1000004' <<<"$BODY"; then
+                echo "Legacy 1.0.4 migration OTA verification passed."
                 exit 0
               fi
               sleep 5
             done
 
-            echo "ERROR: OTA endpoint verification failed."
+            echo "ERROR: Legacy 1.0.4 migration OTA verification failed."
             exit 1
