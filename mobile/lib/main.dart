@@ -41,9 +41,11 @@ class _GateState extends State<Gate>{
         if(s.connectionState!=ConnectionState.done)return const Scaffold(body:Center(child:CircularProgressIndicator()));
         if(!updateChecked){
           updateChecked=true;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            UpdateService.checkAndPrompt(c);
-            OtaService.checkAndApply();
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            final otaApplied = await OtaService.checkAndApply();
+            if (!otaApplied && c.mounted) {
+              await UpdateService.checkAndPrompt(c);
+            }
           });
         }
         final x=s.data;
