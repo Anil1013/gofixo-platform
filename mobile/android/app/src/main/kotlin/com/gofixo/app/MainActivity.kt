@@ -65,6 +65,19 @@ class MainActivity : FlutterActivity() {
     private fun installApk(apkFile: File) {
         require(apkFile.exists()) { "Downloaded APK was not found." }
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !packageManager.canRequestPackageInstalls()
+        ) {
+            val settingsIntent = Intent(
+                android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                Uri.parse("package:$packageName")
+            )
+            startActivity(settingsIntent)
+            throw IllegalStateException(
+                "Please allow Gofixo to install apps from this source, then tap Update again."
+            )
+        }
+
         val apkUri: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             FileProvider.getUriForFile(
                 this,
