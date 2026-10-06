@@ -21,26 +21,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: app/package-lock.json
-
       - name: Install dependencies
         working-directory: app
         run: npm ci
-
       - name: Lint
         working-directory: app
         run: npm run lint
-
       - name: Build
         working-directory: app
         run: npm run build
-
       - name: Upload web build
         uses: actions/upload-artifact@v4
         with:
@@ -55,26 +50,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: admin/package-lock.json
-
       - name: Install dependencies
         working-directory: admin
         run: npm ci
-
       - name: Lint
         working-directory: admin
         run: npm run lint
-
       - name: Build
         working-directory: admin
         run: npm run build
-
       - name: Upload admin build
         uses: actions/upload-artifact@v4
         with:
@@ -92,26 +82,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.47.6'
           channel: stable
           cache: true
-
       - name: Flutter version
         run: flutter --version
-
       - name: Get dependencies
         run: flutter pub get
-
       - name: Analyze
         run: flutter analyze --no-fatal-infos
-
       - name: Test
         run: flutter test
-
       - name: Read app version
         id: version
         shell: bash
@@ -123,7 +107,6 @@ jobs:
           test "$BUILD" -gt 0
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "build=$BUILD" >> "$GITHUB_OUTPUT"
-
       - name: Configure persistent Android signing
         env:
           GOFIXO_KEYSTORE_B64: ${{ secrets.GOFIXO_KEYSTORE_B64 }}
@@ -136,29 +119,18 @@ jobs:
           test -n "$GOFIXO_STORE_PASSWORD"
           test -n "$GOFIXO_KEY_PASSWORD"
           test -n "$GOFIXO_KEY_ALIAS"
-
           printf '%s' "$GOFIXO_KEYSTORE_B64" | base64 --decode > android/gofixo-release.jks
-
           cat > android/key.properties <<EOF
           storePassword=$GOFIXO_STORE_PASSWORD
           keyPassword=$GOFIXO_KEY_PASSWORD
           keyAlias=$GOFIXO_KEY_ALIAS
           storeFile=$GITHUB_WORKSPACE/mobile/android/gofixo-release.jks
           EOF
-
           chmod 600 android/gofixo-release.jks android/key.properties
-
-          keytool -list -keystore android/gofixo-release.jks \
-            -storepass "$GOFIXO_STORE_PASSWORD" \
-            -alias "$GOFIXO_KEY_ALIAS" >/dev/null
-
+          keytool -list -keystore android/gofixo-release.jks             -storepass "$GOFIXO_STORE_PASSWORD"             -alias "$GOFIXO_KEY_ALIAS" >/dev/null
       - name: Build release APK
         run: |
-          flutter build apk --release \
-            --build-name "${{ steps.version.outputs.version }}" \
-            --build-number "${{ steps.version.outputs.build }}" \
-            --dart-define=GOFIXO_GIT_SHA=${{ github.sha }}
-
+          flutter build apk --release             --build-name "${{ steps.version.outputs.version }}"             --build-number "${{ steps.version.outputs.build }}"             --dart-define=GOFIXO_GIT_SHA=${{ github.sha }}
       - name: Verify APK signing
         shell: bash
         run: |
@@ -166,13 +138,22 @@ jobs:
           APK="build/app/outputs/flutter-apk/app-release.apk"
           test -s "$APK"
 
-          APK_SIGNER="$(find "${ANDROID_SDK_ROOT:-${ANDROID_HOME}}" /build-tools -type f -name apksigner 2>/dev/null | sort -V | tail -n 1)"
-          if [ -z "$APK_SIGNER" ]; then
-            APK_SIGNER="$(find "${ANDROID_SDK_ROOT:-${ANDROID_HOME}}/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          fi
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}"
+          APK_SIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner -perm -111 | sort -V | tail -n 1)"
+          test -n "$APK_SIGNER"
           test -x "$APK_SIGNER"
+          echo "Using apksigner: $APK_SIGNER"
+          "$APK_SIGNER" version
 
-          "$APK_SIGNER" verify --verbose "$APK"
+          # Verify against the app's actual minSdk instead of the host's default.
+          # Keep diagnostics visible if verification fails so future CI failures are actionable.
+          if ! "$APK_SIGNER" verify --verbose --min-sdk-version 24 "$APK"; then
+            echo "::error::APK signature verification failed"
+            "$APK_SIGNER" verify --print-certs "$APK" || true
+            keytool -printcert -jarfile "$APK" || true
+            exit 1
+          fi
+
           "$APK_SIGNER" verify --print-certs "$APK"
 
       - name: Upload Android APK
@@ -189,18 +170,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
-
       - name: Install backend dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
-
       - name: Syntax check
         run: node --check server.js
-
       - name: Workflow summary
         run: |
           echo "Gofixo unified build passed for commit $GITHUB_SHA"
