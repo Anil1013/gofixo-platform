@@ -14,7 +14,7 @@ class OtaService {
   static const _checkUrl =
       'https://gofixo.mob13r.com/api/mobile/ota/check';
 
-  static Future<void> checkAndApply() async {
+  static Future<bool> checkAndApply() async {
     try {
       _setStatus('OTA: START');
       final appVersionCode = await FlutterPatcher.appVersionCode;
@@ -23,7 +23,7 @@ class OtaService {
       _setStatus('OTA: abi=' + abi);
       if (appVersionCode == null || abi.isEmpty) {
         _setStatus('OTA: STOP invalid version/abi');
-        return;
+        return false;
       }
       final currentPatch = await FlutterPatcher.currentVersion ?? '';
       _setStatus('OTA: currentPatch=' + currentPatch);
@@ -43,7 +43,7 @@ class OtaService {
       );
       if (!check.hasUpdate || check.patch == null) {
         _setStatus('OTA: NO UPDATE');
-        return;
+        return false;
       }
       _setStatus('OTA: APPLY START');
       _setStatus('OTA: patch=' + check.patch!.version);
@@ -61,15 +61,17 @@ class OtaService {
       );
       if (!result.ok) {
         _setStatus('OTA: APPLY FAILED');
-        return;
+        return false;
       }
       _setStatus('OTA: APPLY SUCCESS');
       _setStatus('OTA: RESTART START');
       await FlutterPatcher.restart();
       _setStatus('OTA: RESTART RETURNED');
+      return true;
     } catch (e, st) {
       _setStatus('OTA: EXCEPTION=' + e.toString());
       debugPrint('OTA: STACK=' + st.toString());
+      return false;
     }
   }
 }
