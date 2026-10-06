@@ -13,6 +13,7 @@ import 'ota_service.dart';
 import 'package:flutter_ota_kit/flutter_ota_kit.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'app_info_page.dart';
+import 'mobile_reference_ui.dart';
 
 const orange=Color(0xFFFF6B00), navy=Color(0xFF172B4D), muted=Color(0xFF64748B);
 
@@ -48,8 +49,8 @@ class _GateState extends State<Gate>{
         final x=s.data;
         if(x==null)return RoleScreen(onLogin:refresh);
         return x.role=='provider'
-            ?ProviderHome(session:x,onLogout:()async{await ApiService.clearSession();refresh();})
-            :CustomerHome(session:x,onLogout:()async{await ApiService.clearSession();refresh();});
+            ?ReferenceProviderHome(session:x,onLogout:()async{await ApiService.clearSession();refresh();})
+            :ReferenceCustomerHome(session:x,onLogout:()async{await ApiService.clearSession();refresh();});
       },
     );
   }
