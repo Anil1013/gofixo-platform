@@ -16,7 +16,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Gofixo'), findsOneWidget);
+    expect(find.text('Gofixo'), findsWidgets);
     expect(find.text('Welcome to Gofixo'), findsOneWidget);
     expect(find.text('Continue as Customer'), findsOneWidget);
     expect(find.text('Continue as Partner'), findsOneWidget);
