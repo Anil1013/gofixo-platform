@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class UpdateInfo {
@@ -23,35 +22,18 @@ class UpdateInfo {
 
 class UpdateService {
   static const _manifestUrl =
-      'https://github.com/Anil1013/gofixo-platform/releases/latest/download/gofixo-version.json';
-  static const _checkKey = 'gofixo_update_check_at';
+      'https://raw.githubusercontent.com/Anil1013/gofixo-platform/main/mobile/version.json';
 
   static Future<void> checkAndPrompt(BuildContext context) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final lastCheck = prefs.getInt(_checkKey) ?? 0;
-      final now = DateTime.now().millisecondsSinceEpoch;
-      if (now - lastCheck < const Duration(hours: 6).inMilliseconds) return;
-      await prefs.setInt(_checkKey, now);
-
       final packageInfo = await PackageInfo.fromPlatform();
-      var response = await http
+      final cacheBust = DateTime.now().millisecondsSinceEpoch;
+      final response = await http
           .get(
-            Uri.parse(_manifestUrl),
-            headers: const {'Accept': 'application/json'},
+            Uri.parse('$_manifestUrl?check=\$cacheBust'),
+            headers: const {'Accept': 'application/json', 'Cache-Control': 'no-cache'},
           )
           .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode != 200) {
-        response = await http
-            .get(
-              Uri.parse(
-                'https://raw.githubusercontent.com/Anil1013/gofixo-platform/main/mobile/version.json',
-              ),
-              headers: const {'Accept': 'application/json'},
-            )
-            .timeout(const Duration(seconds: 10));
-      }
 
       if (response.statusCode != 200) return;
 
