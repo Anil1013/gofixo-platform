@@ -126,7 +126,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "mobile/build/app/outputs/flutter-apk/app-release.apk"
           target: "/home/ubuntu/gofixo-platform/public-apk/"
-          strip_components: 4
+          strip_components: 5
           overwrite: true
 
       - name: Configure public APK download
