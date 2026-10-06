@@ -1,7 +1,7 @@
 {
-  "version": "1.0.5",
-  "buildNumber": 1000005,
-  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.5/gofixo-release.apk",
-  "notes": "Green visual refresh with customer and partner service illustrations.",
+  "version": "1.0.6",
+  "buildNumber": 1000006,
+  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/latest/download/gofixo-release.apk",
+  "notes": "Reliable in-app APK download and installer flow.",
   "forceUpdate": true
 }
