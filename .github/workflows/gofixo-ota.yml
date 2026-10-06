@@ -141,10 +141,14 @@ jobs:
             --build-name "1.0.4" \
             --build-number "1000004" \
             --dart-define=GOFIXO_GIT_SHA=${{ github.sha }}
+          ASSET_KEYS="$(find assets/illustrations -type f | sort | paste -sd, -)"
+          test -n "$ASSET_KEYS"
+          echo "Migration asset keys: $ASSET_KEYS"
           dart run flutter_ota_kit:pack \
             --apk build/app/outputs/flutter-apk/app-release.apk \
             --version "$LEGACY_PATCH_VERSION" \
             --target-version-code "1000004" \
+            --assets "$ASSET_KEYS" \
             --out legacy-dist
           test -s legacy-dist/patch.zip
           test -s legacy-dist/manifest.json
