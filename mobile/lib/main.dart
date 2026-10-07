@@ -285,8 +285,16 @@ class RoleScreen extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      onPressed: null,
-                      icon: Icon(
+                      onPressed: () => Navigator.push(
+                        c,
+                        MaterialPageRoute(
+                          builder: (_) => Auth(
+                            role: 'provider',
+                            onDone: onLogin,
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(
                         Icons.arrow_forward_rounded,
                         color: orange,
                       ),
