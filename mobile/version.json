@@ -1,7 +1,7 @@
 {
-  "version": "1.0.6",
-  "buildNumber": 1000006,
-  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.6/gofixo-release.apk",
-  "notes": "Reliable in-app APK download and installer flow (v1.0.6).",
+  "version": "1.0.7",
+  "buildNumber": 1000007,
+  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.7/gofixo-release.apk",
+  "notes": "Reliable in-app APK download and installer flow (v1.0.7).",
   "forceUpdate": true
 }
