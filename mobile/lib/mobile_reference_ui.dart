@@ -229,7 +229,7 @@ class _Active extends StatefulWidget{
  @override State<_Active> createState()=>_ActiveState();
 }
 class _ActiveState extends State<_Active>{
- final pin=TextEditingController(); final fare=TextEditingController();
+ final pin=TextEditingController(); final fare=TextEditingController(); bool submitting=false;
  @override void initState(){super.initState();fare.text=widget.b['fare_amount']?.toString()??'';}
  @override void dispose(){pin.dispose();fare.dispose();super.dispose();}
  @override Widget build(BuildContext c){
