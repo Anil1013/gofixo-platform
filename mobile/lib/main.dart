@@ -52,39 +52,254 @@ class _GateState extends State<Gate>{
   );
 }
 
-class RoleScreen extends StatelessWidget{
- final VoidCallback onLogin;
- const RoleScreen({super.key,required this.onLogin});
- @override Widget build(BuildContext c)=>Scaffold(
-  backgroundColor:const Color(0xFFF4F7FB),
-  appBar:AppBar(backgroundColor:Colors.white,elevation:0,title:const Text('Gofixo',style:TextStyle(fontWeight:FontWeight.w900,color:navy)),actions:[
-    IconButton(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>const AppInfoPage())),icon:const Icon(Icons.settings_outlined))
-  ]),
-  body:SafeArea(child:SingleChildScrollView(padding:const EdgeInsets.fromLTRB(14,12,14,28),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    Container(width:double.infinity,padding:const EdgeInsets.fromLTRB(18,18,10,12),decoration:BoxDecoration(
-      gradient:const LinearGradient(colors:[Color(0xFF12B85F),Color(0xFF0A9F50)],begin:Alignment.topLeft,end:Alignment.bottomRight),borderRadius:BorderRadius.circular(26)),
-      child:Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        const Text('Gofixo',style:TextStyle(color:Colors.white,fontSize:30,fontWeight:FontWeight.w900)),
-        const SizedBox(height:4),const Text('Rides & services, right at your doorstep.',style:TextStyle(color:Colors.white,fontSize:15,fontWeight:FontWeight.w600)),
-        const SizedBox(height:14),FilledButton(style:FilledButton.styleFrom(backgroundColor:Colors.white,foregroundColor:orange),
-          onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'customer',onDone:onLogin))),child:const Text('Book now',style:TextStyle(fontWeight:FontWeight.w800)))
-      ])),const SizedBox(width:115,height:115,child:Icon(Icons.directions_car_filled,color:Colors.white,size:76))])
-    ),
-    const SizedBox(height:18),const Text('Choose your ride',style:TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:navy)),const SizedBox(height:10),
-    Row(children:[
-      Expanded(child:_EntryCard(title:'Bike',icon:Icons.two_wheeler,onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'customer',onDone:onLogin))))),
-      const SizedBox(width:8),Expanded(child:_EntryCard(title:'Auto',icon:Icons.electric_rickshaw,onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'customer',onDone:onLogin))))),
-      const SizedBox(width:8),Expanded(child:_EntryCard(title:'Car',icon:Icons.directions_car,onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'customer',onDone:onLogin))))
-    ]),
-    const SizedBox(height:18),const Text('Home services',style:TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:navy)),const SizedBox(height:10),
-    Wrap(spacing:8,runSpacing:8,children:['Electrician','Plumber','AC service','Cleaning','Painter','Carpenter'].map((x)=>Chip(avatar:const Icon(Icons.handyman_outlined,size:17),label:Text(x))).toList()),
-    const SizedBox(height:20),Container(width:double.infinity,padding:const EdgeInsets.all(18),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:const Color(0xFFE4E9F1))),
-      child:Row(children:[const Icon(Icons.handyman_rounded,color:orange,size:32),const SizedBox(width:12),const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Text('Partner with Gofixo',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900,color:navy)),SizedBox(height:3),Text('Go online, accept jobs and earn.',style:TextStyle(color:muted))
-      ])),IconButton(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'provider',onDone:onLogin))),icon:const Icon(Icons.arrow_forward_rounded,color:orange))])
-    )
-  ])));
- );
+class RoleScreen extends StatelessWidget {
+  final VoidCallback onLogin;
+  const RoleScreen({super.key, required this.onLogin});
+
+  @override
+  Widget build(BuildContext c) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F7FB),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Gofixo',
+          style: TextStyle(fontWeight: FontWeight.w900, color: navy),
+        ),
+        actions: [
+          IconButton(
+            onPressed: () => Navigator.push(
+              c,
+              MaterialPageRoute(builder: (_) => const AppInfoPage()),
+            ),
+            icon: const Icon(Icons.settings_outlined),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(18, 18, 10, 12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF12B85F), Color(0xFF0A9F50)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(26),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Gofixo',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 30,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Rides & services, right at your doorstep.',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: orange,
+                            ),
+                            onPressed: () => Navigator.push(
+                              c,
+                              MaterialPageRoute(
+                                builder: (_) => Auth(
+                                  role: 'customer',
+                                  onDone: onLogin,
+                                ),
+                              ),
+                            ),
+                            child: const Text(
+                              'Book now',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(
+                      width: 115,
+                      height: 115,
+                      child: Icon(
+                        Icons.directions_car_filled,
+                        color: Colors.white,
+                        size: 76,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Choose your ride',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: navy,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _EntryCard(
+                      title: 'Bike',
+                      icon: Icons.two_wheeler,
+                      onTap: () => Navigator.push(
+                        c,
+                        MaterialPageRoute(
+                          builder: (_) => Auth(
+                            role: 'customer',
+                            onDone: onLogin,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _EntryCard(
+                      title: 'Auto',
+                      icon: Icons.electric_rickshaw,
+                      onTap: () => Navigator.push(
+                        c,
+                        MaterialPageRoute(
+                          builder: (_) => Auth(
+                            role: 'customer',
+                            onDone: onLogin,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _EntryCard(
+                      title: 'Car',
+                      icon: Icons.directions_car,
+                      onTap: () => Navigator.push(
+                        c,
+                        MaterialPageRoute(
+                          builder: (_) => Auth(
+                            role: 'customer',
+                            onDone: onLogin,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Home services',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: navy,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  'Electrician',
+                  'Plumber',
+                  'AC service',
+                  'Cleaning',
+                  'Painter',
+                  'Carpenter',
+                ]
+                    .map(
+                      (x) => Chip(
+                        avatar: const Icon(
+                          Icons.handyman_outlined,
+                          size: 17,
+                        ),
+                        label: Text(x),
+                      ),
+                    )
+                    .toList(),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: const Color(0xFFE4E9F1),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.handyman_rounded,
+                      color: orange,
+                      size: 32,
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Partner with Gofixo',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w900,
+                              color: navy,
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'Go online, accept jobs and earn.',
+                            style: TextStyle(color: muted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: null,
+                      icon: Icon(
+                        Icons.arrow_forward_rounded,
+                        color: orange,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 class _EntryCard extends StatelessWidget{
  final String title;final IconData icon;final VoidCallback onTap;
