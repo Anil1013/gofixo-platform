@@ -46,8 +46,8 @@ class MainActivity : FlutterActivity() {
                         }
 
                         try {
-                            installApk(File(path))
-                            result.success(null)
+                            val started = installApk(File(path))
+                            result.success(started)
                         } catch (error: Exception) {
                             result.error(
                                 "INSTALLER_ERROR",
@@ -62,7 +62,7 @@ class MainActivity : FlutterActivity() {
             }
     }
 
-    private fun installApk(apkFile: File) {
+    private fun installApk(apkFile: File): Boolean {
         require(apkFile.exists()) { "Downloaded APK was not found." }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
@@ -73,9 +73,7 @@ class MainActivity : FlutterActivity() {
                 Uri.parse("package:$packageName")
             )
             startActivity(settingsIntent)
-            throw IllegalStateException(
-                "Please allow Gofixo to install apps from this source, then tap Update again."
-            )
+            return false
         }
 
         val apkUri: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -97,6 +95,7 @@ class MainActivity : FlutterActivity() {
         }
 
         startActivity(intent)
+        return true
     }
 
     private fun signingSha256(): String {
