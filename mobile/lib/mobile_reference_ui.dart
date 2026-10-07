@@ -5,7 +5,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:http/http.dart' as http;
 import 'api_service.dart';
 
 const gfOrange=Color(0xFF12B85F),gfNavy=Color(0xFF10213F),gfMuted=Color(0xFF728097),gfBg=Color(0xFFF4F7FB),gfLine=Color(0xFFE4E9F1),gfGreen=Color(0xFF12B85F);
@@ -292,7 +291,7 @@ class _Route extends StatelessWidget{final String label,value;const _Route(this.
 class _Trust extends StatelessWidget{const _Trust();@override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.all(15),decoration:BoxDecoration(color:gfNavy,borderRadius:BorderRadius.circular(20)),child:const Row(children:[Expanded(child:_T(Icons.verified_user,'Verified')),Expanded(child:_T(Icons.shield,'Safe rides')),Expanded(child:_T(Icons.support_agent,'Support'))]));}
 class _T extends StatelessWidget{final IconData i;final String t;const _T(this.i,this.t);@override Widget build(BuildContext c)=>Column(children:[Icon(i,color:Colors.white,size:19),Text(t,style:const TextStyle(color:Colors.white,fontSize:8,fontWeight:FontWeight.w700))]);}
 
-Future<String> _reverse(double lat,double lon)async{try{final marks=await placemarkFromCoordinates(lat,lon);if(marks.isNotEmpty){final p=marks.first;final parts=<String>[p.name,p.street,p.subLocality,p.locality,p.subAdministrativeArea,p.administrativeArea,p.postalCode,p.country].where((v)=>v!=null&&v.trim().isNotEmpty).map((v)=>v!.trim()).toList();final out=<String>[];for(final part in parts){if(!out.any((x)=>x.toLowerCase()==part.toLowerCase()))out.add(part);}if(out.isNotEmpty)return out.join(', ');}}catch(_){ }return '$lat, $lon';}
+Future<String> _reverse(double lat,double lon)async{try{final marks=await placemarkFromCoordinates(lat,lon);if(marks.isNotEmpty){final p=marks.first;final parts=<String>[p.name,p.street,p.subLocality,p.locality,p.subAdministrativeArea,p.administrativeArea,p.postalCode,p.country].whereType<String>().map((v)=>v.trim()).where((v)=>v.isNotEmpty).toList();final out=<String>[];for(final part in parts){if(!out.any((x)=>x.toLowerCase()==part.toLowerCase()))out.add(part);}if(out.isNotEmpty)return out.join(', ');}}catch(_){ }return '$lat, $lon';}
 List<LatLng> _decodeGooglePolyline(String encoded){final points=<LatLng>[];var index=0;var lat=0;var lng=0;while(index<encoded.length){var result=0;var shift=0;int b;do{b=encoded.codeUnitAt(index++)-63;result|=(b&31)<<shift;shift+=5;}while(b>=32&&index<encoded.length);lat+=((result&1)!=0?~(result>>1):(result>>1));result=0;shift=0;do{b=encoded.codeUnitAt(index++)-63;result|=(b&31)<<shift;shift+=5;}while(b>=32&&index<encoded.length);lng+=((result&1)!=0?~(result>>1):(result>>1));points.add(LatLng(lat/1e5,lng/1e5));}return points;}
 
 
