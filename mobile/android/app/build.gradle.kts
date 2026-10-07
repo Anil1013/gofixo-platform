@@ -12,9 +12,6 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    defaultConfig {
-        manifestPlaceholders["GOFIXO_GOOGLE_MAPS_API_KEY"] = System.getenv("GOFIXO_GOOGLE_MAPS_API_KEY") ?: "MISSING_GOOGLE_MAPS_KEY"
-    }
     namespace = "com.gofixo"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
@@ -28,6 +25,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["GOFIXO_GOOGLE_MAPS_API_KEY"] = System.getenv("GOFIXO_GOOGLE_MAPS_API_KEY") ?: "MISSING_GOOGLE_MAPS_KEY"
     }
     signingConfigs {
         create("release") {
