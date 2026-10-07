@@ -46,8 +46,19 @@ jobs:
           set -euo pipefail
           NDK_DIR="$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION"
           if [ ! -x "$NDK_DIR/ndk-build" ]; then
-            yes | sdkmanager --licenses >/dev/null 2>&1 || true
-            sdkmanager "ndk;$ANDROID_NDK_VERSION"
+            SDKMANAGER="$(command -v sdkmanager || true)"
+            if [ -z "$SDKMANAGER" ]; then
+              for candidate in                 "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"                 "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"                 "$ANDROID_SDK_ROOT/cmdline-tools/bin/sdkmanager"                 "$ANDROID_HOME/cmdline-tools/bin/sdkmanager"; do
+                if [ -x "$candidate" ]; then
+                  SDKMANAGER="$candidate"
+                  break
+                fi
+              done
+            fi
+            test -n "$SDKMANAGER"
+            echo "Using sdkmanager: $SDKMANAGER"
+            yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+            "$SDKMANAGER" "ndk;$ANDROID_NDK_VERSION"
           fi
           test -x "$NDK_DIR/ndk-build"
           echo "Android NDK $ANDROID_NDK_VERSION ready."
