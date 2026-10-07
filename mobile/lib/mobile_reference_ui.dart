@@ -38,11 +38,28 @@ class ReferenceProviderHome extends StatefulWidget{
  @override State<ReferenceProviderHome> createState()=>_ReferenceProviderHomeState();
 }
 class _ReferenceProviderHomeState extends State<ReferenceProviderHome>{
- Map<String,dynamic>? me;List<Map<String,dynamic>> jobs=[];Timer? timer;bool busy=false;
+ Map<String,dynamic>? me;List<Map<String,dynamic>> jobs=[];Timer? timer;bool busy=false;bool locationBusy=false;
  @override void initState(){super.initState();load();timer=Timer.periodic(const Duration(seconds:4),(_)=>load(silent:true));}
  @override void dispose(){timer?.cancel();super.dispose();}
  Future<void> load({bool silent=false})async{try{final m=await ApiService.providerMe(widget.session.token);final j=await ApiService.providerBookings(widget.session.token);final id=int.tryParse(m['id']?.toString()??'');if(m['is_available']==true&&id!=null)await _location(id);if(mounted)setState((){me=m;jobs=j;});}catch(e){if(mounted&&!silent)_snack(e.toString());}}
- Future<void> _location(int id)async{try{if(!await Geolocator.isLocationServiceEnabled())return;var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)return;final x=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.high));await ApiService.updateProviderLocation(widget.session.token,id,x.latitude,x.longitude);}catch(_){}} 
+ Future<void> _location(int id)async{
+  if(locationBusy)return;
+  locationBusy=true;
+  try{
+    if(!await Geolocator.isLocationServiceEnabled())return;
+    var p=await Geolocator.checkPermission();
+    if(p==LocationPermission.denied)p=await Geolocator.requestPermission();
+    if(p==LocationPermission.denied||p==LocationPermission.deniedForever)return;
+    final x=await Geolocator.getCurrentPosition(
+      locationSettings:const LocationSettings(
+        accuracy:LocationAccuracy.high,
+        distanceFilter:10,
+      ),
+    );
+    await ApiService.updateProviderLocation(widget.session.token,id,x.latitude,x.longitude);
+  }catch(_){}
+  finally{locationBusy=false;}
+}
  Future<void> toggle()async{if(me==null)return;final id=int.tryParse(me!['id']?.toString()??'');if(id==null)return;if(me!['kyc_status']=='approved'){_snack('KYC approval is required before going online.');return;}setState(()=>busy=true);try{if(me!['is_available']==true){final x=await ApiService.setAvailability(widget.session.token,id,false);if(mounted)setState(()=>me=x);}else{await _location(id);final x=await ApiService.setAvailability(widget.session.token,id,true);if(mounted)setState(()=>me=x);}}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
  void _snack(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.replaceFirst('Exception: ',''))));
  @override Widget build(BuildContext c){final m=me??{};final requested=jobs.where((j)=>j['status']=='requested').toList();final active=jobs.where((j)=>j['status']=='accepted'||j['status']=='ongoing').toList();final rides=int.tryParse(m['today_rides']?.toString()??'')??0;final earned=double.tryParse(m['total_earned_this_cycle']?.toString()??'0')??0;final rating=double.tryParse(m['avg_rating']?.toString()??'0')??0;return Scaffold(backgroundColor:gfBg,body:SafeArea(child:RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.fromLTRB(14,8,14,28),children:[
