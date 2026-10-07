@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: gofixo-unified-${{ github.ref }}
@@ -189,3 +189,58 @@ jobs:
           echo "Admin web: built"
           echo "Android app: built and signing verified"
           echo "Backend: syntax validated"
+
+
+  publish-android-release:
+    name: Publish Android GitHub Release
+    needs: mobile
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read release version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(python3 -c 'import json; print(json.load(open("mobile/version.json"))["version"])')"
+          BUILD="$(python3 -c 'import json; print(json.load(open("mobile/version.json"))["buildNumber"])')"
+          test -n "$VERSION"
+          test "$BUILD" -gt 0
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Download signed APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: gofixo-android-\${{ github.sha }}
+          path: release-assets
+
+      - name: Publish GitHub Release and APK
+        env:
+          GH_TOKEN: \${{ github.token }}
+          TAG: v\${{ steps.version.outputs.version }}
+          VERSION: \${{ steps.version.outputs.version }}
+          BUILD: \${{ steps.version.outputs.build }}
+          APK: release-assets/app-release.apk
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$APK"
+          mv "$APK" release-assets/gofixo-release.apk
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; leaving the published release unchanged."
+          else
+            gh release create "$TAG" release-assets/gofixo-release.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Gofixo $VERSION" \
+              --generate-notes \
+              --latest
+            echo "Published $TAG with build $BUILD."
+          fi
