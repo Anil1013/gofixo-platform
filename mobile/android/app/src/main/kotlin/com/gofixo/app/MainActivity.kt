@@ -88,14 +88,22 @@ class MainActivity : FlutterActivity() {
         }
 
         val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
-            data = apkUri
+            setDataAndType(apkUri, "application/vnd.android.package-archive")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
         }
 
-        startActivity(intent)
-        return true
+        try {
+            startActivity(intent)
+            return true
+        } catch (error: android.content.ActivityNotFoundException) {
+            throw IllegalStateException(
+                "Android could not find an APK installer on this device.",
+                error
+            )
+        }
     }
 
     private fun signingSha256(): String {
