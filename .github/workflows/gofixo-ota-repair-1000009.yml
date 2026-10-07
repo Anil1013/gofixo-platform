@@ -1,0 +1,158 @@
+name: Gofixo OTA Repair 1.0.9
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/lib/update_service.dart'
+      - '.github/workflows/gofixo-ota-repair-1000009.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gofixo-ota-repair-1000009
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    name: Repair OTA for installed 1.0.9
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Save repaired updater
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp lib/update_service.dart /tmp/update_service_repaired.dart
+
+      - name: Switch to exact v1.0.9 base
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout v1.0.9 -- .
+          cp /tmp/update_service_repaired.dart lib/update_service.dart
+          grep -n "Directory('/data/data/com.gofixo.app/cache')" lib/update_service.dart
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.6'
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Analyze repaired 1.0.9 base
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test repaired 1.0.9 base
+        run: flutter test
+
+      - name: Configure persistent Android signing
+        shell: bash
+        env:
+          GOFIXO_KEYSTORE_B64: ${{ secrets.GOFIXO_KEYSTORE_B64 }}
+          GOFIXO_STORE_PASSWORD: ${{ secrets.GOFIXO_STORE_PASSWORD }}
+          GOFIXO_KEY_PASSWORD: ${{ secrets.GOFIXO_KEY_PASSWORD }}
+          GOFIXO_KEY_ALIAS: ${{ secrets.GOFIXO_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          test -n "$GOFIXO_KEYSTORE_B64"
+          test -n "$GOFIXO_STORE_PASSWORD"
+          test -n "$GOFIXO_KEY_PASSWORD"
+          test -n "$GOFIXO_KEY_ALIAS"
+          printf '%s' "$GOFIXO_KEYSTORE_B64" | base64 --decode > android/gofixo-release.jks
+          cat > android/key.properties <<EOF
+          storePassword=$GOFIXO_STORE_PASSWORD
+          keyPassword=$GOFIXO_KEY_PASSWORD
+          keyAlias=$GOFIXO_KEY_ALIAS
+          storeFile=$GITHUB_WORKSPACE/mobile/android/gofixo-release.jks
+          EOF
+          chmod 600 android/gofixo-release.jks android/key.properties
+          keytool -list -keystore android/gofixo-release.jks \
+            -storepass "$GOFIXO_STORE_PASSWORD" \
+            -alias "$GOFIXO_KEY_ALIAS" >/dev/null
+
+      - name: Build exact 1.0.9 base with repaired updater
+        run: |
+          set -euo pipefail
+          flutter build apk --release --build-name "1.0.9" --build-number "1000009"
+          test -s build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Pack OTA repair patch
+        shell: bash
+        env:
+          PATCH_VERSION: repair-1000009-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          dart run flutter_ota_kit:pack \
+            --apk build/app/outputs/flutter-apk/app-release.apk \
+            --version "$PATCH_VERSION" \
+            --target-version-code "1000009" \
+            --out dist
+          test -s dist/patch.zip
+          test -s dist/manifest.json
+          cp dist/patch.zip "dist/patch-1000009-${{ github.sha }}.zip"
+          MD5="$(md5sum "dist/patch-1000009-${{ github.sha }}.zip" | awk '{print $1}')"
+          export MD5 PATCH_VERSION
+          python3 - <<'PY'
+          import json, os
+          manifest = {
+            "schemaVersion": 1,
+            "gitCommitHash": os.environ["GITHUB_SHA"],
+            "message": "Gofixo 1.0.9 updater repair: install APK from FileProvider-compatible cache.",
+            "patches": {}
+          }
+          for abi in ("arm64-v8a", "armeabi-v7a", "x86_64"):
+            manifest["patches"][abi] = {
+              "version": os.environ["PATCH_VERSION"],
+              "filename": f"patch-1000009-{os.environ['GITHUB_SHA']}.zip",
+              "md5": os.environ["MD5"],
+              "signature": "",
+              "targetVersionCode": 1000009
+            }
+          open("dist/latest.json", "w").write(json.dumps(manifest, indent=2) + "\n")
+          PY
+          cat dist/latest.json
+
+      - name: Upload repair OTA payload to Gofixo OTA server
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "mobile/dist/latest.json,mobile/dist/patch-1000009-${{ github.sha }}.zip"
+          target: "/home/ubuntu/gofixo-platform/ota/"
+          strip_components: 2
+          overwrite: true
+
+      - name: Verify 1.0.9 OTA endpoint
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 3m
+          script: |
+            set -euo pipefail
+            OTA_DIR="/home/ubuntu/gofixo-platform/ota"
+            test -s "$OTA_DIR/latest.json"
+            test -s "$OTA_DIR/patch-1000009-${{ github.sha }}.zip"
+            python3 -m json.tool "$OTA_DIR/latest.json" >/dev/null
+            URL="http://127.0.0.1:4000/api/mobile/ota/check?app_version_code=1000009&abi=arm64-v8a"
+            BODY="$(curl -fsS --max-time 10 "$URL")"
+            echo "$BODY"
+            python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("hasUpdate") is True; assert d["patch"]["targetVersionCode"] == 1000009' <<<"$BODY"
+            echo "1.0.9 OTA repair verification passed."
