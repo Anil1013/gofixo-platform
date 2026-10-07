@@ -291,7 +291,7 @@ class UpdateService {
             );
           }
 
-          final total = response.contentLength;
+          final total = response.contentLength ?? 0;
           var received = 0;
           final sink = apkFile.openWrite();
 
