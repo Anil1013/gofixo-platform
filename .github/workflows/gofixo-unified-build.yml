@@ -130,7 +130,7 @@ jobs:
           keytool -list -keystore android/gofixo-release.jks             -storepass "$GOFIXO_STORE_PASSWORD"             -alias "$GOFIXO_KEY_ALIAS" >/dev/null
       - name: Build release APK
         env:
-          GOFIXO_GOOGLE_MAPS_API_KEY: ${{ secrets.GOFIXO_GOOGLE_MAPS_API_KEY }}
+          GOFIXO_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: |
           set -euo pipefail
           test -n "$GOFIXO_GOOGLE_MAPS_API_KEY"
