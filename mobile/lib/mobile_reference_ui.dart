@@ -68,7 +68,28 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  Future<void>select(Map<String,dynamic>s)async{final id=s['placeId']?.toString();if(id==null||id.isEmpty)return;setState(()=>busy=true);try{final d=await ApiService.placeDetails(id);if(mounted)setState((){place=d;dest.text=d['address']?.toString()??s['text']?.toString()??'';suggestions=[];});}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
  Future<void>calculate()async{if(pos==null)await locate();if(pos==null||dest.text.trim().isEmpty)return;setState(()=>busy=true);try{final p=place??await ApiService.resolvePlace(dest.text.trim());final a=double.tryParse(p['lat']?.toString()??''),b=double.tryParse(p['lng']?.toString()??'');if(a==null||b==null)throw Exception('Destination not found.');if(isService){if(mounted)setState((){place=p;routePolylines={};destinationPoint=null;km=null;fare=null;});return;}final r=await ApiService.computeRoute(pos!.latitude,pos!.longitude,a,b);final d=(r['distanceMeters']as num).toDouble()/1000;final points=_decodeGooglePolyline(r['encodedPolyline']?.toString()??'');if(points.length<2)throw Exception('No route found.');if(mounted)setState((){place=p;km=d;fare=_fare(type,d);destinationPoint=LatLng(a,b);routePolylines={Polyline(polylineId:const PolylineId('gofixo-route'),points:points,color:gfOrange,width:6)};});}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
  double _fare(String t,double d){final base=t=='bike'?30:t=='auto'?40:60;final min=base;final slabs=t=='bike'?[[10,6],[20,5.5],[30,5],[50,4.5],[double.infinity,4.5]]:t=='auto'?[[10,7.5],[20,6.5],[30,6],[50,5.5],[double.infinity,5.5]]:[[10,9.5],[20,9],[30,8],[50,6.5],[100,5],[double.infinity,2.5]];var left=d,prev=0.0,total=0.0;for(final x in slabs){final limit=x[0]as double,rate=x[1]as double;final take=left<=0?0.0:(left<limit-prev?left:limit-prev);if(take>0)total+=take*rate;left-=take;prev=limit;if(left<=0)break;}return (base+total).clamp(min,double.infinity).roundToDouble();}
- Future<void>book()async{if(pos==null||km==null||fare==null)return;setState(()=>busy=true);try{await ApiService.createBooking(widget.session.token,providerType:type,pickup:pickup,drop:place?['address']?.toString()??dest.text.trim(),lat:pos!.latitude,lng:pos!.longitude,fare:fare,distanceKm:km,serviceType:isService?'services':'ride');if(mounted){Navigator.pop(context);await widget.onChanged();}}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
+ Future<void>book()async{
+  if(pos==null)return;
+  if(!isService&&(km==null||fare==null))return;
+  final address=place?['address']?.toString()??dest.text.trim();
+  if(address.trim().isEmpty){_snack('Please enter the destination or service address.');return;}
+  setState(()=>busy=true);
+  try{
+    await ApiService.createBooking(
+      widget.session.token,
+      providerType:type,
+      pickup:pickup,
+      drop:address,
+      lat:pos!.latitude,
+      lng:pos!.longitude,
+      fare:isService?null:fare,
+      distanceKm:isService?null:km,
+      serviceType:isService?'services':'ride',
+    );
+    if(mounted){Navigator.pop(context);await widget.onChanged();}
+  }catch(e){_snack(e.toString());}
+  finally{if(mounted)setState(()=>busy=false);}
+}
  void _snack(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.replaceFirst('Exception: ',''))));
  @override Widget build(BuildContext c)=>Scaffold(backgroundColor:gfBg,appBar:AppBar(title:Text(isService?'Request service':'Book a ride'),backgroundColor:gfBg,elevation:0),body:ListView(padding:const EdgeInsets.all(14),children:[
   if(!isService)Row(children:[Expanded(child:_Choice('Bike','bike',Icons.two_wheeler,type,(v)=>setState(()=>type=v))),const SizedBox(width:7),Expanded(child:_Choice('Auto','auto',Icons.electric_rickshaw,type,(v)=>setState(()=>type=v))),const SizedBox(width:7),Expanded(child:_Choice('Car','car',Icons.directions_car,type,(v)=>setState(()=>type=v)))]) else Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(18)),child:Text(type=='skilled_worker'?'Skilled Expert Service':'Home Help Service',style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy))),const SizedBox(height:12),
@@ -200,8 +221,8 @@ class _ActiveState extends State<_Active>{
    Text(ongoing?'TRIP IN PROGRESS':'ON THE WAY',style:const TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
    const SizedBox(height:4),Text(ongoing?'Confirm payment to complete':'Start with customer PIN',style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy)),
    const SizedBox(height:10),_Route('Pickup',widget.b['pickup_location']?.toString()??''),
-   if(!ongoing)TextField(controller:pin,maxLength:4,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Customer 4-digit PIN')),
-   if(!ongoing)SizedBox(width:double.infinity,child:FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:pin.text.length==4?()async{await ApiService.startBooking(widget.session.token,id,pin.text);await widget.changed();}:null,child:const Text('Start trip →'))),
+   if(!ongoing)TextField(controller:pin,maxLength:4,keyboardType:TextInputType.number,onChanged:(_)=>setState((){}),decoration:const InputDecoration(labelText:'Customer 4-digit PIN')),
+   if(!ongoing)SizedBox(width:double.infinity,child:FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:pin.text.length==4?()async{try{await ApiService.startBooking(widget.session.token,id,pin.text);await widget.changed();}catch(e){if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}}:null,child:const Text('Start trip →'))),
    if(ongoing)TextField(controller:fare,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Final fare ₹')),
    if(ongoing)SizedBox(width:double.infinity,child:FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:()async{final f=double.tryParse(fare.text);if(f==null)return;await ApiService.confirmPayment(widget.session.token,id,f);await widget.changed();},child:const Text('Confirm payment received →'))),
    const SizedBox(height:6),
