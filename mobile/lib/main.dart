@@ -83,7 +83,7 @@ class RoleScreen extends StatelessWidget{
         Text('Partner with Gofixo',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900,color:navy)),SizedBox(height:3),Text('Go online, accept jobs and earn.',style:TextStyle(color:muted))
       ])),IconButton(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Auth(role:'provider',onDone:onLogin))),icon:const Icon(Icons.arrow_forward_rounded,color:orange))])
     )
-  ]))
+  ])));
  );
 }
 class _EntryCard extends StatelessWidget{
@@ -145,6 +145,6 @@ class _AuthState extends State<Auth>{
     TextButton(onPressed:()=>setState(()=>mode='register'),child:const Text('New here? Create account')),
     TextButton(onPressed:()=>setState(()=>mode='forgot'),child:const Text('Forgot password?')),
    ]else TextButton(onPressed:()=>setState(()=>mode='login'),child:const Text('Back to login')),
-  ]));
+  ])));
  }
 }
