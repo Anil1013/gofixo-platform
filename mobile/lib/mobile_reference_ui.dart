@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'api_service.dart';
@@ -86,14 +87,136 @@ class _PhotoCard extends StatelessWidget{final String url,label;const _PhotoCard
 class _Partner extends StatelessWidget{final Map<String,dynamic>m;const _Partner({required this.m});@override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(22)),child:Row(children:[Container(width:58,height:58,padding:const EdgeInsets.all(4),decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEFFFF5)),child:ClipOval(child:Image.network('https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=85',fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Icon(Icons.person,color:gfGreen,size:34)))),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('PARTNER PROFILE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),Text(m['name']?.toString()??'Partner',style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900,color:gfNavy)),Text((m['type']?.toString()??'partner').replaceAll('_',' ')+' · '+(m['generated_id']?.toString()??''),style:const TextStyle(fontSize:11,color:gfMuted))])),const Icon(Icons.chevron_right,color:gfMuted)]));}
 class _RideCard extends StatelessWidget{final Session session;final Future<void> Function({bool silent}) onChanged;const _RideCard({required this.session,required this.onChanged});@override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(22),boxShadow:const[BoxShadow(color:Color(0x0D10213F),blurRadius:16,offset:Offset(0,6))]),child:Column(children:[Row(children:[const Icon(Icons.location_on_rounded,color:gfGreen,size:27),const SizedBox(width:8),const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('Where are you going?',style:TextStyle(fontSize:15,fontWeight:FontWeight.w900,color:gfNavy)),Text('Live location · Bike · Auto · Car',style:TextStyle(fontSize:10,color:gfMuted))])),FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,onChanged:onChanged))),child:const Text('Book'))]),const SizedBox(height:9),SizedBox(height:92,child:Row(children:[Expanded(child:_PhotoCard('https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=500&q=80','Bike')),Expanded(child:_PhotoCard('https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=500&q=80','Auto')),Expanded(child:_PhotoCard('https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=500&q=80','Car'))]))]));}
 class _Services extends StatelessWidget{final ValueChanged<String> onTap;const _Services({required this.onTap});@override Widget build(BuildContext c)=>GridView.count(crossAxisCount:4,crossAxisSpacing:7,mainAxisSpacing:9,childAspectRatio:.72,shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),children:[_Service('https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=500&q=80','Electrician',()=>onTap('skilled_worker')),_Service('https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=500&q=80','Plumber',()=>onTap('skilled_worker')),_Service('https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=500&q=80','AC Service',()=>onTap('skilled_worker')),_Service('https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=500&q=80','Cleaning',()=>onTap('general_worker')),_Service('https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=500&q=80','Painter',()=>onTap('skilled_worker')),_Service('https://images.unsplash.com/photo-1601058268499-e52658a84c9d?auto=format&fit=crop&w=500&q=80','Carpenter',()=>onTap('skilled_worker')),_Service('https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=500&q=80','Appliance Repair',()=>onTap('skilled_worker')),_Service('https://images.unsplash.com/photo-1521791055366-0d553872125f?auto=format&fit=crop&w=500&q=80','More Services',()=>onTap('general_worker'))]);}
-class _Service extends StatelessWidget{final String url,label;final VoidCallback tap;const _Service(this.url,this.label,this.tap);@override Widget build(BuildContext c)=>InkWell(onTap:tap,borderRadius:BorderRadius.circular(16),child:Container(padding:const EdgeInsets.all(5),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(16)),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Expanded(child:ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.network(url,fit:BoxFit.cover,width:double.infinity,errorBuilder:(_,__,___)=>const ColoredBox(color:Color(0xFFE8EEF5),child:Icon(Icons.handyman_outlined)))),const SizedBox(height:4),Text(label,textAlign:TextAlign.center,maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:8,fontWeight:FontWeight.w900,color:gfNavy))]));}
-class _Choice extends StatelessWidget{final String label,value;final IconData icon;final String selected;final ValueChanged<String>onTap;const _Choice(this.label,this.value,this.icon,this.selected,this.onTap);String get _asset=>value=='bike'?'bike.svg':value=='auto'?'auto.svg':'car.svg';@override Widget build(BuildContext c)=>InkWell(onTap:()=>onTap(value),borderRadius:BorderRadius.circular(15),child:Container(height:112,padding:const EdgeInsets.all(6),decoration:BoxDecoration(color:selected==value?const Color(0xFFEFFFF5):Colors.white,border:Border.all(color:selected==value?gfGreen:gfLine,width:selected==value?1.5:1),borderRadius:BorderRadius.circular(15)),child:Column(children:[SizedBox(height:76,child:SvgPicture.asset('assets/illustrations/$_asset',fit:BoxFit.contain)),Text(label,style:TextStyle(fontSize:10,fontWeight:FontWeight.w900,color:selected==value?gfGreen:gfNavy))])));}
+class _Service extends StatelessWidget{final String url,label;final VoidCallback tap;const _Service(this.url,this.label,this.tap);@override Widget build(BuildContext c)=>InkWell(onTap:tap,borderRadius:BorderRadius.circular(16),child:Container(padding:const EdgeInsets.all(5),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(16)),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Expanded(child:ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.network(url,fit:BoxFit.cover,width:double.infinity,errorBuilder:(_,__,___)=>const ColoredBox(color:Color(0xFFE8EEF5),child:Icon(Icons.handyman_outlined)))),const SizedBox(height:4),Text(label,textAlign:TextAlign.center,maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:8,fontWeight:FontWeight.w900,color:gfNavy))])));}
+class _Choice extends StatelessWidget{final String label,value;final IconData icon;final String selected;final ValueChanged<String>onTap;const _Choice(this.label,this.value,this.icon,this.selected,this.onTap);String get _url=>value=='bike'?'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=500&q=85':value=='auto'?'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=500&q=85':'https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=500&q=85';@override Widget build(BuildContext c)=>InkWell(onTap:()=>onTap(value),borderRadius:BorderRadius.circular(15),child:Container(height:112,padding:const EdgeInsets.all(6),decoration:BoxDecoration(color:selected==value?const Color(0xFFEFFFF5):Colors.white,border:Border.all(color:selected==value?gfGreen:gfLine,width:selected==value?1.5:1),borderRadius:BorderRadius.circular(15)),child:Column(children:[Expanded(child:ClipRRect(borderRadius:BorderRadius.circular(11),child:Image.network(_url,fit:BoxFit.cover,width:double.infinity,errorBuilder:(_,__,___)=>Icon(icon,color:gfGreen,size:30)))),Text(label,style:TextStyle(fontSize:10,fontWeight:FontWeight.w900,color:selected==value?gfGreen:gfNavy))])));}
 class _Route extends StatelessWidget{final String label,value;const _Route(this.label,this.value);@override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.only(bottom:7),child:Row(children:[Icon(label=='Pickup'?Icons.my_location:Icons.location_on,color:label=='Pickup'?gfGreen:gfOrange,size:17),const SizedBox(width:7),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(label.toUpperCase(),style:const TextStyle(fontSize:7,color:gfMuted,fontWeight:FontWeight.w800)),Text(value,maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:gfNavy))]))]));}
 class _Trust extends StatelessWidget{const _Trust();@override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.all(15),decoration:BoxDecoration(color:gfNavy,borderRadius:BorderRadius.circular(20)),child:const Row(children:[Expanded(child:_T(Icons.verified_user,'Verified')),Expanded(child:_T(Icons.shield,'Safe rides')),Expanded(child:_T(Icons.support_agent,'Support'))]));}
 class _T extends StatelessWidget{final IconData i;final String t;const _T(this.i,this.t);@override Widget build(BuildContext c)=>Column(children:[Icon(i,color:Colors.white,size:19),Text(t,style:const TextStyle(color:Colors.white,fontSize:8,fontWeight:FontWeight.w700))]);}
 
 Future<String> _reverse(double lat,double lon)async{try{final u=Uri.https('nominatim.openstreetmap.org','/reverse',{'lat':'$lat','lon':'$lon','format':'json'});final r=await http.get(u,headers:{'User-Agent':'Gofixo/1.0'}).timeout(const Duration(seconds:10));final d=jsonDecode(r.body);return d['display_name']?.toString()??'$lat, $lon';}catch(_){return '$lat, $lon';}}
 List<LatLng> _decodeGooglePolyline(String encoded){final points=<LatLng>[];var index=0;var lat=0;var lng=0;while(index<encoded.length){var result=0;var shift=0;int b;do{b=encoded.codeUnitAt(index++)-63;result|=(b&31)<<shift;shift+=5;}while(b>=32&&index<encoded.length);lat+=((result&1)!=0?~(result>>1):(result>>1));result=0;shift=0;do{b=encoded.codeUnitAt(index++)-63;result|=(b&31)<<shift;shift+=5;}while(b>=32&&index<encoded.length);lng+=((result&1)!=0?~(result>>1):(result>>1));points.add(LatLng(lat/1e5,lng/1e5));}return points;}
+
+
+class _Title extends StatelessWidget{
+ final String kicker,title;
+ const _Title({required this.kicker,required this.title});
+ @override Widget build(BuildContext c)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+  Text(kicker,style:const TextStyle(fontSize:8,letterSpacing:1.5,fontWeight:FontWeight.w900,color:gfGreen)),
+  Text(title,style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900,color:gfNavy))
+ ]);
+}
+class _Stat extends StatelessWidget{
+ final String label,value; final IconData icon;
+ const _Stat(this.label,this.value,this.icon);
+ @override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.symmetric(vertical:13,horizontal:5),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(17)),child:Column(children:[
+  Icon(icon,color:gfGreen,size:18),const SizedBox(height:4),Text(value,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),Text(label,textAlign:TextAlign.center,style:const TextStyle(fontSize:8,color:gfMuted))
+ ]));
+}
+class _Keep extends StatelessWidget{
+ const _Keep();
+ @override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.all(15),decoration:BoxDecoration(color:const Color(0xFFFFF7E8),borderRadius:BorderRadius.circular(20)),child:const Row(children:[
+  Text('🏆',style:TextStyle(fontSize:24)),SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+   Text('Keep Going!',style:TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
+   Text('Stay online and accept nearby jobs to grow your earnings.',style:TextStyle(fontSize:10,color:gfMuted))
+  ]))
+ ]));
+}
+class _Waiting extends StatelessWidget{
+ const _Waiting();
+ @override Widget build(BuildContext c)=>_Box(child:Column(children:const[
+  Icon(Icons.radar,color:gfGreen,size:35),SizedBox(height:7),
+  Text('Waiting for your next ride',style:TextStyle(fontWeight:FontWeight.w800,color:gfNavy)),
+  Text('Stay online and nearby requests will appear here.',style:TextStyle(fontSize:10,color:gfMuted))
+ ]));
+}
+class _Incoming extends StatelessWidget{
+ final Session session; final Map<String,dynamic>b; final Future<void> Function({bool silent}) changed;
+ const _Incoming({required this.session,required this.b,required this.changed});
+ @override Widget build(BuildContext c){
+  final id=int.tryParse(b['id']?.toString()??'')??0;
+  return _Box(child:Column(children:[
+   Row(children:[const Icon(Icons.notifications_active,color:gfGreen),const SizedBox(width:7),const Expanded(child:Text('New ride request',style:TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy))),Text('₹'+(b['fare_amount']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w900))]),
+   const SizedBox(height:10),_Route('Pickup',b['pickup_location']?.toString()??''),_Route('Drop',b['drop_or_service_address']?.toString()??''),const SizedBox(height:10),
+   Row(children:[
+    Expanded(child:OutlinedButton(onPressed:()async{await ApiService.declineBooking(session.token,id);await changed();},child:const Text('Reject'))),
+    const SizedBox(width:8),
+    Expanded(child:FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:()async{try{await ApiService.acceptBooking(session.token,id);await changed();}catch(e){ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}},child:const Text('Accept')))
+   ])
+  ]));
+ }
+}
+class _Active extends StatefulWidget{
+ final Session session; final Map<String,dynamic>b; final Future<void> Function({bool silent})changed;
+ const _Active({required this.session,required this.b,required this.changed});
+ @override State<_Active> createState()=>_ActiveState();
+}
+class _ActiveState extends State<_Active>{
+ final pin=TextEditingController(); final fare=TextEditingController();
+ @override void initState(){super.initState();fare.text=widget.b['fare_amount']?.toString()??'';}
+ @override void dispose(){pin.dispose();fare.dispose();super.dispose();}
+ @override Widget build(BuildContext c){
+  final id=int.tryParse(widget.b['id']?.toString()??'')??0;final ongoing=widget.b['status']=='ongoing';
+  return _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+   Text(ongoing?'TRIP IN PROGRESS':'ON THE WAY',style:const TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
+   const SizedBox(height:4),Text(ongoing?'Confirm payment to complete':'Start with customer PIN',style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy)),
+   const SizedBox(height:10),_Route('Pickup',widget.b['pickup_location']?.toString()??''),
+   if(!ongoing)TextField(controller:pin,maxLength:4,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Customer 4-digit PIN')),
+   if(!ongoing)SizedBox(width:double.infinity,child:FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:pin.text.length==4?()async{await ApiService.startBooking(widget.session.token,id,pin.text);await widget.changed();}:null,child:const Text('Start trip →'))),
+   if(ongoing)TextField(controller:fare,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Final fare ₹')),
+   if(ongoing)SizedBox(width:double.infinity,child:FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:()async{final f=double.tryParse(fare.text);if(f==null)return;await ApiService.confirmPayment(widget.session.token,id,f);await widget.changed();},child:const Text('Confirm payment received →'))),
+   const SizedBox(height:6),
+   OutlinedButton.icon(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>LiveTrackingPage(session:widget.session,booking:widget.b,isProvider:true))),icon:const Icon(Icons.map_outlined),label:const Text('Open live map'))
+  ]));
+ }
+}
+class _Booking extends StatelessWidget{
+ final Map<String,dynamic>b; final Session session; final Future<void> Function({bool silent})onChanged;
+ const _Booking({required this.b,required this.session,required this.onChanged});
+ @override Widget build(BuildContext c){
+  final s=b['status']?.toString()??'';final id=b['id']?.toString()??'';
+  return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(13),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(18)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+   Row(children:[Expanded(child:Text('#'+id+' · '+s.toUpperCase(),style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy))),Text('₹'+(b['fare_amount']??b['estimated_fare']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w900))]),
+   Text(b['pickup_location']?.toString()??'',maxLines:1,overflow:TextOverflow.ellipsis),
+   Text('→ '+(b['drop_or_service_address']?.toString()??''),maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:gfMuted)),
+   if(s=='requested'||s=='accepted')Align(alignment:Alignment.centerRight,child:TextButton(onPressed:()async{await ApiService.cancelBooking(session.token,int.tryParse(id)??0);await onChanged();},child:const Text('Cancel'))),
+   if(s=='accepted'||s=='ongoing')Align(alignment:Alignment.centerRight,child:OutlinedButton.icon(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>LiveTrackingPage(session:session,booking:b,isProvider:false))),icon:const Icon(Icons.location_searching),label:const Text('Track live')))
+  ]));
+ }
+}
+class _Box extends StatelessWidget{
+ final Widget child; const _Box({required this.child});
+ @override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(20)),child:child);
+}
+class _Location extends StatelessWidget{
+ final String pickup; final VoidCallback? onTap;
+ const _Location({required this.pickup,required this.onTap});
+ @override Widget build(BuildContext c)=>_Box(child:Row(children:[
+  const Icon(Icons.my_location,color:gfGreen),const SizedBox(width:9),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+   const Text('PICKUP',style:TextStyle(fontSize:8,fontWeight:FontWeight.w800,color:gfMuted)),
+   Text(pickup,maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:12,fontWeight:FontWeight.w700,color:gfNavy))
+  ])),IconButton(onPressed:onTap,icon:const Icon(Icons.gps_fixed,color:gfGreen))
+ ]));
+}
+class _Route extends StatelessWidget{
+ final String label,value; const _Route(this.label,this.value);
+ @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.only(bottom:7),child:Row(children:[
+  Icon(label=='Pickup'?Icons.my_location:Icons.location_on,color:label=='Pickup'?gfGreen:gfOrange,size:17),const SizedBox(width:7),
+  Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+   Text(label.toUpperCase(),style:const TextStyle(fontSize:7,color:gfMuted,fontWeight:FontWeight.w800)),
+   Text(value,maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:gfNavy))
+  ]))
+ ]));
+}
+class _Trust extends StatelessWidget{
+ const _Trust();
+ @override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.all(15),decoration:BoxDecoration(color:gfNavy,borderRadius:BorderRadius.circular(20)),child:const Row(children:[
+  Expanded(child:_T(Icons.verified_user,'Verified')),Expanded(child:_T(Icons.shield,'Safe rides')),Expanded(child:_T(Icons.support_agent,'Support'))
+ ]));
+}
+class _T extends StatelessWidget{
+ final IconData i; final String t; const _T(this.i,this.t);
+ @override Widget build(BuildContext c)=>Column(children:[Icon(i,color:Colors.white,size:19),Text(t,style:const TextStyle(color:Colors.white,fontSize:8,fontWeight:FontWeight.w700))]);
+}
 
 class LiveTrackingPage extends StatefulWidget{
   final Session session;
