@@ -102,6 +102,8 @@ jobs:
           echo "Release version: $VERSION ($BUILD_NUMBER)"
 
       - name: Build release APK
+        env:
+          GOFIXO_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: flutter build apk --release --build-name "${{ steps.version.outputs.version }}" --build-number "${{ steps.version.outputs.build_number }}"
 
       - name: Verify APK
