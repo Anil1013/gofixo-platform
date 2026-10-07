@@ -43,17 +43,28 @@ jobs:
 
             npm install --omit=dev
 
-            if [ -n "${GOOGLE_MAPS_API_KEY:-}" ]; then
-              touch .env
-              grep -v '^GOOGLE_MAPS_API_KEY=' .env > .env.tmp || true
-              printf 'GOOGLE_MAPS_API_KEY=%s\n' "$GOOGLE_MAPS_API_KEY" >> .env.tmp
-              mv .env.tmp .env
-              chmod 600 .env
-            fi
+            test -n "${GOOGLE_MAPS_API_KEY:-}" || {
+              echo "GOOGLE_MAPS_API_KEY is missing from the GitHub deployment environment."
+              exit 1
+            }
 
+            touch .env
+            grep -v '^GOOGLE_MAPS_API_KEY=' .env > .env.tmp || true
+            printf 'GOOGLE_MAPS_API_KEY=%s\n' "$GOOGLE_MAPS_API_KEY" >> .env.tmp
+            mv .env.tmp .env
+            chmod 600 .env
+
+            export GOOGLE_MAPS_API_KEY
             export GOFIXO_RELEASE_COMMIT="$(git rev-parse HEAD)"
+
             pm2 startOrRestart ecosystem.config.cjs --update-env
             pm2 save
+
+            PM2_KEY_STATUS="$(pm2 env 0 | grep '^GOOGLE_MAPS_API_KEY=' | sed 's/=.*/=SET/' || true)"
+            test "$PM2_KEY_STATUS" = "GOOGLE_MAPS_API_KEY=SET" || {
+              echo "PM2 did not receive GOOGLE_MAPS_API_KEY."
+              exit 1
+            }
 
             for i in $(seq 1 30); do
               if curl -fsS --max-time 5 http://127.0.0.1:4000/ >/tmp/gofixo-root-health.json; then
@@ -66,6 +77,14 @@ jobs:
             curl -fsS --max-time 10 http://127.0.0.1:4000/api/auth/health >/tmp/gofixo-auth-health.json
             curl -fsS --max-time 10 http://127.0.0.1:4000/api/health >/tmp/gofixo-api-health.json
 
+            ROUTE_RESPONSE="$(curl -fsS --max-time 20 -X POST http://127.0.0.1:4000/api/routes/compute               -H 'Content-Type: application/json'               --data '{"origin":{"lat":28.4867,"lng":77.0866},"destination":{"lat":28.4595,"lng":77.0266}}')"
+
+            echo "$ROUTE_RESPONSE" | grep -q '"distanceMeters"' || {
+              echo "Google Routes smoke test failed:"
+              echo "$ROUTE_RESPONSE"
+              exit 1
+            }
+
             echo "=== ROOT HEALTH ==="
             cat /tmp/gofixo-root-health.json
             echo
@@ -74,6 +93,9 @@ jobs:
             echo
             echo "=== API HEALTH ==="
             cat /tmp/gofixo-api-health.json
+            echo
+            echo "=== ROUTES HEALTH ==="
+            echo "$ROUTE_RESPONSE"
             echo
             echo "=== PM2 ==="
             pm2 describe gofixo-backend | sed -n '1,80p'
