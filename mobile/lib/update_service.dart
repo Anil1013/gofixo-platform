@@ -238,7 +238,13 @@ class UpdateService {
       ) ?? false;
 
       if (!installerStarted) {
-        throw StateError('Android installer could not be started.');
+        if (context.mounted) {
+          _showError(
+            context,
+            'Please allow Gofixo to install apps from this source, then tap Update again.',
+          );
+        }
+        return;
       }
 
       // Do NOT delete the APK here. Android's package installer may still be
