@@ -235,7 +235,12 @@ jobs:
           mv "$APK" release-assets/gofixo-release.apk
 
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; leaving the published release unchanged."
+            echo "Release $TAG already exists; replacing APK asset with the newly built signed APK."
+            gh release delete-asset "$TAG" gofixo-release.apk --repo "$GITHUB_REPOSITORY" --yes || true
+            gh release upload "$TAG" release-assets/gofixo-release.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+            echo "Replaced APK asset for $TAG with build $BUILD."
           else
             gh release create "$TAG" release-assets/gofixo-release.apk \
               --repo "$GITHUB_REPOSITORY" \
