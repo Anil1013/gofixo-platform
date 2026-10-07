@@ -223,10 +223,10 @@ jobs:
 
       - name: Publish GitHub Release and APK
         env:
-          GH_TOKEN: \${{ github.token }}
-          TAG: v\${{ steps.version.outputs.version }}
-          VERSION: \${{ steps.version.outputs.version }}
-          BUILD: \${{ steps.version.outputs.build }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ steps.version.outputs.version }}
+          VERSION: ${{ steps.version.outputs.version }}
+          BUILD: ${{ steps.version.outputs.build }}
           APK: release-assets/app-release.apk
         shell: bash
         run: |
