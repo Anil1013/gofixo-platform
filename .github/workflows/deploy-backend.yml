@@ -34,10 +34,14 @@ jobs:
 
             cd /home/ubuntu/gofixo-platform
 
-            git fetch --prune origin main
-            git reset --hard origin/main
+            # Do not update origin/main directly on the deploy host.
+            # A concurrent/stale remote-tracking ref can make git fetch fail with
+            # "incorrect old value provided". Fetch main into a dedicated deploy
+            # ref and reset from that ref instead.
+            git fetch --no-tags origin main:refs/remotes/gofixo-deploy/main
+            git reset --hard refs/remotes/gofixo-deploy/main
 
-            test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+            test "$(git rev-parse HEAD)" = "$(git rev-parse refs/remotes/gofixo-deploy/main)"
             test -f server.js
             test -f ecosystem.config.cjs
 
