@@ -141,7 +141,7 @@ class UpdateService {
   ) async {
     final uri = Uri.tryParse(info.downloadUrl);
     if (uri == null || uri.scheme != 'https' ||
-        !RegExp(r'/releases/download/v\\d+\\.\\d+\\.\\d+/gofixo-release\\.apk(?:$|[?#])')
+        !RegExp(r'/releases/download/v\d+\.\d+\.\d+/gofixo-release\.apk(?:$|[?#])')
             .hasMatch(uri.path)) {
       _showError(context, 'Update link is invalid or not versioned. Please try again.');
       return;
