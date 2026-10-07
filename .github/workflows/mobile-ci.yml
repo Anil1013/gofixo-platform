@@ -103,8 +103,11 @@ jobs:
       - name: Build release APK
         env:
           GOFIXO_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
-          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2"
-        run: flutter build apk --release --verbose
+          GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=768m -XX:+UseParallelGC -Dfile.encoding=UTF-8" -Dorg.gradle.daemon=true -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2 -Dorg.gradle.caching=true'
+        run: |
+          set -euo pipefail
+          echo "Gradle CI mode: daemon=on, workers=2, heap=3g, build-cache=on"
+          flutter build apk --release --verbose
 
       - name: Verify APK signing and identity
         shell: bash
