@@ -475,13 +475,196 @@ class LiveTrackingPage extends StatefulWidget{
 }
 class _LiveTrackingPageState extends State<LiveTrackingPage>{
   WebSocketChannel? channel;
-  Timer? gpsTimer;
+  StreamSubscription<Position>? gpsSub;
+  Timer? reconnectTimer;
+  Timer? pollTimer;
+  Timer? routeTimer;
   LatLng? providerPoint;
   LatLng? pickupPoint;
+  LatLng? lastRoutedPoint;
+  Set<Polyline> routeLines={};
   String status='';
-  @override void initState(){super.initState();status=widget.booking['status']?.toString()??'';final plat=double.tryParse(widget.booking['pickup_lat']?.toString()??'');final plng=double.tryParse(widget.booking['pickup_lng']?.toString()??'');if(plat!=null&&plng!=null)pickupPoint=LatLng(plat,plng);final vlat=double.tryParse(widget.booking['provider_lat']?.toString()??'');final vlng=double.tryParse(widget.booking['provider_lng']?.toString()??'');if(vlat!=null&&vlng!=null)providerPoint=LatLng(vlat,vlng);if(widget.isProvider){_refreshProviderGps();gpsTimer=Timer.periodic(const Duration(seconds:5),(_)=>_refreshProviderGps());}else{_connectRealtime();}}
-  @override void dispose(){gpsTimer?.cancel();channel?.sink.close();super.dispose();}
-  void _connectRealtime(){try{final ch=ApiService.realtimeChannel(widget.session.token);channel=ch;ch.sink.add(jsonEncode({'type':'subscribe_booking','booking_id':widget.booking['id']}));ch.stream.listen((raw){try{final d=jsonDecode(raw.toString());if(d is Map&&d['type']=='provider_location'){final lat=double.tryParse(d['lat']?.toString()??'');final lng=double.tryParse(d['lng']?.toString()??'');if(lat!=null&&lng!=null&&mounted)setState(()=>providerPoint=LatLng(lat,lng));}}catch(_){}});}catch(_){}} 
-  Future<void> _refreshProviderGps()async{try{if(!await Geolocator.isLocationServiceEnabled())return;var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)return;final x=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.high));if(mounted)setState(()=>providerPoint=LatLng(x.latitude,x.longitude));}catch(_){}} 
-  @override Widget build(BuildContext c){final center=providerPoint??pickupPoint??const LatLng(26.9124,75.7873);final markers=<Marker>{if(pickupPoint!=null)Marker(markerId:const MarkerId('pickup'),position:pickupPoint!,infoWindow:const InfoWindow(title:'Pickup')),if(providerPoint!=null)Marker(markerId:const MarkerId('partner'),position:providerPoint!,icon:BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),infoWindow:InfoWindow(title:widget.isProvider?'You':'Gofixo Partner'))};return Scaffold(appBar:AppBar(title:Text(widget.isProvider?'Trip map':'Track your partner')),body:Stack(children:[GoogleMap(initialCameraPosition:CameraPosition(target:center,zoom:14),myLocationEnabled:widget.isProvider,myLocationButtonEnabled:true,markers:markers,zoomControlsEnabled:false),Positioned(left:14,right:14,bottom:18,child:Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(20),boxShadow:const[BoxShadow(color:Color(0x22000000),blurRadius:18)]),child:Row(children:[Container(width:44,height:44,decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEFFFF5)),child:const Icon(Icons.two_wheeler,color:gfGreen)),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(widget.isProvider?'Live trip':'Partner is on the way',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),Text(widget.isProvider?'Your GPS is updating every 5 seconds':'Live partner location is connected',style:const TextStyle(fontSize:11,color:gfMuted))]))])))]));}
+  bool connecting=false;
+  bool followCamera=true;
+  bool movingCamera=false;
+
+  @override void initState(){
+    super.initState();
+    status=widget.booking['status']?.toString()??'';
+    final plat=double.tryParse(widget.booking['pickup_lat']?.toString()??'');
+    final plng=double.tryParse(widget.booking['pickup_lng']?.toString()??'');
+    if(plat!=null&&plng!=null)pickupPoint=LatLng(plat,plng);
+    final vlat=double.tryParse(widget.booking['provider_lat']?.toString()??'');
+    final vlng=double.tryParse(widget.booking['provider_lng']?.toString()??'');
+    if(vlat!=null&&vlng!=null)providerPoint=LatLng(vlat,vlng);
+    if(widget.isProvider){
+      _startProviderGps();
+    }else{
+      _connectRealtime();
+      _startBookingPoll();
+      routeTimer=Timer.periodic(const Duration(seconds:20),(_)=>_refreshRoute());
+      _refreshRoute();
+    }
+  }
+
+  @override void dispose(){
+    gpsSub?.cancel();
+    pollTimer?.cancel();
+    routeTimer?.cancel();
+    reconnectTimer?.cancel();
+    channel?.sink.close();
+    super.dispose();
+  }
+
+  void _connectRealtime(){
+    if(connecting||!mounted)return;
+    connecting=true;
+    try{
+      final ch=ApiService.realtimeChannel(widget.session.token);
+      channel=ch;
+      ch.sink.add(jsonEncode({'type':'subscribe_booking','booking_id':widget.booking['id']}));
+      ch.stream.listen((raw){
+        try{
+          final d=jsonDecode(raw.toString());
+          if(d is Map&&d['type']=='provider_location'){
+            final lat=double.tryParse(d['lat']?.toString()??'');
+            final lng=double.tryParse(d['lng']?.toString()??'');
+            if(lat!=null&&lng!=null&&mounted){
+              setState(()=>providerPoint=LatLng(lat,lng));
+              _followProvider();
+            }
+          }
+        }catch(_){}
+      },onDone:_scheduleReconnect,onError:(_,__)=>_scheduleReconnect());
+    }catch(_){
+      _scheduleReconnect();
+    }finally{
+      connecting=false;
+    }
+  }
+
+  void _scheduleReconnect(){
+    if(!mounted||reconnectTimer?.isActive==true)return;
+    reconnectTimer=Timer(const Duration(seconds:3),(){reconnectTimer=null;_connectRealtime();});
+  }
+
+  void _startBookingPoll(){
+    pollTimer=Timer.periodic(const Duration(seconds:5),(_)=>_refreshBooking());
+  }
+
+  Future<void>_refreshBooking()async{
+    try{
+      final all=await ApiService.customerBookings(widget.session.token);
+      final id=widget.booking['id']?.toString();
+      Map<String,dynamic>? b;
+      for(final x in all){if(x['id']?.toString()==id){b=x;break;}}
+      if(b==null||!mounted)return;
+      final lat=double.tryParse(b['provider_lat']?.toString()??'');
+      final lng=double.tryParse(b['provider_lng']?.toString()??'');
+      setState((){
+        status=b!['status']?.toString()??status;
+        if(lat!=null&&lng!=null)providerPoint=LatLng(lat,lng);
+      });
+      if(status=='completed'||status=='cancelled'||status=='no_provider'){
+        await channel?.sink.close();
+      }
+      _followProvider();
+    }catch(_){}
+  }
+
+  void _startProviderGps(){
+    gpsSub?.cancel();
+    gpsSub=Geolocator.getPositionStream(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:5)).listen((x){
+      if(!mounted||x.accuracy>150)return;
+      setState(()=>providerPoint=LatLng(x.latitude,x.longitude));
+    });
+  }
+
+  Future<void>_refreshRoute()async{
+    if(widget.isProvider||providerPoint==null||pickupPoint==null)return;
+    final p=providerPoint!;
+    if(lastRoutedPoint!=null&&Geolocator.distanceBetween(lastRoutedPoint!.latitude,lastRoutedPoint!.longitude,p.latitude,p.longitude)<100)return;
+    try{
+      final r=await ApiService.computeRoute(p.latitude,p.longitude,pickupPoint!.latitude,pickupPoint!.longitude);
+      final pts=_decodeGooglePolyline(r['encodedPolyline']?.toString()??'');
+      if(pts.length>=2&&mounted){
+        setState(()=>routeLines={Polyline(polylineId:const PolylineId('partner-route'),points:pts,color:gfGreen,width:5)});
+        lastRoutedPoint=p;
+      }
+    }catch(_){}
+  }
+
+  List<LatLng>_decodeGooglePolyline(String encoded){
+    final points=<LatLng>[];var index=0,lat=0,lng=0;
+    while(index<encoded.length){
+      var result=0,shift=0;int b;
+      do{if(index>=encoded.length)return points;b=encoded.codeUnitAt(index++)-63;result|=(b&31)<<shift;shift+=5;}while(b>=32);
+      lat+=((result&1)!=0?~(result>>1):(result>>1));
+      result=0;shift=0;
+      do{if(index>=encoded.length)return points;b=encoded.codeUnitAt(index++)-63;result|=(b&31)<<shift;shift+=5;}while(b>=32);
+      lng+=((result&1)!=0?~(result>>1):(result>>1));
+      points.add(LatLng(lat/1e5,lng/1e5));
+    }
+    return points;
+  }
+
+  void _followProvider(){
+    if(!followCamera||providerPoint==null)return;
+    movingCamera=true;
+    mapController?.animateCamera(CameraUpdate.newLatLng(providerPoint!)).whenComplete((){
+      Future.delayed(const Duration(milliseconds:500),(){movingCamera=false;});
+    });
+  }
+
+  GoogleMapController? mapController;
+
+  @override Widget build(BuildContext c){
+    final center=providerPoint??pickupPoint??const LatLng(28.6139,77.2090);
+    final markers=<Marker>{
+      if(pickupPoint!=null)Marker(markerId:const MarkerId('pickup'),position:pickupPoint!,infoWindow:const InfoWindow(title:'Pickup')),
+      if(providerPoint!=null)Marker(markerId:const MarkerId('partner'),position:providerPoint!,icon:BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),infoWindow:InfoWindow(title:widget.isProvider?'You':'Gofixo Partner')),
+    };
+    final title=status=='ongoing'?'Trip in progress':status=='accepted'?'Partner is on the way':'Live trip';
+    return Scaffold(
+      appBar:AppBar(title:Text(widget.isProvider?'Trip map':title)),
+      body:Stack(children:[
+        GoogleMap(
+          initialCameraPosition:CameraPosition(target:center,zoom:15),
+          onMapCreated:(m){mapController=m;_followProvider();},
+          onCameraMoveStarted:(){if(!movingCamera)followCamera=false;},
+          myLocationEnabled:widget.isProvider,
+          myLocationButtonEnabled:true,
+          markers:markers,
+          polylines:routeLines,
+          zoomControlsEnabled:false,
+          compassEnabled:true,
+        ),
+        Positioned(left:14,right:14,top:14,child:Container(
+          padding:const EdgeInsets.symmetric(horizontal:14,vertical:12),
+          decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(18),boxShadow:const[BoxShadow(color:Color(0x22000000),blurRadius:14)]),
+          child:Row(children:[
+            Icon(status=='ongoing'?Icons.navigation_rounded:Icons.two_wheeler,color:gfGreen),
+            const SizedBox(width:10),
+            Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              Text(widget.isProvider?'Trip map':title,style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
+              Text(widget.isProvider?'GPS is updating live':(status=='accepted'?'Partner location is live':'Connecting to partner…'),style:const TextStyle(fontSize:11,color:gfMuted)),
+            ])),
+            if(!widget.isProvider)IconButton(onPressed:(){setState(()=>followCamera=true);_followProvider();},icon:const Icon(Icons.my_location,color:gfGreen)),
+          ]),
+        )),
+        Positioned(left:14,right:14,bottom:18,child:Container(
+          padding:const EdgeInsets.all(16),
+          decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(20),boxShadow:const[BoxShadow(color:Color(0x22000000),blurRadius:18)]),
+          child:Row(children:[
+            Container(width:44,height:44,decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEFFFF5)),child:const Icon(Icons.two_wheeler,color:gfGreen)),
+            const SizedBox(width:12),
+            Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              Text(widget.isProvider?'Live trip':'Gofixo Partner',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
+              Text(widget.isProvider?'Your GPS is updating every few seconds':status=='ongoing'?'Ride is in progress':'Partner is heading to pickup',style:const TextStyle(fontSize:11,color:gfMuted)),
+            ])),
+          ]),
+        )),
+      ]),
+    );
+  }
 }
