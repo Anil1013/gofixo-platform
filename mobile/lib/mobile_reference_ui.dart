@@ -609,11 +609,11 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
   }
 
   void _followProvider(){
-    if(!followCamera||providerPoint==null)return;
+    final map=mapController;
+    final point=providerPoint;
+    if(!followCamera||point==null||map==null)return;
     movingCamera=true;
-    mapController?.animateCamera(CameraUpdate.newLatLng(providerPoint!)).whenComplete((){
-      Future.delayed(const Duration(milliseconds:500),(){movingCamera=false;});
-    });
+    map.animateCamera(CameraUpdate.newLatLng(point)).whenComplete(()=>Future.delayed(const Duration(milliseconds:500),(){if(mounted)movingCamera=false;}));
   }
 
   GoogleMapController? mapController;
