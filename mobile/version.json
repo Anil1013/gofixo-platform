@@ -1,7 +1,7 @@
 {
-  "version": "1.0.8",
-  "buildNumber": 1000008,
-  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.8/gofixo-release.apk",
-  "notes": "Fix versioned APK URL validation and reliable in-app updater (v1.0.8).",
+  "version": "1.0.9",
+  "buildNumber": 1000009,
+  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.9/gofixo-release.apk",
+  "notes": "Harden OTA APK download, retries, diagnostics, and Android installer handoff (v1.0.9).",
   "forceUpdate": true
 }
