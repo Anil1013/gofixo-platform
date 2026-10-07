@@ -34,10 +34,8 @@ jobs:
 
             cd /home/ubuntu/gofixo-platform
 
-            # Do not update origin/main directly on the deploy host.
-            # A concurrent/stale remote-tracking ref can make git fetch fail with
-            # "incorrect old value provided". Fetch main into a dedicated deploy
-            # ref and reset from that ref instead.
+            # Use a dedicated deploy ref so stale/concurrent origin/main refs
+            # cannot break the deployment with "incorrect old value provided".
             git fetch --no-tags origin main:refs/remotes/gofixo-deploy/main
             git reset --hard refs/remotes/gofixo-deploy/main
 
@@ -52,21 +50,29 @@ jobs:
               exit 1
             }
 
+            # Persist the deployment secret for the backend and keep the file private.
             touch .env
             grep -v '^GOOGLE_MAPS_API_KEY=' .env > .env.tmp || true
             printf 'GOOGLE_MAPS_API_KEY=%s\n' "$GOOGLE_MAPS_API_KEY" >> .env.tmp
             mv .env.tmp .env
             chmod 600 .env
 
+            # Export into the shell so PM2 receives the same environment.
             export GOOGLE_MAPS_API_KEY
             export GOFIXO_RELEASE_COMMIT="$(git rev-parse HEAD)"
 
             pm2 startOrRestart ecosystem.config.cjs --update-env
             pm2 save
 
-            PM2_KEY_STATUS="$(pm2 env 0 | grep '^GOOGLE_MAPS_API_KEY=' | sed 's/=.*/=SET/' || true)"
-            test "$PM2_KEY_STATUS" = "GOOGLE_MAPS_API_KEY=SET" || {
-              echo "PM2 did not receive GOOGLE_MAPS_API_KEY."
+            # Verify the actual running Node process has the key without printing it.
+            PM2_PID="$(pm2 pid gofixo-backend | tr -d '[:space:]')"
+            test -n "$PM2_PID" || {
+              echo "PM2 did not return a PID for gofixo-backend."
+              exit 1
+            }
+
+            tr '\0' '\n' < "/proc/$PM2_PID/environ" | grep -q '^GOOGLE_MAPS_API_KEY=.' || {
+              echo "Running gofixo-backend process does not have GOOGLE_MAPS_API_KEY."
               exit 1
             }
 
