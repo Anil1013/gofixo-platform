@@ -94,3 +94,23 @@ class _T extends StatelessWidget{final IconData i;final String t;const _T(this.i
 
 Future<String> _reverse(double lat,double lon)async{try{final u=Uri.https('nominatim.openstreetmap.org','/reverse',{'lat':'$lat','lon':'$lon','format':'json'});final r=await http.get(u,headers:{'User-Agent':'Gofixo/1.0'}).timeout(const Duration(seconds:10));final d=jsonDecode(r.body);return d['display_name']?.toString()??'$lat, $lon';}catch(_){return '$lat, $lon';}}
 List<LatLng> _decodeGooglePolyline(String encoded){final points=<LatLng>[];var index=0;var lat=0;var lng=0;while(index<encoded.length){var result=0;var shift=0;int b;do{b=encoded.codeUnitAt(index++)-63;result|=(b&31)<<shift;shift+=5;}while(b>=32&&index<encoded.length);lat+=((result&1)!=0?~(result>>1):(result>>1));result=0;shift=0;do{b=encoded.codeUnitAt(index++)-63;result|=(b&31)<<shift;shift+=5;}while(b>=32&&index<encoded.length);lng+=((result&1)!=0?~(result>>1):(result>>1));points.add(LatLng(lat/1e5,lng/1e5));}return points;}
+
+class LiveTrackingPage extends StatefulWidget{
+  final Session session;
+  final Map<String,dynamic> booking;
+  final bool isProvider;
+  const LiveTrackingPage({super.key,required this.session,required this.booking,required this.isProvider});
+  @override State<LiveTrackingPage> createState()=>_LiveTrackingPageState();
+}
+class _LiveTrackingPageState extends State<LiveTrackingPage>{
+  WebSocketChannel? channel;
+  Timer? gpsTimer;
+  LatLng? providerPoint;
+  LatLng? pickupPoint;
+  String status='';
+  @override void initState(){super.initState();status=widget.booking['status']?.toString()??'';final plat=double.tryParse(widget.booking['pickup_lat']?.toString()??'');final plng=double.tryParse(widget.booking['pickup_lng']?.toString()??'');if(plat!=null&&plng!=null)pickupPoint=LatLng(plat,plng);final vlat=double.tryParse(widget.booking['provider_lat']?.toString()??'');final vlng=double.tryParse(widget.booking['provider_lng']?.toString()??'');if(vlat!=null&&vlng!=null)providerPoint=LatLng(vlat,vlng);if(widget.isProvider){_refreshProviderGps();gpsTimer=Timer.periodic(const Duration(seconds:5),(_)=>_refreshProviderGps());}else{_connectRealtime();}}
+  @override void dispose(){gpsTimer?.cancel();channel?.sink.close();super.dispose();}
+  void _connectRealtime(){try{final ch=ApiService.realtimeChannel(widget.session.token);channel=ch;ch.stream.listen((raw){try{final d=jsonDecode(raw.toString());if(d is Map&&d['type']=='provider_location'){final lat=double.tryParse(d['lat']?.toString()??'');final lng=double.tryParse(d['lng']?.toString()??'');if(lat!=null&&lng!=null&&mounted)setState(()=>providerPoint=LatLng(lat,lng));}}catch(_){}});}catch(_){}} 
+  Future<void> _refreshProviderGps()async{try{if(!await Geolocator.isLocationServiceEnabled())return;var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)return;final x=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.high));if(mounted)setState(()=>providerPoint=LatLng(x.latitude,x.longitude));}catch(_){}} 
+  @override Widget build(BuildContext c){final center=providerPoint??pickupPoint??const LatLng(26.9124,75.7873);final markers=<Marker>{if(pickupPoint!=null)Marker(markerId:const MarkerId('pickup'),position:pickupPoint!,infoWindow:const InfoWindow(title:'Pickup')),if(providerPoint!=null)Marker(markerId:const MarkerId('partner'),position:providerPoint!,icon:BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),infoWindow:InfoWindow(title:widget.isProvider?'You':'Gofixo Partner'))};return Scaffold(appBar:AppBar(title:Text(widget.isProvider?'Trip map':'Track your partner')),body:Stack(children:[GoogleMap(initialCameraPosition:CameraPosition(target:center,zoom:14),myLocationEnabled:widget.isProvider,myLocationButtonEnabled:true,markers:markers,zoomControlsEnabled:false),Positioned(left:14,right:14,bottom:18,child:Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(20),boxShadow:const[BoxShadow(color:Color(0x22000000),blurRadius:18)]),child:Row(children:[Container(width:44,height:44,decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEFFFF5)),child:const Icon(Icons.two_wheeler,color:gfGreen)),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(widget.isProvider?'Live trip':'Partner is on the way',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),Text(widget.isProvider?'Your GPS is updating every 5 seconds':'Live partner location is connected',style:const TextStyle(fontSize:11,color:gfMuted))]))])))]));}
+}
