@@ -129,7 +129,11 @@ jobs:
           chmod 600 android/gofixo-release.jks android/key.properties
           keytool -list -keystore android/gofixo-release.jks             -storepass "$GOFIXO_STORE_PASSWORD"             -alias "$GOFIXO_KEY_ALIAS" >/dev/null
       - name: Build release APK
+        env:
+          GOFIXO_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: |
+          set -euo pipefail
+          test -n "$GOFIXO_GOOGLE_MAPS_API_KEY"
           flutter build apk --release             --build-name "${{ steps.version.outputs.version }}"             --build-number "${{ steps.version.outputs.build }}"             --dart-define=GOFIXO_GIT_SHA=${{ github.sha }}
       - name: Verify APK signing
         shell: bash

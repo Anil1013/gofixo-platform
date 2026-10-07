@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 const String apiBase = 'https://gofixo.mob13r.com/api';
 class Session {
@@ -30,6 +31,17 @@ class ApiService {
   static Future<Map<String,dynamic>> resolvePlace(String input)async{
     final d=await _request('GET','/places/resolve?input='+Uri.encodeQueryComponent(input));
     return Map<String,dynamic>.from((d as Map)['place'] as Map);
+  }
+  static Future<Map<String,dynamic>> computeRoute(double originLat,double originLng,double destinationLat,double destinationLng)async{
+    final d=await _request('POST','/routes/compute',body:{
+      'origin':{'lat':originLat,'lng':originLng},
+      'destination':{'lat':destinationLat,'lng':destinationLng},
+    });
+    return Map<String,dynamic>.from(d as Map);
+  }
+  static WebSocketChannel realtimeChannel(String token){
+    final base=apiBase.replaceFirst('https://','wss://').replaceFirst('/api','/api/realtime');
+    return WebSocketChannel.connect(Uri.parse(base+'?token='+Uri.encodeQueryComponent(token)));
   }
   static Future<void> login(String role,String phone,String password)async{final path=role=='customer'?'/auth/customer/login':'/auth/provider/login';final d=await _request('POST',path,body:{'phone':phone,'password':password});if(d is! Map||d['token']==null||d['user'] is! Map)throw Exception('Invalid login response');await saveSession(d['token'].toString(),Map<String,dynamic>.from(d['user']),role);}
   static Future<void> registerCustomer(String name,String phone,String password)=>_request('POST','/auth/customer/register',body:{'name':name,'phone':phone,'password':password});

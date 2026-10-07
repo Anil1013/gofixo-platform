@@ -243,6 +243,64 @@ app.get('/api/places/resolve', async (req, res) => {
   }
 });
 
+app.post('/api/routes/compute', async (req, res) => {
+  const originLat = Number(req.body?.origin?.lat);
+  const originLng = Number(req.body?.origin?.lng);
+  const destinationLat = Number(req.body?.destination?.lat);
+  const destinationLng = Number(req.body?.destination?.lng);
+
+  if (![originLat, originLng, destinationLat, destinationLng].every(Number.isFinite)) {
+    return res.status(400).json({ error: 'Valid origin and destination coordinates are required' });
+  }
+
+  try {
+    if (!GOOGLE_MAPS_API_KEY) {
+      return res.status(503).json({ error: 'Google Routes is not configured on the Gofixo server' });
+    }
+
+    const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+        'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline'
+      },
+      body: JSON.stringify({
+        origin: { location: { latLng: { latitude: originLat, longitude: originLng } } },
+        destination: { location: { latLng: { latitude: destinationLat, longitude: destinationLng } } },
+        travelMode: 'DRIVE',
+        routingPreference: 'TRAFFIC_AWARE',
+        computeAlternativeRoutes: false,
+        routeModifiers: { avoidTolls: false, avoidHighways: false, avoidFerries: false },
+        languageCode: 'en-IN',
+        units: 'METRIC'
+      })
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const err = new Error(data?.error?.message || 'Google Routes request failed');
+      err.status = response.status >= 500 ? 502 : 400;
+      throw err;
+    }
+
+    const route = Array.isArray(data.routes) ? data.routes[0] : null;
+    if (!route?.polyline?.encodedPolyline) {
+      return res.status(404).json({ error: 'No drivable route found' });
+    }
+
+    const durationSeconds = Number.parseFloat(String(route.duration || '').replace('s', ''));
+    return res.json({
+      distanceMeters: Number(route.distanceMeters || 0),
+      durationSeconds: Number.isFinite(durationSeconds) ? durationSeconds : 0,
+      encodedPolyline: route.polyline.encodedPolyline
+    });
+  } catch (err) {
+    console.error('Google Routes error:', err.message);
+    return res.status(err.status || 502).json({ error: err.message || 'Route service unavailable' });
+  }
+});
+
 app.get('/api/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
