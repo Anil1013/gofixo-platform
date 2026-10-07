@@ -76,11 +76,19 @@ class MainActivity : FlutterActivity() {
             return false
         }
 
+        // Flutter's Directory.systemTemp on Android resolves to code_cache/.
+        // FileProvider's <cache-path> root is cache/, so copy the APK into the
+        // configured FileProvider root before creating the content:// URI.
+        val installerApk = File(cacheDir, apkFile.name)
+        if (apkFile.canonicalFile != installerApk.canonicalFile) {
+            apkFile.copyTo(installerApk, overwrite = true)
+        }
+
         val apkUri: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             FileProvider.getUriForFile(
                 this,
                 "$packageName.fileprovider",
-                apkFile
+                installerApk
             )
         } else {
             @Suppress("DEPRECATION")
