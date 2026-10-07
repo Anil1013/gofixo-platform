@@ -140,8 +140,10 @@ class UpdateService {
     UpdateInfo info,
   ) async {
     final uri = Uri.tryParse(info.downloadUrl);
-    if (uri == null || uri.scheme != 'https') {
-      _showError(context, 'Update link is invalid. Please try again.');
+    if (uri == null || uri.scheme != 'https' ||
+        !RegExp(r'/releases/download/v\\d+\\.\\d+\\.\\d+/gofixo-release\\.apk(?:$|[?#])')
+            .hasMatch(uri.path)) {
+      _showError(context, 'Update link is invalid or not versioned. Please try again.');
       return;
     }
 
@@ -230,16 +232,19 @@ class UpdateService {
       progressNotifier.value = 1;
       await Future<void>.delayed(const Duration(milliseconds: 300));
 
-      await _installerChannel.invokeMethod<void>(
+      final installerStarted = await _installerChannel.invokeMethod<bool>(
         'installApk',
         <String, dynamic>{'path': apkFile.path},
-      );
+      ) ?? false;
 
-      if (context.mounted && info.forceUpdate) {
-        // Android's package installer now owns the user-facing install flow.
+      if (!installerStarted) {
+        throw StateError('Android installer could not be started.');
       }
+
+      // Do NOT delete the APK here. Android's package installer may still be
+      // reading the FileProvider URI after this method returns.
     } catch (e) {
-      if (apkFile != null) {
+      if (apkFile != null && e is! StateError) {
         try {
           if (await apkFile.exists()) {
             await apkFile.delete();
