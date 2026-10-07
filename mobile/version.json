@@ -1,7 +1,7 @@
 {
-  "version": "1.0.11",
-  "buildNumber": 1000011,
-  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.11/gofixo-release.apk",
-  "notes": "Stabilize GPS accuracy, live partner tracking, reconnect handling, and ride-map experience (v1.0.11).",
+  "version": "1.0.12",
+  "buildNumber": 1000012",
+  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.12/gofixo-release.apk",
+  "notes": "Premium interactive maps, smooth recentering, and improved booking map experience (v1.0.12).",
   "forceUpdate": true
 }
