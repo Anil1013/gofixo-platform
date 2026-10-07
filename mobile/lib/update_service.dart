@@ -257,7 +257,14 @@ class UpdateService {
     int buildNumber,
     ValueNotifier<double?> progressNotifier,
   ) async {
-    final tempDir = Directory.systemTemp;
+    // Android's Directory.systemTemp may resolve to code_cache/, while the
+    // FileProvider is intentionally rooted at the app's cache directory.
+    // Write directly to the FileProvider-compatible cache path so the
+    // currently installed APK can also perform the update.
+    final tempDir = Platform.isAndroid
+        ? Directory('/data/data/com.gofixo.app/cache')
+        : Directory.systemTemp;
+    await tempDir.create(recursive: true);
     final apkFile = File(
       '${tempDir.path}/gofixo-update-$buildNumber.apk',
     );
