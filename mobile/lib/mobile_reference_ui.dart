@@ -27,6 +27,24 @@ class _ReferenceCustomerHomeState extends State<ReferenceCustomerHome>{
   const _Title(kicker:'HOME SERVICES',title:'Help at your doorstep'),const SizedBox(height:10),_Services(onTap:(t)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:widget.session,type:t,onChanged:load)))),const SizedBox(height:18),
   const _Title(kicker:'ACTIVITY',title:'Recent bookings'),const SizedBox(height:10),
   if(bookings.isEmpty)const _Box(child:Text('No bookings yet. Your rides and services will appear here.')) else ...bookings.take(5).map((b)=>_Booking(b:b,session:widget.session,onChanged:load)),
+  const SizedBox(height:4),
+  SizedBox(
+    width:double.infinity,
+    child:OutlinedButton.icon(
+      onPressed:()=>Navigator.push(
+        c,
+        MaterialPageRoute(
+          builder:(_)=>CompletedRidesPage(
+            session:widget.session,
+            bookings:bookings,
+            onRefresh:()=>load(silent:true),
+          ),
+        ),
+      ),
+      icon:const Icon(Icons.history_rounded),
+      label:const Text('View completed rides'),
+    ),
+  ),
   const SizedBox(height:12),const _Trust(),
  ]))));
 }
@@ -272,6 +290,157 @@ class _Booking extends StatelessWidget{
   ]));
  }
 }
+class CompletedRidesPage extends StatefulWidget{
+ final Session session;
+ final List<Map<String,dynamic>> bookings;
+ final Future<void> Function() onRefresh;
+ const CompletedRidesPage({super.key,required this.session,required this.bookings,required this.onRefresh});
+ @override State<CompletedRidesPage> createState()=>_CompletedRidesPageState();
+}
+
+class _CompletedRidesPageState extends State<CompletedRidesPage>{
+ late List<Map<String,dynamic>> bookings;
+ bool loading=false;
+
+ @override void initState(){
+  super.initState();
+  bookings=List<Map<String,dynamic>>.from(widget.bookings);
+ }
+
+ List<Map<String,dynamic>> get completed=>bookings.where((b){
+  final status=b['status']?.toString().toLowerCase().trim()??'';
+  final serviceType=b['service_type']?.toString().toLowerCase().trim()??'ride';
+  return serviceType!='services'&&
+    (status=='completed'||status=='finished'||status=='paid');
+ }).toList();
+
+ Future<void>refresh()async{
+  if(loading)return;
+  setState(()=>loading=true);
+  try{
+   final latest=await ApiService.customerBookings(widget.session.token);
+   if(mounted)setState(()=>bookings=latest);
+   await widget.onRefresh();
+  }catch(e){
+   if(mounted)ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))),
+   );
+  }finally{
+   if(mounted)setState(()=>loading=false);
+  }
+ }
+
+ @override Widget build(BuildContext c)=>Scaffold(
+  backgroundColor:gfBg,
+  appBar:AppBar(
+   title:const Text('Completed rides',style:TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
+   backgroundColor:gfBg,
+   elevation:0,
+   actions:[
+    IconButton(
+     onPressed:loading?null:refresh,
+     icon:loading
+       ?const SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2))
+       :const Icon(Icons.refresh_rounded),
+    ),
+   ],
+  ),
+  body:RefreshIndicator(
+   onRefresh:refresh,
+   child:ListView(
+    padding:const EdgeInsets.fromLTRB(14,8,14,28),
+    children:[
+     Container(
+      padding:const EdgeInsets.all(18),
+      decoration:BoxDecoration(
+       color:gfNavy,
+       borderRadius:BorderRadius.circular(22),
+      ),
+      child:Row(children:[
+       Container(
+        width:48,height:48,
+        decoration:BoxDecoration(color:gfGreen.withOpacity(.16),shape:BoxShape.circle),
+        child:const Icon(Icons.check_circle_rounded,color:gfGreen,size:28),
+       ),
+       const SizedBox(width:12),
+       Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        const Text('Your completed rides',style:TextStyle(color:Colors.white,fontSize:17,fontWeight:FontWeight.w900)),
+        Text('${completed.length} completed ride${completed.length==1?'':'s'}',style:const TextStyle(color:Colors.white70,fontSize:12)),
+       ])),
+      ]),
+     ),
+     const SizedBox(height:14),
+     if(completed.isEmpty)
+      const _Box(child:Column(children:[
+       Icon(Icons.history_rounded,color:gfMuted,size:42),
+       SizedBox(height:8),
+       Text('No completed rides yet',style:TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy)),
+       SizedBox(height:4),
+       Text('Your finished bike, auto and car rides will appear here.',textAlign:TextAlign.center,style:TextStyle(fontSize:11,color:gfMuted)),
+      ]))
+     else
+      ...completed.map((b)=>_CompletedRideCard(b:b)),
+    ],
+   ),
+  ),
+ );
+}
+
+class _CompletedRideCard extends StatelessWidget{
+ final Map<String,dynamic>b;
+ const _CompletedRideCard({required this.b});
+
+ @override Widget build(BuildContext c){
+  final id=b['id']?.toString()??'';
+  final fare=b['fare_amount']??b['final_fare']??b['estimated_fare']??0;
+  final type=(b['provider_type']?.toString()??'ride').toUpperCase();
+  final date=b['completed_at']??b['updated_at']??b['created_at'];
+  return Container(
+   margin:const EdgeInsets.only(bottom:10),
+   padding:const EdgeInsets.all(15),
+   decoration:BoxDecoration(
+    color:Colors.white,
+    border:Border.all(color:gfLine),
+    borderRadius:BorderRadius.circular(20),
+   ),
+   child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+    Row(children:[
+     Container(
+      width:42,height:42,
+      decoration:BoxDecoration(color:const Color(0xFFEFFFF5),borderRadius:BorderRadius.circular(13)),
+      child:Icon(
+       type=='BIKE'?Icons.two_wheeler:type=='AUTO'?Icons.electric_rickshaw:Icons.directions_car,
+       color:gfGreen,
+      ),
+     ),
+     const SizedBox(width:10),
+     Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Text(type,style:const TextStyle(fontSize:12,fontWeight:FontWeight.w900,color:gfNavy)),
+      if(id.isNotEmpty)Text('#$id',style:const TextStyle(fontSize:10,color:gfMuted)),
+     ])),
+     Text('₹${fare.toString()}',style:const TextStyle(fontSize:17,fontWeight:FontWeight.w900,color:gfNavy)),
+    ]),
+    const SizedBox(height:12),
+    _Route('Pickup',b['pickup_location']?.toString()??''),
+    _Route('Drop',b['drop_or_service_address']?.toString()??''),
+    if(date!=null&&date.toString().isNotEmpty)
+     Padding(
+      padding:const EdgeInsets.only(top:2),
+      child:Text(_dateText(date),style:const TextStyle(fontSize:10,color:gfMuted)),
+     ),
+   ]),
+  );
+ }
+
+ static String _dateText(dynamic value){
+  final raw=value.toString();
+  final d=DateTime.tryParse(raw)?.toLocal();
+  if(d==null)return raw;
+  String two(int n)=>n.toString().padLeft(2,'0');
+  return '${two(d.day)}/${two(d.month)}/${d.year} · ${two(d.hour)}:${two(d.minute)}';
+ }
+}
+
 class _Box extends StatelessWidget{
  final Widget child; const _Box({required this.child});
  @override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(20)),child:child);
