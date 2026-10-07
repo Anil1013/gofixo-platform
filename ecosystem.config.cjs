@@ -12,6 +12,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 4000,
+        GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY || '',
         GOFIXO_RELEASE_COMMIT: process.env.GOFIXO_RELEASE_COMMIT || 'unknown',
       },
     },
