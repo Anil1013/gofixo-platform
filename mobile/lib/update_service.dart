@@ -23,6 +23,14 @@ class UpdateInfo {
   });
 }
 
+class UpdateDownloadException implements Exception {
+  final String message;
+  const UpdateDownloadException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 class UpdateService {
   static const _manifestUrl =
       'https://raw.githubusercontent.com/Anil1013/gofixo-platform/main/mobile/version.json';
@@ -94,8 +102,6 @@ class UpdateService {
   }
 
   static Future<Map<String, dynamic>?> _fetchManifest() async {
-    // Prefer the GitHub Contents API so the checker is not dependent on a
-    // cached release asset. Fall back to raw.githubusercontent.com if needed.
     try {
       final apiResponse = await http.get(
         Uri.parse(_githubManifestApi),
@@ -103,13 +109,15 @@ class UpdateService {
           'Accept': 'application/vnd.github+json',
           'X-GitHub-Api-Version': '2022-11-28',
           'Cache-Control': 'no-cache',
+          'User-Agent': 'Gofixo-Updater',
         },
       ).timeout(const Duration(seconds: 10));
 
       if (apiResponse.statusCode == 200) {
         final envelope = jsonDecode(apiResponse.body);
         if (envelope is Map && envelope['content'] != null) {
-          final encoded = envelope['content'].toString().replaceAll(RegExp(r'\s'), '');
+          final encoded =
+              envelope['content'].toString().replaceAll(RegExp(r'\s'), '');
           final decoded = utf8.decode(base64.decode(encoded));
           final data = jsonDecode(decoded);
           if (data is Map<String, dynamic>) return data;
@@ -125,8 +133,10 @@ class UpdateService {
         headers: const {
           'Accept': 'application/json',
           'Cache-Control': 'no-cache',
+          'User-Agent': 'Gofixo-Updater',
         },
       ).timeout(const Duration(seconds: 10));
+
       if (response.statusCode != 200) return null;
       final data = jsonDecode(response.body);
       if (data is Map<String, dynamic>) return data;
@@ -140,142 +150,230 @@ class UpdateService {
     UpdateInfo info,
   ) async {
     final uri = Uri.tryParse(info.downloadUrl);
-    if (uri == null || uri.scheme != 'https' ||
-        !RegExp(r'/releases/download/v\d+\.\d+\.\d+/gofixo-release\.apk(?:$|[?#])')
-            .hasMatch(uri.path)) {
-      _showError(context, 'Update link is invalid or not versioned. Please try again.');
+    if (uri == null ||
+        uri.scheme != 'https' ||
+        !RegExp(
+          r'/releases/download/v\d+\.\d+\.\d+/gofixo-release\.apk(?:$|[?#])',
+        ).hasMatch(uri.path)) {
+      _showError(
+        context,
+        'Update link is invalid or not versioned. Please try again.',
+      );
       return;
     }
 
     final progressNotifier = ValueNotifier<double?>(0);
-    var dialogOpen = true;
+    var downloadDialogShown = false;
 
-    if (context.mounted) {
-      unawaited(showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => PopScope(
-          canPop: false,
-          child: AlertDialog(
-            title: Text('Downloading Gofixo ${info.version}'),
-            content: ValueListenableBuilder<double?>(
-              valueListenable: progressNotifier,
-              builder: (_, progress, __) {
-                final percent =
-                    progress == null ? 'Preparing…' : '${(progress * 100).toStringAsFixed(0)}%';
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    LinearProgressIndicator(value: progress),
-                    const SizedBox(height: 12),
-                    Text(percent, textAlign: TextAlign.center),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Please keep Gofixo open until the installer appears.',
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                );
-              },
+    try {
+      if (context.mounted) {
+        downloadDialogShown = true;
+        unawaited(
+          showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => PopScope(
+              canPop: false,
+              child: AlertDialog(
+                title: Text('Downloading Gofixo ${info.version}'),
+                content: ValueListenableBuilder<double?>(
+                  valueListenable: progressNotifier,
+                  builder: (_, progress, __) {
+                    final percent = progress == null
+                        ? 'Preparing…'
+                        : '${(progress * 100).toStringAsFixed(0)}%';
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        LinearProgressIndicator(value: progress),
+                        const SizedBox(height: 12),
+                        Text(percent, textAlign: TextAlign.center),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Downloading securely. Please keep Gofixo open.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
             ),
           ),
-        ),
-      ));
-    }
-
-    File? apkFile;
-    try {
-      final client = http.Client();
-      try {
-        final request = http.Request('GET', uri);
-        final response = await client.send(request).timeout(
-              const Duration(minutes: 5),
-            );
-
-        if (response.statusCode != 200) {
-          throw HttpException('HTTP ${response.statusCode}');
-        }
-
-        final tempDir = Directory.systemTemp;
-        apkFile = File(
-          '${tempDir.path}/gofixo-update-${info.buildNumber}.apk',
         );
-
-        if (await apkFile.exists()) {
-          await apkFile.delete();
-        }
-
-        final sink = apkFile.openWrite();
-        var received = 0;
-        final total = response.contentLength;
-
-        await for (final chunk in response.stream) {
-          sink.add(chunk);
-          received += chunk.length;
-          if (total != null && total > 0) {
-            progressNotifier.value = received / total;
-          } else {
-            progressNotifier.value = null;
-          }
-        }
-        await sink.flush();
-        await sink.close();
-
-        if (!await apkFile.exists() || await apkFile.length() < 1024 * 1024) {
-          throw const FileSystemException('Downloaded APK is incomplete');
-        }
-      } finally {
-        client.close();
       }
 
-      progressNotifier.value = 1;
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      final apkFile = await _downloadApk(uri, info.buildNumber, progressNotifier);
+
+      if (downloadDialogShown && context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        downloadDialogShown = false;
+      }
 
       final installerStarted = await _installerChannel.invokeMethod<bool>(
         'installApk',
         <String, dynamic>{'path': apkFile.path},
       ) ?? false;
 
-      if (!installerStarted) {
-        if (context.mounted) {
-          _showError(
-            context,
-            'Please allow Gofixo to install apps from this source, then tap Update again.',
-          );
-        }
-        return;
+      if (!installerStarted && context.mounted) {
+        _showError(
+          context,
+          'Please allow Gofixo to install apps from this source, then tap Update again.',
+        );
       }
-
-      // Do NOT delete the APK here. Android's package installer may still be
-      // reading the FileProvider URI after this method returns.
-    } catch (e) {
-      if (apkFile != null && e is! StateError) {
-        try {
-          if (await apkFile.exists()) {
-            await apkFile.delete();
-          }
-        } catch (_) {}
+    } on UpdateDownloadException catch (error) {
+      if (context.mounted) {
+        _showError(context, 'Update download failed: ${error.message}');
       }
+    } on PlatformException catch (error) {
       if (context.mounted) {
         _showError(
           context,
-          'Update download failed. Please check your internet connection and try again.',
+          'Could not open Android installer: ${error.message ?? error.code}.',
         );
       }
-    } finally {
-      progressNotifier.dispose();
-      if (dialogOpen && context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-        dialogOpen = false;
+    } on FileSystemException catch (error) {
+      if (context.mounted) {
+        _showError(
+          context,
+          'Could not save the update APK: ${error.message}.',
+        );
       }
+    } catch (error) {
+      if (context.mounted) {
+        _showError(context, 'Could not start the update: $error');
+      }
+    } finally {
+      if (downloadDialogShown && context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      progressNotifier.dispose();
     }
+  }
+
+  static Future<File> _downloadApk(
+    Uri uri,
+    int buildNumber,
+    ValueNotifier<double?> progressNotifier,
+  ) async {
+    final tempDir = Directory.systemTemp;
+    final apkFile = File(
+      '${tempDir.path}/gofixo-update-$buildNumber.apk',
+    );
+
+    Object? lastError;
+
+    for (var attempt = 1; attempt <= 3; attempt++) {
+      try {
+        if (await apkFile.exists()) {
+          await apkFile.delete();
+        }
+
+        final client = http.Client();
+        try {
+          final request = http.Request('GET', uri)
+            ..followRedirects = true
+            ..maxRedirects = 10
+            ..headers.addAll(const {
+              'Accept': 'application/vnd.android.package-archive',
+              'Cache-Control': 'no-cache',
+              'User-Agent': 'Gofixo-Updater',
+            });
+
+          final response = await client.send(request).timeout(
+                const Duration(seconds: 30),
+              );
+
+          if (response.statusCode != HttpStatus.ok) {
+            throw UpdateDownloadException(
+              'GitHub returned HTTP ${response.statusCode}.',
+            );
+          }
+
+          final total = response.contentLength;
+          var received = 0;
+          final sink = apkFile.openWrite();
+
+          try {
+            await for (final chunk
+                in response.stream.timeout(const Duration(seconds: 30))) {
+              sink.add(chunk);
+              received += chunk.length;
+
+              if (total > 0) {
+                progressNotifier.value = received / total;
+              } else {
+                progressNotifier.value = null;
+              }
+            }
+
+            await sink.flush();
+          } finally {
+            await sink.close();
+          }
+
+          if (!await apkFile.exists()) {
+            throw const UpdateDownloadException(
+              'The downloaded APK file was not created.',
+            );
+          }
+
+          final actualLength = await apkFile.length();
+          if (actualLength < 1024 * 1024) {
+            throw const UpdateDownloadException(
+              'GitHub returned an incomplete APK.',
+            );
+          }
+
+          if (total > 0 && actualLength != total) {
+            throw UpdateDownloadException(
+              'APK download was incomplete ($actualLength/$total bytes).',
+            );
+          }
+
+          progressNotifier.value = 1;
+          return apkFile;
+        } finally {
+          client.close();
+        }
+      } on UpdateDownloadException catch (error) {
+        lastError = error;
+        if (attempt == 3) break;
+      } on SocketException catch (error) {
+        lastError = error;
+        if (attempt == 3) break;
+      } on TimeoutException catch (error) {
+        lastError = error;
+        if (attempt == 3) break;
+      } on HttpException catch (error) {
+        lastError = error;
+        if (attempt == 3) break;
+      }
+
+      progressNotifier.value = 0;
+      await Future<void>.delayed(Duration(seconds: attempt * 2));
+    }
+
+    if (await apkFile.exists()) {
+      try {
+        await apkFile.delete();
+      } catch (_) {}
+    }
+
+    final detail = lastError?.toString() ?? 'Unknown download error.';
+    throw UpdateDownloadException(
+      '$detail Please try again.',
+    );
   }
 
   static void _showError(BuildContext context, String message) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 6),
+      ),
     );
   }
 
