@@ -143,7 +143,7 @@ jobs:
           {
             "version": "${{ steps.version.outputs.version }}",
             "buildNumber": ${{ steps.version.outputs.build }},
-            "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/latest/download/gofixo-release.apk",
+            "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v${{ steps.version.outputs.version }}/gofixo-release.apk",
             "notes": "OTA-enabled Gofixo Android base release.",
             "forceUpdate": false
           }
