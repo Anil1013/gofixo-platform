@@ -76,6 +76,7 @@ jobs:
   mobile:
     name: Android App Build
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: mobile
@@ -90,6 +91,13 @@ jobs:
           cache: true
       - name: Flutter version
         run: flutter --version
+
+      - name: Configure Gradle CI cache
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: wrapper
+          build-root-directory: mobile/android
+
       - name: Get dependencies
         run: flutter pub get
       - name: Analyze
@@ -131,10 +139,15 @@ jobs:
       - name: Build release APK
         env:
           GOFIXO_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=768m -XX:+UseParallelGC -Dfile.encoding=UTF-8" -Dorg.gradle.daemon=true -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2 -Dorg.gradle.caching=true'
         run: |
           set -euo pipefail
           test -n "$GOFIXO_GOOGLE_MAPS_API_KEY"
-          flutter build apk --release             --build-name "${{ steps.version.outputs.version }}"             --build-number "${{ steps.version.outputs.build }}"             --dart-define=GOFIXO_GIT_SHA=${{ github.sha }}
+          echo "Gradle CI mode: daemon=on, workers=2, heap=3g, build-cache=on"
+          flutter build apk --release --verbose \
+            --build-name "${{ steps.version.outputs.version }}" \
+            --build-number "${{ steps.version.outputs.build }}" \
+            --dart-define=GOFIXO_GIT_SHA=${{ github.sha }}
       - name: Verify APK signing
         shell: bash
         run: |
