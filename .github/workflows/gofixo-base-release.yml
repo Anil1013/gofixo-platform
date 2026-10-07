@@ -103,6 +103,8 @@ jobs:
           keytool -list -keystore android/gofixo-release.jks             -storepass "$GOFIXO_STORE_PASSWORD"             -alias "$GOFIXO_KEY_ALIAS" >/dev/null
 
       - name: Build release APK
+        env:
+          GOFIXO_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         if: steps.existing.outputs.exists != 'true'
         run: |
           flutter build apk --release             --build-name "${{ steps.version.outputs.version }}"             --build-number "${{ steps.version.outputs.build }}"
