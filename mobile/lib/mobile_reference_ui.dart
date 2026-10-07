@@ -241,7 +241,14 @@ class _ActiveState extends State<_Active>{
    if(!ongoing)TextField(controller:pin,maxLength:4,keyboardType:TextInputType.number,onChanged:(_)=>setState((){}),decoration:const InputDecoration(labelText:'Customer 4-digit PIN')),
    if(!ongoing)SizedBox(width:double.infinity,child:FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:pin.text.length==4?()async{try{await ApiService.startBooking(widget.session.token,id,pin.text);await widget.changed();}catch(e){if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}}:null,child:const Text('Start trip →'))),
    if(ongoing)TextField(controller:fare,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Final fare ₹')),
-   if(ongoing)SizedBox(width:double.infinity,child:FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:()async{final f=double.tryParse(fare.text);if(f==null)return;await ApiService.confirmPayment(widget.session.token,id,f);await widget.changed();},child:const Text('Confirm payment received →'))),
+   if(ongoing)SizedBox(width:double.infinity,child:FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:submitting?null:()async{
+      final value=double.tryParse(fare.text.trim());
+      if(value==null||value<=0){ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Enter a valid final fare.')));return;}
+      setState(()=>submitting=true);
+      try{await ApiService.confirmPayment(widget.session.token,id,value);await widget.changed();}
+      catch(e){if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
+      finally{if(mounted)setState(()=>submitting=false);}
+    },child:Text(submitting?'Saving…':'Confirm payment received →'))),
    const SizedBox(height:6),
    OutlinedButton.icon(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>LiveTrackingPage(session:widget.session,booking:widget.b,isProvider:true))),icon:const Icon(Icons.map_outlined),label:const Text('Open live map'))
   ]));
