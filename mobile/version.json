@@ -1,7 +1,7 @@
 {
-  "version": "1.0.9",
-  "buildNumber": 1000009,
-  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.9/gofixo-release.apk",
-  "notes": "Harden OTA APK download, retries, diagnostics, and Android installer handoff (v1.0.9).",
+  "version": "1.0.10",
+  "buildNumber": 1000010,
+  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.10/gofixo-release.apk",
+  "notes": "Premium Gofixo customer/partner UI, Google Maps routing, and live booking tracking (v1.0.10).",
   "forceUpdate": true
 }
