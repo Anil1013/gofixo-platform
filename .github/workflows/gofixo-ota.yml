@@ -21,6 +21,7 @@ concurrency:
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: mobile
@@ -96,6 +97,7 @@ jobs:
       - name: Build OTA base APK
         env:
           GOFIXO_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=768m -XX:+UseParallelGC -Dfile.encoding=UTF-8" -Dorg.gradle.daemon=true -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2 -Dorg.gradle.caching=true'
         run: |
           flutter build apk --release \
             --build-name "${{ steps.base.outputs.version }}" \
