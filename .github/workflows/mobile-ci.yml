@@ -17,6 +17,7 @@ permissions:
 jobs:
   flutter:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: mobile
@@ -31,6 +32,24 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Prepare Android NDK
+        env:
+          ANDROID_NDK_VERSION: "28.0.13004108"
+        run: |
+          set -euo pipefail
+          NDK_DIR="$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION"
+          if [ ! -x "$NDK_DIR/ndk-build" ]; then
+            yes | sdkmanager --licenses >/dev/null 2>&1 || true
+            sdkmanager "ndk;$ANDROID_NDK_VERSION"
+          fi
+          test -x "$NDK_DIR/ndk-build"
+          echo "Android NDK $ANDROID_NDK_VERSION ready."
+
+      - name: Cache Android NDK
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ANDROID_SDK_ROOT }}/ndk/28.0.13004108
+          key: gofixo-android-ndk-${{ runner.os }}-28.0.13004108
       - name: Flutter version
         run: flutter --version
 
@@ -76,7 +95,8 @@ jobs:
       - name: Build release APK
         env:
           GOFIXO_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
-        run: flutter build apk --release
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2"
+        run: flutter build apk --release --verbose
 
       - name: Verify APK signing and identity
         shell: bash
