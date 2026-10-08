@@ -905,10 +905,15 @@ class _Incoming extends StatelessWidget{
  final Session session; final Map<String,dynamic>b; final Future<void> Function({bool silent}) changed;
  const _Incoming({required this.session,required this.b,required this.changed});
  @override Widget build(BuildContext c){
-  final id=int.tryParse(b['id']?.toString()??'')??0;
+  final id=int.tryParse(b['id']?.toString()??'')??0;final isService=b['service_type']=='services';
   return _Box(child:Column(children:[
-   Row(children:[const Icon(Icons.notifications_active,color:gfGreen),const SizedBox(width:7),const Expanded(child:Text('New ride request',style:TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy))),Text('₹'+(b['fare_amount']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w900))]),
-   const SizedBox(height:10),_Route('Pickup',b['pickup_location']?.toString()??''),_Route('Drop',b['drop_or_service_address']?.toString()??''),const SizedBox(height:10),
+   Row(children:[Icon(isService?Icons.handyman_outlined:Icons.notifications_active,color:gfGreen),const SizedBox(width:7),Expanded(child:Text(isService?'New service request':'New ride request',style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy))),Text('₹'+(b['fare_amount']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w900))]),
+   if(isService)...[
+     const SizedBox(height:6),
+     Align(alignment:Alignment.centerLeft,child:Text((b['service_category']?.toString()??'other').replaceAll('_',' ').toUpperCase(),style:const TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen))),
+     Align(alignment:Alignment.centerLeft,child:Text(b['service_description']?.toString()??'',maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:11,color:gfMuted))),
+   ],
+   const SizedBox(height:10),_Route('Pickup',b['pickup_location']?.toString()??''),_Route(isService?'Service address':'Drop',b['drop_or_service_address']?.toString()??''),const SizedBox(height:10),
    Row(children:[
     Expanded(child:OutlinedButton(onPressed:()async{await ApiService.declineBooking(session.token,id);await changed();},child:const Text('Reject'))),
     const SizedBox(width:8),
@@ -952,11 +957,13 @@ class _Booking extends StatelessWidget{
  final Map<String,dynamic>b; final Session session; final Future<void> Function({bool silent})onChanged;
  const _Booking({required this.b,required this.session,required this.onChanged});
  @override Widget build(BuildContext c){
-  final s=b['status']?.toString()??'';final id=b['id']?.toString()??'';
+  final s=b['status']?.toString()??'';final id=b['id']?.toString()??'';final isService=b['service_type']=='services';
   return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(13),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(18)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
    Row(children:[Expanded(child:Text('#'+id+' · '+s.toUpperCase(),style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy))),Text('₹'+(b['fare_amount']??b['estimated_fare']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w900))]),
+   if(isService)Text((b['service_category']?.toString()??'other').replaceAll('_',' ').toUpperCase(),style:const TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
+   if(isService)Text(b['service_description']?.toString()??'',maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:gfMuted)),
    Text(b['pickup_location']?.toString()??'',maxLines:1,overflow:TextOverflow.ellipsis),
-   Text('→ '+(b['drop_or_service_address']?.toString()??''),maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:gfMuted)),
+   Text((isService?'Service address: ':'→ ')+(b['drop_or_service_address']?.toString()??''),maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:gfMuted)),
    if(s=='requested'||s=='accepted')Align(alignment:Alignment.centerRight,child:TextButton(onPressed:()async{await ApiService.cancelBooking(session.token,int.tryParse(id)??0);await onChanged();},child:const Text('Cancel'))),
    if(s=='accepted'||s=='ongoing')Align(alignment:Alignment.centerRight,child:OutlinedButton.icon(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>LiveTrackingPage(session:session,booking:b,isProvider:false))),icon:const Icon(Icons.location_searching),label:const Text('Track live')))
   ]));
