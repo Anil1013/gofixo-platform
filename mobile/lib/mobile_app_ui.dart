@@ -569,7 +569,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
         Polyline(
           polylineId:const PolylineId('gofixo-route'),
           points:points,
-          color:gfOrange,
+          color:gfGreen,
           width:6,
         )
       };
