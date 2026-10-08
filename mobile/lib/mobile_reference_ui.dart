@@ -12,45 +12,39 @@ import 'api_service.dart';
 
 const gfOrange=Color(0xFF12B85F),gfNavy=Color(0xFF10213F),gfMuted=Color(0xFF728097),gfBg=Color(0xFFF4F7FB),gfLine=Color(0xFFE4E9F1),gfGreen=Color(0xFF12B85F);
 
+
 class ReferenceCustomerHome extends StatefulWidget{
  final Session session;final Future<void> Function() onLogout;
  const ReferenceCustomerHome({super.key,required this.session,required this.onLogout});
  @override State<ReferenceCustomerHome> createState()=>_ReferenceCustomerHomeState();
 }
 class _ReferenceCustomerHomeState extends State<ReferenceCustomerHome>{
- List<Map<String,dynamic>> bookings=[];Timer? timer;bool loading=true;
+ List<Map<String,dynamic>> bookings=[];Timer? timer;bool loading=true;int tab=0;
  @override void initState(){super.initState();load();timer=Timer.periodic(const Duration(seconds:5),(_)=>load(silent:true));}
  @override void dispose(){timer?.cancel();super.dispose();}
  Future<void> load({bool silent=false})async{try{final b=await ApiService.customerBookings(widget.session.token);if(mounted)setState((){bookings=b;loading=false;});}catch(e){if(mounted&&!silent)_snack(e.toString());}}
  void _snack(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.replaceFirst('Exception: ',''))));
- @override Widget build(BuildContext c){if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator()));return Scaffold(backgroundColor:gfBg,body:SafeArea(child:RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.fromLTRB(14,8,14,28),children:[
-  _Top(role:'Customer',logout:widget.onLogout),const SizedBox(height:10),_Hero(name:widget.session.userName??'there'),const SizedBox(height:16),
-  const _Title(kicker:'RIDE',title:'Where are you going?'),const SizedBox(height:10),
-  _RideCard(session:widget.session,onChanged:load),const SizedBox(height:18),
-  const _Title(kicker:'HOME SERVICES',title:'Help at your doorstep'),const SizedBox(height:10),_Services(onTap:(t)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:widget.session,type:t,onChanged:load)))),const SizedBox(height:18),
-  const _Title(kicker:'ACTIVITY',title:'Recent bookings'),const SizedBox(height:10),
-  if(bookings.isEmpty)const _Box(child:Text('No bookings yet. Your rides and services will appear here.')) else ...bookings.take(5).map((b)=>_Booking(b:b,session:widget.session,onChanged:load)),
-  const SizedBox(height:4),
-  SizedBox(
-    width:double.infinity,
-    child:OutlinedButton.icon(
-      onPressed:()=>Navigator.push(
-        c,
-        MaterialPageRoute(
-          builder:(_)=>CompletedRidesPage(
-            session:widget.session,
-            bookings:bookings,
-            onRefresh:()=>load(silent:true),
-          ),
-        ),
-      ),
-      icon:const Icon(Icons.history_rounded),
-      label:const Text('View completed rides'),
-    ),
-  ),
-  const SizedBox(height:12),const _Trust(),
- ]))));
-}
+ @override Widget build(BuildContext c){
+  if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator()));
+  final pages=<Widget>[
+   _CustomerHomeTab(session:widget.session,bookings:bookings,onChanged:load,onTab:(i)=>setState(()=>tab=i)),
+   _CustomerBookingsTab(session:widget.session,bookings:bookings,onChanged:load),
+   _CustomerServicesTab(session:widget.session,onChanged:load),
+   _CustomerWalletTab(bookings:bookings),
+   _CustomerProfileTab(session:widget.session,onLogout:widget.onLogout),
+  ];
+  return Scaffold(backgroundColor:gfBg,body:SafeArea(child:IndexedStack(index:tab,children:pages)),bottomNavigationBar:NavigationBar(
+   selectedIndex:tab,onDestinationSelected:(i)=>setState(()=>tab=i),height:72,backgroundColor:Colors.white,
+   indicatorColor:const Color(0xFFEFFFF5),labelBehavior:NavigationDestinationLabelBehavior.alwaysShow,
+   destinations:const[
+    NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home_rounded,color:gfGreen),label:'Home'),
+    NavigationDestination(icon:Icon(Icons.receipt_long_outlined),selectedIcon:Icon(Icons.receipt_long_rounded,color:gfGreen),label:'My Bookings'),
+    NavigationDestination(icon:Icon(Icons.grid_view_outlined),selectedIcon:Icon(Icons.grid_view_rounded,color:gfGreen),label:'Services'),
+    NavigationDestination(icon:Icon(Icons.account_balance_wallet_outlined),selectedIcon:Icon(Icons.account_balance_wallet_rounded,color:gfGreen),label:'Wallet'),
+    NavigationDestination(icon:Icon(Icons.person_outline),selectedIcon:Icon(Icons.person_rounded,color:gfGreen),label:'Profile'),
+   ],
+  ));
+ }
 }
 
 class ReferenceProviderHome extends StatefulWidget{
@@ -59,37 +53,263 @@ class ReferenceProviderHome extends StatefulWidget{
  @override State<ReferenceProviderHome> createState()=>_ReferenceProviderHomeState();
 }
 class _ReferenceProviderHomeState extends State<ReferenceProviderHome>{
- Map<String,dynamic>? me;List<Map<String,dynamic>> jobs=[];Timer? timer;bool busy=false;bool locationBusy=false;
+ Map<String,dynamic>? me;List<Map<String,dynamic>> jobs=[];Timer? timer;bool busy=false,locationBusy=false;int tab=0;
  @override void initState(){super.initState();load();timer=Timer.periodic(const Duration(seconds:4),(_)=>load(silent:true));}
  @override void dispose(){timer?.cancel();super.dispose();}
  Future<void> load({bool silent=false})async{try{final m=await ApiService.providerMe(widget.session.token);final j=await ApiService.providerBookings(widget.session.token);final id=int.tryParse(m['id']?.toString()??'');if(m['is_available']==true&&id!=null)await _location(id);if(mounted)setState((){me=m;jobs=j;});}catch(e){if(mounted&&!silent)_snack(e.toString());}}
  Future<void> _location(int id)async{
-  if(locationBusy)return;
-  locationBusy=true;
-  try{
-    if(!await Geolocator.isLocationServiceEnabled())return;
-    var p=await Geolocator.checkPermission();
-    if(p==LocationPermission.denied)p=await Geolocator.requestPermission();
-    if(p==LocationPermission.denied||p==LocationPermission.deniedForever)return;
-    final x=await Geolocator.getCurrentPosition(
-      locationSettings:const LocationSettings(
-        accuracy:LocationAccuracy.high,
-        distanceFilter:10,
-      ),
-    );
-    await ApiService.updateProviderLocation(widget.session.token,id,x.latitude,x.longitude);
-  }catch(_){}
-  finally{locationBusy=false;}
-}
- Future<void> toggle()async{if(me==null)return;final id=int.tryParse(me!['id']?.toString()??'');if(id==null)return;if(me!['kyc_status']=='approved'){_snack('KYC approval is required before going online.');return;}setState(()=>busy=true);try{if(me!['is_available']==true){final x=await ApiService.setAvailability(widget.session.token,id,false);if(mounted)setState(()=>me=x);}else{await _location(id);final x=await ApiService.setAvailability(widget.session.token,id,true);if(mounted)setState(()=>me=x);}}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
+  if(locationBusy)return;locationBusy=true;
+  try{if(!await Geolocator.isLocationServiceEnabled())return;var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)return;final x=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.high,distanceFilter:10));await ApiService.updateProviderLocation(widget.session.token,id,x.latitude,x.longitude);}catch(_){}finally{locationBusy=false;}
+ }
+ Future<void> toggle()async{
+  if(me==null)return;final id=int.tryParse(me!['id']?.toString()??'');if(id==null)return;
+  if(me!['kyc_status']!='approved'){_snack('KYC approval is required before going online.');return;}
+  setState(()=>busy=true);
+  try{if(me!['is_available']==true){final x=await ApiService.setAvailability(widget.session.token,id,false);if(mounted)setState(()=>me=x);}else{await _location(id);final x=await ApiService.setAvailability(widget.session.token,id,true);if(mounted)setState(()=>me=x);}}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}
+ }
  void _snack(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.replaceFirst('Exception: ',''))));
- @override Widget build(BuildContext c){final m=me??{};final requested=jobs.where((j)=>j['status']=='requested').toList();final active=jobs.where((j)=>j['status']=='accepted'||j['status']=='ongoing').toList();final rides=int.tryParse(m['today_rides']?.toString()??'')??0;final earned=double.tryParse(m['total_earned_this_cycle']?.toString()??'0')??0;final rating=double.tryParse(m['avg_rating']?.toString()??'0')??0;return Scaffold(backgroundColor:gfBg,body:SafeArea(child:RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.fromLTRB(14,8,14,28),children:[
-  _Top(role:'Partner',online:m['is_available']==true,onOnline:busy?null:toggle,logout:widget.onLogout),const SizedBox(height:10),_Partner(m:m),const SizedBox(height:10),
-  Row(children:[Expanded(child:_Stat('Today Rides',rides.toString(),Icons.route)),const SizedBox(width:8),Expanded(child:_Stat('Earnings','₹'+earned.toStringAsFixed(0),Icons.account_balance_wallet)),const SizedBox(width:8),Expanded(child:_Stat('Rating',rating==0?'—':rating.toStringAsFixed(1),Icons.star))]),
-  const SizedBox(height:12),const _Keep(),const SizedBox(height:16),const _Title(kicker:'LIVE',title:'Incoming bookings'),const SizedBox(height:10),
-  if(requested.isNotEmpty)...requested.take(2).map((j)=>_Incoming(session:widget.session,b:j,changed:load)) else if(active.isEmpty)const _Waiting() else ...active.map((j)=>_Active(session:widget.session,b:j,changed:load)),
+ @override Widget build(BuildContext c){
+  final pages=<Widget>[
+   _ProviderHomeTab(session:widget.session,me:me??{},jobs:jobs,onChanged:load,onOnline:busy?null:toggle),
+   _ProviderJobsTab(session:widget.session,jobs:jobs,onChanged:load),
+   _ProviderEarningsTab(me:me??{},jobs:jobs),
+   _ProviderServicesTab(me:me??{}),
+   _ProviderProfileTab(session:widget.session,me:me??{},onLogout:widget.onLogout),
+  ];
+  return Scaffold(backgroundColor:gfBg,body:SafeArea(child:IndexedStack(index:tab,children:pages)),bottomNavigationBar:NavigationBar(
+   selectedIndex:tab,onDestinationSelected:(i)=>setState(()=>tab=i),height:72,backgroundColor:Colors.white,
+   indicatorColor:const Color(0xFFEFFFF5),labelBehavior:NavigationDestinationLabelBehavior.alwaysShow,
+   destinations:const[
+    NavigationDestination(icon:Icon(Icons.dashboard_outlined),selectedIcon:Icon(Icons.dashboard_rounded,color:gfGreen),label:'Home'),
+    NavigationDestination(icon:Icon(Icons.work_outline),selectedIcon:Icon(Icons.work_rounded,color:gfGreen),label:'Jobs'),
+    NavigationDestination(icon:Icon(Icons.payments_outlined),selectedIcon:Icon(Icons.payments_rounded,color:gfGreen),label:'Earnings'),
+    NavigationDestination(icon:Icon(Icons.handyman_outlined),selectedIcon:Icon(Icons.handyman_rounded,color:gfGreen),label:'Services'),
+    NavigationDestination(icon:Icon(Icons.person_outline),selectedIcon:Icon(Icons.person_rounded,color:gfGreen),label:'Profile'),
+   ],
+  ));
+ }
+}
+
+class _CustomerHomeTab extends StatelessWidget{
+ final Session session;final List<Map<String,dynamic>> bookings;final Future<void> Function({bool silent}) onChanged;final ValueChanged<int> onTab;
+ const _CustomerHomeTab({required this.session,required this.bookings,required this.onChanged,required this.onTab});
+ @override Widget build(BuildContext c){
+  final active=bookings.where((b){final s=b['status']?.toString();return s=='requested'||s=='accepted'||s=='ongoing';}).toList();
+  return RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.only(bottom:24),children:[
+   _CustomerHeader(onProfile:()=>onTab(4)),const SizedBox(height:10),
+   _CustomerRideHero(session:session,onChanged:onChanged),const SizedBox(height:18),
+   _SectionTitle(title:'Book a Ride',onSeeAll:()=>onTab(2)),const SizedBox(height:8),
+   _RideTypeTiles(session:session,onChanged:onChanged),const SizedBox(height:18),
+   _SectionTitle(title:'Home Services',onSeeAll:()=>onTab(2)),const SizedBox(height:8),
+   _Services(onTap:(t)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:t,onChanged:onChanged)))),
+   const SizedBox(height:12),_HomeServicesPromo(onTap:()=>onTab(2)),const SizedBox(height:18),
+   const _SectionTitle(title:'Why Gofixo?'),const SizedBox(height:8),const _WhyGofixo(),
+   if(active.isNotEmpty)...[const SizedBox(height:18),_ActiveBookingStrip(b:active.first,session:session)],
+  ]));
+ }
+}
+
+class _CustomerHeader extends StatelessWidget{
+ final VoidCallback onProfile;const _CustomerHeader({required this.onProfile});
+ @override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.fromLTRB(16,12,12,10),color:Colors.white,child:Row(children:[
+  Container(width:42,height:42,decoration:BoxDecoration(color:gfGreen,borderRadius:BorderRadius.circular(14)),child:const Icon(Icons.location_on_rounded,color:Colors.white,size:27)),
+  const SizedBox(width:9),const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+   Text('Gofixo',style:TextStyle(fontSize:24,fontWeight:FontWeight.w900,color:gfNavy)),Text('Ride · Delivery · Home Services',style:TextStyle(fontSize:8,color:gfMuted))
+  ])),
+  Stack(children:[IconButton(onPressed:(){},icon:const Icon(Icons.notifications_rounded,color:gfNavy)),Positioned(right:10,top:8,child:Container(width:7,height:7,decoration:const BoxDecoration(color:Colors.red,shape:BoxShape.circle)))]),
+  GestureDetector(onTap:onProfile,child:Container(width:40,height:40,decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEFFFF5)),child:const Icon(Icons.person_rounded,color:gfGreen))),
+ ]));
+}
+
+class _CustomerRideHero extends StatelessWidget{
+ final Session session;final Future<void> Function({bool silent}) onChanged;const _CustomerRideHero({required this.session,required this.onChanged});
+ @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.symmetric(horizontal:10),child:Container(
+  padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(24),border:Border.all(color:gfLine)),
+  child:Column(children:[
+   SizedBox(height:148,child:Row(children:[
+    Expanded(child:_PhotoCard('https://images.unsplash.com/photo-1679465427762-38cfdba8e2fb?auto=format&fit=crop&w=900&q=85','Bike')),
+    Expanded(child:_PhotoCard('https://images.unsplash.com/photo-1626149637281-4e227308da18?auto=format&fit=crop&w=900&q=85','Auto')),
+    Expanded(child:_PhotoCard('https://images.unsplash.com/photo-1685019718640-6e562edc365e?auto=format&fit=crop&w=900&q=85','Car')),
+   ])),const SizedBox(height:10),
+   InkWell(onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,onChanged:onChanged))),borderRadius:BorderRadius.circular(28),child:Container(padding:const EdgeInsets.symmetric(horizontal:14,vertical:13),decoration:BoxDecoration(color:const Color(0xFFF7F9FC),borderRadius:BorderRadius.circular(28)),child:Row(children:[
+    Container(width:34,height:34,decoration:const BoxDecoration(color:Color(0xFFEFFFF5),shape:BoxShape.circle),child:const Icon(Icons.my_location_rounded,color:gfGreen,size:18)),const SizedBox(width:10),
+    const Expanded(child:Text('Where are you going?',style:TextStyle(fontWeight:FontWeight.w800,color:gfMuted))),const Icon(Icons.search_rounded,color:gfNavy)
+   ]))),
+  ])));
+}
+
+class _SectionTitle extends StatelessWidget{
+ final String title;final VoidCallback? onSeeAll;const _SectionTitle({required this.title,this.onSeeAll});
+ @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Row(children:[Expanded(child:Text(title,style:const TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:gfNavy))),if(onSeeAll!=null)TextButton(onPressed:onSeeAll,child:const Text('See all →',style:TextStyle(fontSize:11,fontWeight:FontWeight.w900,color:gfGreen)))]));
+}
+
+class _RideTypeTiles extends StatelessWidget{
+ final Session session;final Future<void> Function({bool silent}) onChanged;const _RideTypeTiles({required this.session,required this.onChanged});
+ @override Widget build(BuildContext c)=>SizedBox(height:125,child:ListView(scrollDirection:Axis.horizontal,padding:const EdgeInsets.symmetric(horizontal:10),children:[
+  _Choice(label:'Bike',value:'bike',icon:Icons.two_wheeler,selected:'',onTap:(v)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:v,onChanged:onChanged)))),
+  _Choice(label:'Auto',value:'auto',icon:Icons.electric_rickshaw,selected:'',onTap:(v)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:v,onChanged:onChanged)))),
+  _Choice(label:'Car',value:'car',icon:Icons.directions_car,selected:'',onTap:(v)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:v,onChanged:onChanged)))),
+ ]));
+}
+
+class _HomeServicesPromo extends StatelessWidget{
+ final VoidCallback onTap;const _HomeServicesPromo({required this.onTap});
+ @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:InkWell(onTap:onTap,borderRadius:BorderRadius.circular(20),child:Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:const Color(0xFFEFFFF5),borderRadius:BorderRadius.circular(20),border:Border.all(color:const Color(0xFFBFEFD4))),child:Row(children:[
+  const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('GOFIXO HOME SERVICES',style:TextStyle(fontSize:8,letterSpacing:1.2,fontWeight:FontWeight.w900,color:gfGreen)),SizedBox(height:5),Text('Trusted Professionals\nfor Your Home',style:TextStyle(fontSize:19,fontWeight:FontWeight.w900,color:gfNavy)),SizedBox(height:5),Text('✓ Verified  ✓ Affordable  ✓ On-Time',style:TextStyle(fontSize:9,color:gfGreen))])),
+  Container(width:105,height:105,decoration:BoxDecoration(color:gfNavy,borderRadius:BorderRadius.circular(16)),child:const Icon(Icons.handyman_rounded,color:Colors.white,size:45)),
  ]))));
 }
+
+class _WhyGofixo extends StatelessWidget{
+ const _WhyGofixo();@override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Row(children:[
+  Expanded(child:_Stat('Verified','✓',Icons.verified_rounded)),const SizedBox(width:8),Expanded(child:_Stat('Fair pricing','₹',Icons.currency_rupee_rounded)),const SizedBox(width:8),Expanded(child:_Stat('Fast','⚡',Icons.bolt_rounded))
+ ]));
+}
+
+class _ActiveBookingStrip extends StatelessWidget{
+ final Map<String,dynamic>b;final Session session;const _ActiveBookingStrip({required this.b,required this.session});
+ @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:InkWell(onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>LiveTrackingPage(session:session,booking:b,isProvider:false))),child:Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:gfNavy,borderRadius:BorderRadius.circular(18)),child:Row(children:[
+  const Icon(Icons.location_searching,color:gfGreen),const SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+   const Text('Live booking',style:TextStyle(color:Colors.white,fontWeight:FontWeight.w900)),Text((b['status']?.toString()??'').toUpperCase()+' · Tap to track',style:const TextStyle(color:Colors.white70,fontSize:10))
+  ])),const Icon(Icons.chevron_right,color:Colors.white)
+ ]))));
+}
+
+class _CustomerBookingsTab extends StatelessWidget{
+ final Session session;final List<Map<String,dynamic>> bookings;final Future<void> Function({bool silent}) onChanged;const _CustomerBookingsTab({required this.session,required this.bookings,required this.onChanged});
+ @override Widget build(BuildContext c)=>RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
+  const _PageHeading(title:'My Bookings',subtitle:'All rides and home-service requests.'),
+  if(bookings.isEmpty)const _Box(child:Text('No bookings yet.')) else ...bookings.map((b)=>_Booking(b:b,session:session,onChanged:onChanged)),
+ ]));
+}
+
+class _CustomerServicesTab extends StatelessWidget{
+ final Session session;final Future<void> Function({bool silent}) onChanged;const _CustomerServicesTab({required this.session,required this.onChanged});
+ @override Widget build(BuildContext c)=>ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
+  const _PageHeading(title:'Services',subtitle:'Everything Gofixo can do for you.'),
+  const _Title(kicker:'RIDES',title:'Choose your ride'),const SizedBox(height:8),_RideTypeTiles(session:session,onChanged:onChanged),
+  const SizedBox(height:16),const _Title(kicker:'HOME SERVICES',title:'Book a professional'),const SizedBox(height:8),
+  _Services(onTap:(t)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:t,onChanged:onChanged)))),
+ ]);
+}
+
+class _CustomerWalletTab extends StatelessWidget{
+ final List<Map<String,dynamic>> bookings;const _CustomerWalletTab({required this.bookings});
+ @override Widget build(BuildContext c){
+  double total=0;int completed=0;
+  for(final b in bookings){final s=b['status']?.toString().toLowerCase();if(s=='completed'||s=='paid'||s=='finished'){completed++;total+=double.tryParse((b['fare_amount']??b['final_fare']??b['estimated_fare']??0).toString())??0;}}
+  return ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
+   const _PageHeading(title:'Wallet',subtitle:'Your real booking payment summary.'),
+   Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:gfNavy,borderRadius:BorderRadius.circular(24)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+    const Text('TOTAL SPEND',style:TextStyle(color:Colors.white70,fontSize:9,fontWeight:FontWeight.w800)),const SizedBox(height:5),Text('₹'+total.toStringAsFixed(0),style:const TextStyle(color:Colors.white,fontSize:30,fontWeight:FontWeight.w900)),
+    const SizedBox(height:12),Row(children:[Expanded(child:_DarkStat('Completed',completed.toString())),const Expanded(child:_DarkStat('Status','Ready'))])
+   ])),const SizedBox(height:14),const _Box(child:Text('Summary is calculated from completed booking records.',style:TextStyle(fontSize:11,color:gfMuted)))
+  ]);
+ }
+}
+
+class _DarkStat extends StatelessWidget{final String label,value;const _DarkStat(this.label,this.value);@override Widget build(BuildContext c)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(value,style:const TextStyle(color:Colors.white,fontWeight:FontWeight.w900,fontSize:17)),Text(label,style:const TextStyle(color:Colors.white70,fontSize:10))]);}
+
+class _CustomerProfileTab extends StatelessWidget{
+ final Session session;final Future<void> Function() onLogout;const _CustomerProfileTab({required this.session,required this.onLogout});
+ @override Widget build(BuildContext c)=>ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
+  const _PageHeading(title:'Profile',subtitle:'Manage your Gofixo account.'),_ProfileCard(name:session.userName??'Customer',role:'Customer',icon:Icons.person_rounded),const SizedBox(height:12),
+  const _ProfileAction(icon:Icons.security_rounded,title:'Safety & support',subtitle:'Verified partners and live trip tracking.'),
+  const _ProfileAction(icon:Icons.location_on_outlined,title:'Location',subtitle:'Used for booking and live trip features.'),
+  const _ProfileAction(icon:Icons.info_outline,title:'About Gofixo',subtitle:'Ride · Delivery · Home Services'),const SizedBox(height:12),
+  SizedBox(width:double.infinity,child:OutlinedButton.icon(onPressed:onLogout,icon:const Icon(Icons.logout_rounded),label:const Text('Log out')))
+ ]);
+}
+
+class _ProviderHomeTab extends StatelessWidget{
+ final Session session;final Map<String,dynamic> me;final List<Map<String,dynamic>> jobs;final Future<void> Function({bool silent}) onChanged;final VoidCallback? onOnline;
+ const _ProviderHomeTab({required this.session,required this.me,required this.jobs,required this.onChanged,required this.onOnline});
+ @override Widget build(BuildContext c){
+  final requested=jobs.where((j)=>j['status']=='requested').toList();final active=jobs.where((j)=>j['status']=='accepted'||j['status']=='ongoing').toList();
+  final rides=int.tryParse(me['today_rides']?.toString()??'')??0;final earned=double.tryParse(me['total_earned_this_cycle']?.toString()??'0')??0;final rating=double.tryParse(me['avg_rating']?.toString()??'0')??0;
+  return RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.only(bottom:24),children:[
+   _ProviderHeader(online:me['is_available']==true,onOnline:onOnline),const SizedBox(height:12),Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_Partner(m:me)),const SizedBox(height:10),
+   Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Row(children:[Expanded(child:_Stat('Today Rides',rides.toString(),Icons.route)),const SizedBox(width:8),Expanded(child:_Stat('Earnings','₹'+earned.toStringAsFixed(0),Icons.account_balance_wallet)),const SizedBox(width:8),Expanded(child:_Stat('Rating',rating==0?'—':rating.toStringAsFixed(1),Icons.star))])),
+   const SizedBox(height:14),const Padding(padding:EdgeInsets.symmetric(horizontal:12),child:_Keep()),const SizedBox(height:16),const _SectionTitle(title:'Live Jobs'),const SizedBox(height:8),
+   if(requested.isNotEmpty)...requested.take(2).map((j)=>Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_Incoming(session:session,b:j,changed:onChanged))) else if(active.isEmpty)const Padding(padding:EdgeInsets.symmetric(horizontal:12),child:_Waiting()) else ...active.map((j)=>Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_Active(session:session,b:j,changed:onChanged))),
+  ]));
+ }
+}
+
+class _ProviderHeader extends StatelessWidget{
+ final bool online;final VoidCallback? onOnline;const _ProviderHeader({required this.online,required this.onOnline});
+ @override Widget build(BuildContext c)=>Container(color:Colors.white,padding:const EdgeInsets.fromLTRB(14,12,12,10),child:Row(children:[
+  Container(width:42,height:42,decoration:BoxDecoration(color:gfGreen,borderRadius:BorderRadius.circular(14)),child:const Icon(Icons.handyman_rounded,color:Colors.white)),const SizedBox(width:9),
+  const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('Gofixo Partner',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:gfNavy)),Text('Earn with rides & home services',style:TextStyle(fontSize:8,color:gfMuted))])),
+  GestureDetector(onTap:onOnline,child:Container(padding:const EdgeInsets.symmetric(horizontal:11,vertical:8),decoration:BoxDecoration(color:online?const Color(0xFFDFF9E9):const Color(0xFFEFF2F6),borderRadius:BorderRadius.circular(30)),child:Text(online?'Online':'Offline',style:TextStyle(fontSize:11,fontWeight:FontWeight.w900,color:online?gfGreen:gfMuted))))
+ ]));
+}
+
+class _ProviderJobsTab extends StatelessWidget{
+ final Session session;final List<Map<String,dynamic>> jobs;final Future<void> Function({bool silent}) onChanged;const _ProviderJobsTab({required this.session,required this.jobs,required this.onChanged});
+ @override Widget build(BuildContext c)=>RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
+  const _PageHeading(title:'Jobs',subtitle:'Incoming, accepted and completed work.'),
+  if(jobs.isEmpty)const _Waiting() else ...jobs.map((j){final s=j['status']?.toString()??'';if(s=='requested')return _Incoming(session:session,b:j,changed:onChanged);if(s=='accepted'||s=='ongoing')return _Active(session:session,b:j,changed:onChanged);return _JobSummary(b:j);}),
+ ]));
+}
+
+class _JobSummary extends StatelessWidget{
+ final Map<String,dynamic>b;const _JobSummary({required this.b});
+ @override Widget build(BuildContext c)=>_Box(child:Row(children:[const Icon(Icons.check_circle_outline,color:gfGreen),const SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text((b['status']?.toString()??'').toUpperCase(),style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),Text(b['drop_or_service_address']?.toString()??'',maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:11,color:gfMuted))])),Text('₹'+(b['fare_amount']??b['final_fare']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy))]));
+}
+
+class _ProviderEarningsTab extends StatelessWidget{
+ final Map<String,dynamic> me;final List<Map<String,dynamic>> jobs;const _ProviderEarningsTab({required this.me,required this.jobs});
+ @override Widget build(BuildContext c){
+  final earned=double.tryParse(me['total_earned_this_cycle']?.toString()??'0')??0;final rides=int.tryParse(me['today_rides']?.toString()??'')??0;final completed=jobs.where((j){final s=j['status']?.toString().toLowerCase();return s=='completed'||s=='paid'||s=='finished';}).length;
+  return ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
+   const _PageHeading(title:'Earnings',subtitle:'Your provider earnings and completed work.'),
+   Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:gfNavy,borderRadius:BorderRadius.circular(24)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+    const Text('CURRENT CYCLE',style:TextStyle(color:Colors.white70,fontSize:9,fontWeight:FontWeight.w800)),const SizedBox(height:5),Text('₹'+earned.toStringAsFixed(0),style:const TextStyle(color:Colors.white,fontSize:31,fontWeight:FontWeight.w900)),
+    const SizedBox(height:14),Row(children:[Expanded(child:_DarkStat('Today',rides.toString())),Expanded(child:_DarkStat('Completed',completed.toString()))])
+   ])),const SizedBox(height:14),const _Box(child:Text('Earnings are read from the provider account data returned by Gofixo.',style:TextStyle(fontSize:11,color:gfMuted)))
+  ]);
+ }
+}
+
+class _ProviderServicesTab extends StatelessWidget{
+ final Map<String,dynamic> me;const _ProviderServicesTab({required this.me});
+ @override Widget build(BuildContext c){
+  final type=(me['type']?.toString()??'partner').replaceAll('_',' ');final approved=me['kyc_status']?.toString()=='approved';
+  return ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
+   const _PageHeading(title:'Services',subtitle:'Your Gofixo service eligibility.'),
+   _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('SERVICE TYPE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),const SizedBox(height:5),Text(type.toUpperCase(),style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:gfNavy)),const SizedBox(height:8),Text(approved?'KYC approved — eligible for matching.':'KYC pending — approval is required before going online.',style:TextStyle(fontSize:11,color:approved?gfGreen:gfMuted,fontWeight:FontWeight.w700))])),
+   const SizedBox(height:12),_ServiceInfo(title:'Rides',icon:Icons.local_taxi_rounded,enabled:type=='bike'||type=='auto'||type=='car'),_ServiceInfo(title:'Home services',icon:Icons.handyman_rounded,enabled:type.contains('worker')),_ServiceInfo(title:'Nearby matching',icon:Icons.radar_rounded,enabled:approved),
+   const SizedBox(height:12),const _Box(child:Text('Keep your location fresh and subscription active to receive nearby jobs.',style:TextStyle(fontSize:11,color:gfMuted)))
+  ]);
+ }
+}
+
+class _ServiceInfo extends StatelessWidget{
+ final String title;final IconData icon;final bool enabled;const _ServiceInfo({required this.title,required this.icon,required this.enabled});
+ @override Widget build(BuildContext c)=>Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(18)),child:Row(children:[Icon(icon,color:enabled?gfGreen:gfMuted),const SizedBox(width:10),Expanded(child:Text(title,style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy))),Text(enabled?'Active':'Not active',style:TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:enabled?gfGreen:gfMuted))]));
+}
+
+class _ProviderProfileTab extends StatelessWidget{
+ final Session session;final Map<String,dynamic> me;final Future<void> Function() onLogout;const _ProviderProfileTab({required this.session,required this.me,required this.onLogout});
+ @override Widget build(BuildContext c){final kyc=me['kyc_status']?.toString()??'pending';return ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
+  const _PageHeading(title:'Profile',subtitle:'Manage your partner account and compliance.'),_ProfileCard(name:me['name']?.toString()??session.userName??'Partner',role:'Gofixo Partner',icon:Icons.handyman_rounded),const SizedBox(height:12),
+  _ProfileAction(icon:Icons.verified_user_rounded,title:'KYC status',subtitle:kyc.toUpperCase()),_ProfileAction(icon:Icons.badge_outlined,title:'Partner ID',subtitle:me['generated_id']?.toString()??'Not assigned'),_ProfileAction(icon:Icons.location_on_outlined,title:'Live location',subtitle:me['is_available']==true?'Updating while online':'Offline'),_ProfileAction(icon:Icons.support_agent,title:'Partner support',subtitle:'Get help with jobs, documents and account access.'),const SizedBox(height:12),
+  SizedBox(width:double.infinity,child:OutlinedButton.icon(onPressed:onLogout,icon:const Icon(Icons.logout_rounded),label:const Text('Log out')))
+ ]);}
+}
+
+class _PageHeading extends StatelessWidget{
+ final String title,subtitle;const _PageHeading({required this.title,required this.subtitle});
+ @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.only(bottom:14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(title,style:const TextStyle(fontSize:27,fontWeight:FontWeight.w900,color:gfNavy)),const SizedBox(height:3),Text(subtitle,style:const TextStyle(fontSize:11,color:gfMuted))]));
+}
+class _ProfileCard extends StatelessWidget{
+ final String name,role;final IconData icon;const _ProfileCard({required this.name,required this.role,required this.icon});
+ @override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.all(18),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(22)),child:Row(children:[Container(width:58,height:58,decoration:const BoxDecoration(color:Color(0xFFEFFFF5),shape:BoxShape.circle),child:Icon(icon,color:gfGreen,size:30)),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(name,style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900,color:gfNavy)),Text(role,style:const TextStyle(fontSize:11,color:gfMuted))]))]));
+}
+class _ProfileAction extends StatelessWidget{
+ final IconData icon;final String title,subtitle;const _ProfileAction({required this.icon,required this.title,required this.subtitle});
+ @override Widget build(BuildContext c)=>Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(18)),child:Row(children:[Icon(icon,color:gfGreen),const SizedBox(width:11),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(title,style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy)),Text(subtitle,maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:10,color:gfMuted))]))]));
 }
 
 class ReferenceBookingPage extends StatefulWidget{
