@@ -1,7 +1,7 @@
 {
   "version": "1.0.19",
   "buildNumber": 1000019,
-  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.19.apk",
+  "downloadUrl": "https://gofixo.mob13r.com/releases/download/v1.0.19/gofixo-release.apk",
   "notes": "Gofixo v1.0.19: real ride arrival state, live route/ETA improvements, locked upfront fare and ride-flow stability.",
   "forceUpdate": true
 }
