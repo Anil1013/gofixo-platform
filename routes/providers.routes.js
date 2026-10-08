@@ -77,7 +77,7 @@ function requireOwnProvider(req, res, next) {
 // Register a new provider (driver/worker) — KYC starts as 'pending'
 router.post('/register', async (req, res, next) => {
   try {
-    const { name, phone, type, password } = req.body;
+    const { name, phone, type, password, service_categories } = req.body;
     const normalizedPhone = String(phone ?? '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '');
     if (!name || !normalizedPhone || !type || !password) {
       return res.status(400).json({ error: 'name, phone, type and password are required' });
@@ -85,6 +85,10 @@ router.post('/register', async (req, res, next) => {
     if (!PROVIDER_TYPES.includes(type)) {
       return res.status(400).json({ error: 'Invalid provider type' });
     }
+
+    const serviceCategories = type === 'general_worker' || type === 'skilled_worker'
+      ? normalizeServiceCategories(service_categories)
+      : [];
     if (!isValidPassword(password)) return res.status(400).json({ error: PASSWORD_ERROR });
 
     // generated_id pattern: RL-D-00231 (driver) or RL-W-00512 (worker).
@@ -110,9 +114,9 @@ router.post('/register', async (req, res, next) => {
       const passwordHash = await bcrypt.hash(password, 10);
 
       const result = await client.query(
-        `INSERT INTO service_providers (generated_id, name, phone, type, password_hash)
-         VALUES ($1, $2, $3, $4, $5) RETURNING id, generated_id, name, phone, type, kyc_status, created_at`,
-        [generatedId, name, normalizedPhone, type, passwordHash]
+        `INSERT INTO service_providers (generated_id, name, phone, type, password_hash, service_categories)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, generated_id, name, phone, type, service_categories, kyc_status, created_at`,
+        [generatedId, name, normalizedPhone, type, passwordHash, serviceCategories]
       );
 
       await client.query('COMMIT');
@@ -133,7 +137,7 @@ router.post('/register', async (req, res, next) => {
 router.get('/', requireAdmin, async (req, res, next) => {
   try {
     const result = await pool.query(`
-      SELECT sp.id, sp.generated_id, sp.name, sp.phone, sp.type, sp.kyc_status, sp.kyc_review_note, sp.bank_upi_id,
+      SELECT sp.id, sp.generated_id, sp.name, sp.phone, sp.type, sp.service_categories, sp.kyc_status, sp.kyc_review_note, sp.bank_upi_id,
         sp.avg_rating, sp.is_available, sp.created_at, sp.current_lat, sp.current_lng,
         sub.plan_name,
         sub.earning_cap,
