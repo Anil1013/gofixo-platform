@@ -122,8 +122,8 @@ class _CustomerHomeTab extends StatelessWidget{
   final active=bookings.where((b){final s=b['status']?.toString();return s=='requested'||s=='accepted'||s=='arrived'||s=='ongoing';}).toList();
   return RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.only(bottom:18),children:[
    _CustomerHeader(onProfile:()=>onTab(4)),const SizedBox(height:6),_CustomerHero(session:session,onChanged:onChanged),const SizedBox(height:18),
-   _SectionTitle(title:'Book a Ride',onSeeAll:()=>onTab(2)),const SizedBox(height:8),_RideTypeShowcase(session:session,onChanged:onChanged),const SizedBox(height:20),
-   _SectionTitle(title:'Home Services',onSeeAll:()=>onTab(2)),const SizedBox(height:8),_Services(onTap:(type,category,label)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:type,serviceCategory:category,serviceDescription:label,onChanged:onChanged)))),
+   _SectionTitle(title:'Popular rides',onSeeAll:()=>onTab(2)),const SizedBox(height:8),_RideTypeShowcase(session:session,onChanged:onChanged),const SizedBox(height:20),
+   _SectionTitle(title:'Home services',onSeeAll:()=>onTab(2)),const SizedBox(height:8),_Services(onTap:(type,category,label)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:type,serviceCategory:category,serviceDescription:label,onChanged:onChanged)))),
    const SizedBox(height:14),_CustomerPromo(onTap:()=>onTab(2)),const SizedBox(height:18),
    const _SectionTitle(title:'Why Gofixo?'),const SizedBox(height:8),const _CustomerBenefits(),
    if(active.isNotEmpty)...[const SizedBox(height:16),_ActiveBookingStrip(b:active.first,session:session)],
@@ -149,47 +149,85 @@ class _CustomerHero extends StatelessWidget{
  const _CustomerHero({required this.session,required this.onChanged});
  @override Widget build(BuildContext c){
   return Padding(
-   padding:const EdgeInsets.symmetric(horizontal:12),
+   padding:const EdgeInsets.symmetric(horizontal:14),
    child:Column(children:[
     ClipRRect(
-     borderRadius:BorderRadius.circular(24),
+     borderRadius:BorderRadius.circular(26),
      child:SizedBox(
-      height:245,width:double.infinity,
+      height:248,width:double.infinity,
       child:Stack(fit:StackFit.expand,children:[
-       Image.network('https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=1200&q=88',fit:BoxFit.cover,errorBuilder:(context,error,stack)=>const ColoredBox(color:Color(0xFFDCEBFF))),
-       DecoratedBox(decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[Colors.transparent,gfNavy.withValues(alpha:.78)]))),
-       const Positioned(left:18,top:18,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Text('Your City',style:TextStyle(color:Colors.white,fontSize:27,fontWeight:FontWeight.w900)),
-        Text('Your Services',style:TextStyle(color:Color(0xFFFFB03A),fontSize:27,fontWeight:FontWeight.w900)),
-        SizedBox(height:4),
-        Text('Rides, Home Services\nand more — All in One App',style:TextStyle(color:Colors.white,fontSize:12,fontWeight:FontWeight.w600,height:1.25))
+       Image.network(
+        'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1400&q=90',
+        fit:BoxFit.cover,
+        errorBuilder:(context,error,stack)=>const ColoredBox(color:Color(0xFF16334A)),
+       ),
+       DecoratedBox(decoration:BoxDecoration(
+        gradient:LinearGradient(
+         begin:Alignment.topCenter,
+         end:Alignment.bottomCenter,
+         colors:[Colors.black.withValues(alpha:.08),Colors.black.withValues(alpha:.72)],
+        ),
+       )),
+       Positioned(left:20,right:20,top:20,child:Row(children:[
+        Container(
+         padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
+         decoration:BoxDecoration(color:Colors.white.withValues(alpha:.92),borderRadius:BorderRadius.circular(20)),
+         child:const Row(mainAxisSize:MainAxisSize.min,children:[
+          Icon(Icons.verified_rounded,color:gfGreen,size:15),
+          SizedBox(width:5),
+          Text('Trusted local rides',style:TextStyle(fontSize:10,fontWeight:FontWeight.w900,color:gfNavy)),
+         ]),
+        ),
+        const Spacer(),
+        Container(
+         width:34,height:34,
+         decoration:BoxDecoration(color:Colors.black.withValues(alpha:.28),shape:BoxShape.circle),
+         child:const Icon(Icons.more_horiz_rounded,color:Colors.white),
+        ),
        ])),
-       Positioned(left:12,right:12,bottom:12,child:Row(children:[
-        _HeroRide('Bike','https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=700&q=88',session,onChanged),
-        _HeroRide('Auto','https://images.unsplash.com/photo-1626149637281-4e227308da18?auto=format&fit=crop&w=700&q=88',session,onChanged),
-        _HeroRide('Car','https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=700&q=88',session,onChanged),
+       const Positioned(left:20,right:20,bottom:58,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text('Go anywhere.',style:TextStyle(color:Colors.white,fontSize:29,fontWeight:FontWeight.w900,height:1.0)),
+        SizedBox(height:3),
+        Text('Get there with Gofixo.',style:TextStyle(color:Colors.white,fontSize:18,fontWeight:FontWeight.w700)),
+        SizedBox(height:5),
+        Text('Live routes • Upfront fare • Real-time ride tracking',style:TextStyle(color:Colors.white70,fontSize:10,fontWeight:FontWeight.w600)),
        ])),
+       Positioned(left:16,right:16,bottom:12,child:InkWell(
+        onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,onChanged:onChanged))),
+        borderRadius:BorderRadius.circular(16),
+        child:Container(
+         height:42,
+         decoration:BoxDecoration(color:gfGreen,borderRadius:BorderRadius.circular(16),boxShadow:const[BoxShadow(color:Color(0x44000000),blurRadius:10,offset:Offset(0,4))]),
+         child:const Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+          Icon(Icons.navigation_rounded,color:Colors.white,size:18),
+          SizedBox(width:7),
+          Text('Book a ride',style:TextStyle(color:Colors.white,fontSize:14,fontWeight:FontWeight.w900)),
+         ]),
+        ),
+       )),
       ]),
      ),
     ),
     const SizedBox(height:10),
     InkWell(
      onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,onChanged:onChanged))),
-     borderRadius:BorderRadius.circular(28),
+     borderRadius:BorderRadius.circular(20),
      child:Container(
-      padding:const EdgeInsets.symmetric(horizontal:15,vertical:13),
-      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(28),boxShadow:const[BoxShadow(color:Color(0x18000000),blurRadius:14,offset:Offset(0,5))]),
+      padding:const EdgeInsets.symmetric(horizontal:14,vertical:11),
+      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(20),border:Border.all(color:gfLine),boxShadow:const[BoxShadow(color:Color(0x10000000),blurRadius:12,offset:Offset(0,4))]),
       child:Row(children:[
-       Container(width:37,height:37,decoration:const BoxDecoration(color:Color(0xFFEAFBF2),shape:BoxShape.circle),child:const Icon(Icons.location_on_rounded,color:gfGreen,size:20)),
+       Container(width:38,height:38,decoration:const BoxDecoration(color:Color(0xFFEFFFF5),shape:BoxShape.circle),child:const Icon(Icons.search_rounded,color:gfGreen,size:21)),
        const SizedBox(width:10),
-       const Expanded(child:Text('Where are you going?',style:TextStyle(fontSize:14,fontWeight:FontWeight.w800,color:gfMuted))),
-       Container(width:37,height:37,decoration:const BoxDecoration(color:gfNavy,shape:BoxShape.circle),child:const Icon(Icons.my_location_rounded,color:Colors.white,size:18)),
+       const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text('Where to?',style:TextStyle(fontSize:10,color:gfMuted,fontWeight:FontWeight.w700)),
+        Text('Enter destination',style:TextStyle(fontSize:14,color:gfNavy,fontWeight:FontWeight.w900)),
+       ])),
+       const Icon(Icons.chevron_right_rounded,color:gfMuted,size:22),
       ]),
      ),
     ),
    ]),
   );
- }
 }
 class _HeroRide extends StatelessWidget{
  final String label,url; final Session session; final Future<void> Function({bool silent}) onChanged;
@@ -218,12 +256,20 @@ class _SectionTitle extends StatelessWidget{
 }
 
 class _RideTypeShowcase extends StatelessWidget{
- final Session session;final Future<void> Function({bool silent}) onChanged;const _RideTypeShowcase({required this.session,required this.onChanged});
- @override Widget build(BuildContext c)=>SizedBox(height:178,child:ListView(scrollDirection:Axis.horizontal,padding:const EdgeInsets.symmetric(horizontal:12),children:[
-  _RideCardNew('Bike','Fast & Affordable','https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=700&q=88','bike',session,onChanged),
-  _RideCardNew('Auto','Comfortable Rides','https://images.unsplash.com/photo-1626149637281-4e227308da18?auto=format&fit=crop&w=700&q=88','auto',session,onChanged),
-  _RideCardNew('Car','Spacious & Safe','https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=700&q=88','car',session,onChanged),
- ]));
+ final Session session;final Future<void> Function({bool silent}) onChanged;
+ const _RideTypeShowcase({required this.session,required this.onChanged});
+ @override Widget build(BuildContext c)=>SizedBox(
+  height:184,
+  child:ListView(
+   scrollDirection:Axis.horizontal,
+   padding:const EdgeInsets.symmetric(horizontal:14),
+   children:[
+    _RideCardNew('Bike','Quick & affordable','https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=90','bike',session,onChanged),
+    _RideCardNew('Auto','Easy city rides','https://images.unsplash.com/photo-1626149637281-4e227308da18?auto=format&fit=crop&w=800&q=90','auto',session,onChanged),
+    _RideCardNew('Car','Comfortable & safe','https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=800&q=90','car',session,onChanged),
+   ],
+  ),
+ );
 }
 class _RideCardNew extends StatelessWidget{
  final String title,sub,url,type; final Session session; final Future<void> Function({bool silent}) onChanged;
@@ -232,19 +278,29 @@ class _RideCardNew extends StatelessWidget{
   return Padding(
    padding:const EdgeInsets.only(right:10),
    child:SizedBox(
-    width:145,
+    width:154,
     child:InkWell(
      onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:type,onChanged:onChanged))),
      borderRadius:BorderRadius.circular(20),
      child:Container(
-      decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(20),boxShadow:const[BoxShadow(color:Color(0x12000000),blurRadius:9,offset:Offset(0,4))]),
-      child:Column(children:[
-       Expanded(child:ClipRRect(borderRadius:const BorderRadius.vertical(top:Radius.circular(20)),child:Image.network(url,fit:BoxFit.cover,width:double.infinity,errorBuilder:(context,error,stack)=>const ColoredBox(color:Color(0xFFEAF1F8))))),
-       Padding(padding:const EdgeInsets.fromLTRB(6,7,6,8),child:Column(children:[
-        Text(title,style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
-        const SizedBox(height:2),
-        Text(sub,style:const TextStyle(fontSize:9,color:gfMuted)),
-       ])),
+      clipBehavior:Clip.antiAlias,
+      decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(20),boxShadow:const[BoxShadow(color:Color(0x14000000),blurRadius:10,offset:Offset(0,4))]),
+      child:Stack(fit:StackFit.expand,children:[
+       Image.network(url,fit:BoxFit.cover,errorBuilder:(context,error,stack)=>const ColoredBox(color:Color(0xFFEAF1F8))),
+       Positioned(left:0,right:0,bottom:0,child:Container(
+        padding:const EdgeInsets.fromLTRB(11,28,11,10),
+        decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[Colors.transparent,Colors.black.withValues(alpha:.78)])),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+         Text(title,style:const TextStyle(color:Colors.white,fontSize:16,fontWeight:FontWeight.w900)),
+         const SizedBox(height:2),
+         Text(sub,style:const TextStyle(color:Colors.white70,fontSize:9,fontWeight:FontWeight.w600)),
+        ]),
+       )),
+       Positioned(right:9,top:9,child:Container(
+        padding:const EdgeInsets.symmetric(horizontal:8,vertical:5),
+        decoration:BoxDecoration(color:Colors.white.withValues(alpha:.94),borderRadius:BorderRadius.circular(12)),
+        child:Text('BOOK',style:const TextStyle(color:gfGreen,fontSize:8,fontWeight:FontWeight.w900)),
+       )),
       ]),
      ),
     ),
@@ -252,7 +308,6 @@ class _RideCardNew extends StatelessWidget{
   );
  }
 }
-
 class _CustomerPromo extends StatelessWidget{
  final VoidCallback onTap;
  const _CustomerPromo({required this.onTap});
@@ -583,12 +638,15 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
     }
     final r=await ApiService.computeRoute(pos!.latitude,pos!.longitude,a,b);
     final d=(r['distanceMeters']as num).toDouble()/1000;
+    final rawEta=num.tryParse(r['durationSeconds']?.toString()??'');
+    final eta=(rawEta!=null&&rawEta>0)?rawEta:(d>0?d/25*60:0);
     final points=_decodeGooglePolyline(r['encodedPolyline']?.toString()??'');
     if(points.length<2)throw Exception('No route found.');
     if(mounted)setState((){
       place=p;
       km=d;
       fare=_fare(type,d);
+      routeEtaSeconds=eta*60;
       destinationPoint=LatLng(a,b);
       routePolylines={
         Polyline(
