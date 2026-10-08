@@ -98,7 +98,7 @@ class _CustomerHomeTab extends StatelessWidget{
   return RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.only(bottom:18),children:[
    _CustomerHeader(onProfile:()=>onTab(4)),const SizedBox(height:6),_CustomerHero(session:session,onChanged:onChanged),const SizedBox(height:18),
    _SectionTitle(title:'Book a Ride',onSeeAll:()=>onTab(2)),const SizedBox(height:8),_RideTypeShowcase(session:session,onChanged:onChanged),const SizedBox(height:20),
-   _SectionTitle(title:'Home Services',onSeeAll:()=>onTab(2)),const SizedBox(height:8),_Services(onTap:(t)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:t,onChanged:onChanged)))),
+   _SectionTitle(title:'Home Services',onSeeAll:()=>onTab(2)),const SizedBox(height:8),_Services(onTap:(type,category,label)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:type,serviceCategory:category,serviceDescription:label,onChanged:onChanged)))),
    const SizedBox(height:14),_CustomerPromo(onTap:()=>onTab(2)),const SizedBox(height:18),
    const _SectionTitle(title:'Why Gofixo?'),const SizedBox(height:8),const _CustomerBenefits(),
    if(active.isNotEmpty)...[const SizedBox(height:16),_ActiveBookingStrip(b:active.first,session:session)],
@@ -465,15 +465,15 @@ class _ProfileAction extends StatelessWidget{
 }
 
 class ReferenceBookingPage extends StatefulWidget{
- final Session session;final String type;final Future<void> Function({bool silent}) onChanged;
- const ReferenceBookingPage({super.key,required this.session,this.type='bike',required this.onChanged});
+ final Session session;final String type;final String? serviceCategory;final String? serviceDescription;final Future<void> Function({bool silent}) onChanged;
+ const ReferenceBookingPage({super.key,required this.session,this.type='bike',this.serviceCategory,this.serviceDescription,required this.onChanged});
  @override State<ReferenceBookingPage> createState()=>_ReferenceBookingPageState();
 }
 class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  GoogleMapController? mapController;
  StreamSubscription<Position>? locationSub;
- final dest=TextEditingController();String type='bike',pickup='Detecting your location…';Position? pos;Map<String,dynamic>? place;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[];Set<Polyline> routePolylines={};LatLng? destinationPoint;double? km,fare;bool busy=false;Timer? debounce;LatLng? lastReversePoint;
- @override void initState(){super.initState();type=widget.type;WidgetsBinding.instance.addPostFrameCallback((_)=>locate());}
+ final dest=TextEditingController();String type='bike',pickup='Detecting your location…';String serviceCategory='other',serviceDescription='';Position? pos;Map<String,dynamic>? place;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[];Set<Polyline> routePolylines={};LatLng? destinationPoint;double? km,fare;bool busy=false;Timer? debounce;LatLng? lastReversePoint;
+ @override void initState(){super.initState();type=widget.type;serviceCategory=widget.serviceCategory??'other';serviceDescription=widget.serviceDescription??'';WidgetsBinding.instance.addPostFrameCallback((_)=>locate());}
  @override void dispose(){debounce?.cancel();locationSub?.cancel();dest.dispose();super.dispose();}
  Future<void>locate()async{if(busy)return;setState(()=>busy=true);try{if(!await Geolocator.isLocationServiceEnabled())throw Exception('Please turn on Location Services.');var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)throw Exception('Location permission is required.');Position?best;for(var i=0;i<3;i++){final x=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:0,timeLimit:Duration(seconds:12)));if(best==null||x.accuracy<best.accuracy)best=x;if(x.accuracy<=30)break;}final x=best!;if(x.accuracy>150)throw Exception('GPS accuracy is too weak. Please move outdoors and try again.');final a=await _reverse(x.latitude,x.longitude);if(mounted){setState((){pos=x;pickup=a;lastReversePoint=LatLng(x.latitude,x.longitude);});await _centerMap(LatLng(x.latitude,x.longitude),17);}_startLocationStream();}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
  void _startLocationStream(){locationSub?.cancel();locationSub=Geolocator.getPositionStream(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:5)).listen((x)async{if(!mounted||x.accuracy>150)return;final point=LatLng(x.latitude,x.longitude);final old=pos;setState(()=>pos=x);if(old==null||Geolocator.distanceBetween(old.latitude,old.longitude,x.latitude,x.longitude)>=3){if(lastReversePoint==null||Geolocator.distanceBetween(lastReversePoint!.latitude,lastReversePoint!.longitude,x.latitude,x.longitude)>=50){final address=await _reverse(x.latitude,x.longitude);if(!mounted)return;setState((){pickup=address;lastReversePoint=point;});}}});}
@@ -575,6 +575,8 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
       fare:isService?null:fare,
       distanceKm:isService?null:km,
       serviceType:isService?'services':'ride',
+      serviceCategory:isService?serviceCategory:null,
+      serviceDescription:isService?serviceDescription:null,
     );
     if(mounted){Navigator.pop(context);await widget.onChanged();}
   }catch(e){_snack(e.toString());}
@@ -783,7 +785,24 @@ class _MapControl extends StatelessWidget{
  @override Widget build(BuildContext c)=>Material(color:Colors.white,borderRadius:BorderRadius.circular(12),elevation:3,child:InkWell(onTap:onTap,borderRadius:BorderRadius.circular(12),child:SizedBox(width:44,height:44,child:Icon(icon,color:gfNavy,size:22))));
 }
 class _Partner extends StatelessWidget{final Map<String,dynamic>m;const _Partner({required this.m});@override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(22)),child:Row(children:[Container(width:58,height:58,padding:const EdgeInsets.all(4),decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEFFFF5)),child:ClipOval(child:Image.network('https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=85',fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Icon(Icons.person,color:gfGreen,size:34)))),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('PARTNER PROFILE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),Text(m['name']?.toString()??'Partner',style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900,color:gfNavy)),Text((m['type']?.toString()??'partner').replaceAll('_',' ')+' · '+(m['generated_id']?.toString()??''),style:const TextStyle(fontSize:11,color:gfMuted))])),const Icon(Icons.chevron_right,color:gfMuted)]));}
-class _Services extends StatelessWidget{final ValueChanged<String> onTap;const _Services({required this.onTap});@override Widget build(BuildContext c)=>GridView.count(crossAxisCount:4,crossAxisSpacing:7,mainAxisSpacing:9,childAspectRatio:.72,shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),children:[_Service('https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=500&q=80','Electrician',()=>onTap('skilled_worker')),_Service('https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=500&q=80','Plumber',()=>onTap('skilled_worker')),_Service('https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=500&q=80','AC Service',()=>onTap('skilled_worker')),_Service('https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=500&q=80','Cleaning',()=>onTap('general_worker')),_Service('https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=500&q=80','Painter',()=>onTap('skilled_worker')),_Service('https://images.unsplash.com/photo-1601058268499-e52658a84c9d?auto=format&fit=crop&w=500&q=80','Carpenter',()=>onTap('skilled_worker')),_Service('https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=500&q=80','Appliance Repair',()=>onTap('skilled_worker')),_Service('https://images.unsplash.com/photo-1521791055366-0d553872125f?auto=format&fit=crop&w=500&q=80','More Services',()=>onTap('general_worker'))]);}
+class _Services extends StatelessWidget{
+ final void Function(String type,String category,String label) onTap;
+ const _Services({required this.onTap});
+ @override Widget build(BuildContext c)=>GridView.count(
+   crossAxisCount:4,crossAxisSpacing:7,mainAxisSpacing:9,childAspectRatio:.72,
+   shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),
+   children:[
+    _Service('https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=500&q=80','Electrician',()=>onTap('skilled_worker','electrician','Electrician')),
+    _Service('https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=500&q=80','Plumber',()=>onTap('skilled_worker','plumber','Plumber')),
+    _Service('https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=500&q=80','AC Service',()=>onTap('skilled_worker','ac_service','AC Service')),
+    _Service('https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=500&q=80','Cleaning',()=>onTap('general_worker','cleaning','Cleaning')),
+    _Service('https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=500&q=80','Painter',()=>onTap('skilled_worker','painter','Painter')),
+    _Service('https://images.unsplash.com/photo-1601058268499-e52658a84c9d?auto=format&fit=crop&w=500&q=80','Carpenter',()=>onTap('skilled_worker','carpenter','Carpenter')),
+    _Service('https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=500&q=80','Appliance Repair',()=>onTap('skilled_worker','appliance_repair','Appliance Repair')),
+    _Service('https://images.unsplash.com/photo-1521791055366-0d553872125f?auto=format&fit=crop&w=500&q=80','More Services',()=>onTap('general_worker','other','Other')),
+   ],
+ );
+}
 class _Service extends StatelessWidget {
   final String url;
   final String label;
