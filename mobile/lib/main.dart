@@ -467,8 +467,38 @@ class _AuthState extends State<Auth>{
  final form=GlobalKey<FormState>();final name=TextEditingController(),phone=TextEditingController(),pass=TextEditingController();
  String mode='login',type='bike';bool busy=false;String? error,msg;String appVersion='',buildNumber='';
  final Set<String> serviceCategories={};
+ List<Map<String,dynamic>> serviceCatalog=[];
+ static const _fallbackServiceCatalog=<Map<String,dynamic>>[
+  {'key':'electrician','label':'Electrician','providerType':'skilled_worker'},
+  {'key':'plumber','label':'Plumber','providerType':'skilled_worker'},
+  {'key':'ac_service','label':'AC Service','providerType':'skilled_worker'},
+  {'key':'cleaning','label':'Cleaning','providerType':'general_worker'},
+  {'key':'painter','label':'Painter','providerType':'skilled_worker'},
+  {'key':'carpenter','label':'Carpenter','providerType':'skilled_worker'},
+  {'key':'appliance_repair','label':'Appliance Repair','providerType':'skilled_worker'},
+  {'key':'ro_water_purifier','label':'RO & Water Purifier','providerType':'skilled_worker'},
+  {'key':'cctv_security','label':'CCTV & Security','providerType':'skilled_worker'},
+  {'key':'internet_wifi','label':'Internet & Wi-Fi','providerType':'skilled_worker'},
+  {'key':'pest_control','label':'Pest Control','providerType':'general_worker'},
+  {'key':'packers_movers','label':'Packers & Movers','providerType':'general_worker'},
+  {'key':'salon_beauty','label':'Salon & Beauty','providerType':'general_worker'},
+  {'key':'cook','label':'Cook','providerType':'general_worker'},
+  {'key':'gardener','label':'Gardener','providerType':'general_worker'},
+  {'key':'laundry','label':'Laundry','providerType':'general_worker'},
+  {'key':'driver','label':'Personal Driver','providerType':'general_worker'},
+  {'key':'tutor','label':'Tutor','providerType':'general_worker'},
+  {'key':'babysitter','label':'Babysitter','providerType':'general_worker'},
+  {'key':'elder_care','label':'Elder Care','providerType':'general_worker'},
+  {'key':'other','label':'Other Service','providerType':'general_worker'},
+ ];
  bool get provider=>widget.role=='provider';
- @override void initState(){super.initState();_loadAppVersion();}
+ @override void initState(){super.initState();_loadAppVersion();_loadServiceCatalog();}
+ Future<void> _loadServiceCatalog()async{
+  try{
+   final remote=await ApiService.serviceCatalog();
+   if(mounted)setState(()=>serviceCatalog=remote.isEmpty?_fallbackServiceCatalog:remote);
+  }catch(_){if(mounted)setState(()=>serviceCatalog=_fallbackServiceCatalog);}
+ }
  Future<void> _loadAppVersion()async{try{final info=await PackageInfo.fromPlatform();if(mounted)setState((){appVersion=info.version;buildNumber=info.buildNumber;});}catch(_){}}
  @override void dispose(){name.dispose();phone.dispose();pass.dispose();super.dispose();}
  Future<void> submit()async{
@@ -501,18 +531,25 @@ class _AuthState extends State<Auth>{
    ],onChanged:(v)=>setState((){type=v??'bike';if(type=='bike'||type=='auto'||type=='car')serviceCategories.clear();})),
    if(reg&&provider&&(type=='general_worker'||type=='skilled_worker'))...
      [
-       const Text('Home-service specialties',style:TextStyle(fontWeight:FontWeight.w800,color:navy)),
-       const SizedBox(height:8),
-       ...const [
-         ('electrician','Electrician'),('plumber','Plumber'),('ac_service','AC Service'),
-         ('cleaning','Cleaning'),('painter','Painter'),('carpenter','Carpenter'),
-         ('appliance_repair','Appliance Repair'),('pest_control','Pest Control'),
-         ('packers_movers','Packers & Movers'),('salon_beauty','Salon & Beauty'),
-       ].map((item)=>CheckboxListTile(
-         contentPadding:EdgeInsets.zero,dense:true,controlAffinity:ListTileControlAffinity.leading,
-         value:serviceCategories.contains(item.$1),title:Text(item.$2),
-         onChanged:(v)=>setState(()=>v==true?serviceCategories.add(item.$1):serviceCategories.remove(item.$1)),
-       )),
+       const Text('Work specialties',style:TextStyle(fontWeight:FontWeight.w800,color:navy)),
+       const SizedBox(height:4),
+       const Text('Choose every service you can professionally deliver.',style:TextStyle(fontSize:11,color:muted)),
+       const SizedBox(height:9),
+       Wrap(
+         spacing:8,runSpacing:8,
+         children:serviceCatalog
+           .where((item)=>item['providerType']?.toString()==type)
+           .map((item){
+             final key=item['key']?.toString()??'other';
+             final label=item['label']?.toString()??key;
+             final selected=serviceCategories.contains(key);
+             return FilterChip(
+               selected:selected,
+               label:Text(label),
+               onSelected:(v)=>setState(()=>v?serviceCategories.add(key):serviceCategories.remove(key)),
+             );
+           }).toList(),
+       ),
        const SizedBox(height:6),
      ],
    if(reg&&provider)const SizedBox(height:14),
