@@ -23,9 +23,18 @@ String gfFormatEta(num? seconds){
 
 String gfFormatDistance(num? meters){
   final m=(meters??0).toDouble();
-  if(m<=0)return 'Distance unavailable';
+  if(m<=0)return 'Calculating…';
   if(m<1000)return '${m.round()} m';
   return '${(m/1000).toStringAsFixed(m<10000?1:0)} km';
+}
+
+String gfEstimateEta(num? meters){
+  final m=(meters??0).toDouble();
+  if(m<=0)return 'Calculating…';
+  // City-ride fallback only when the live routing service has not returned
+  // a duration yet. Once Google Routes responds, its traffic-aware ETA wins.
+  final minutes=(m/1000/25*60).ceil();
+  return '~${max(1,minutes)} min';
 }
 
 
@@ -1429,7 +1438,7 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
         setState((){
           routeLines={Polyline(polylineId:const PolylineId('partner-route'),points:pts,color:gfGreen,width:5)};
           routeDistanceMeters=distance;
-          routeEtaSeconds=eta;
+          routeEtaSeconds=(eta!=null&&eta>0)?eta:(distance!=null&&distance>0?distance/1000/25*3600:null);
         });
         lastRoutedPoint=p;
       }
@@ -1536,7 +1545,7 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
               Row(children:[
                 Expanded(child:_LiveMetric(icon:Icons.route_rounded,label:'Distance',value:gfFormatDistance(routeDistanceMeters))),
                 const SizedBox(width:10),
-                Expanded(child:_LiveMetric(icon:Icons.schedule_rounded,label:'Live ETA',value:gfFormatEta(routeEtaSeconds))),
+                Expanded(child:_LiveMetric(icon:Icons.schedule_rounded,label:'Live ETA',value:routeEtaSeconds!=null&&routeEtaSeconds!>0?gfFormatEta(routeEtaSeconds):gfEstimateEta(routeDistanceMeters))),
               ]),
             ],
           ]),
