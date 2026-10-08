@@ -56,6 +56,10 @@ class ApiService {
   static Future<Map<String,dynamic>> providerMe(String token)async=>Map<String,dynamic>.from(await _request('GET','/providers/me',token:token) as Map);
   static Future<void> updateProviderLocation(String token,int id,double lat,double lng)=>_request('PATCH','/providers/'+id.toString()+'/location',token:token,body:{'lat':lat,'lng':lng});
   static Future<Map<String,dynamic>> setAvailability(String token,int id,bool v)async=>Map<String,dynamic>.from(await _request('PATCH','/providers/'+id.toString()+'/availability',token:token,body:{'is_available':v}) as Map);
+  static Future<List<Map<String,dynamic>>> serviceCatalog()async{
+    final d=await _request('GET','/catalog/services');
+    return d is List?d.map((e)=>Map<String,dynamic>.from(e as Map)).toList():[];
+  }
   static Future<List<Map<String,dynamic>>> plans()async{final d=await _request('GET','/subscriptions/plans');return d is List?d.map((e)=>Map<String,dynamic>.from(e as Map)).toList():[];}
   static Future<Map<String,dynamic>?> subscription(String token,int id)async{try{return Map<String,dynamic>.from(await _request('GET','/subscriptions/status/'+id.toString(),token:token) as Map);}catch(_){return null;}}
   static Future<Map<String,dynamic>> subscribe(String token,int planId)async=>Map<String,dynamic>.from(await _request('POST','/subscriptions/subscribe',token:token,body:{'plan_id':planId}) as Map);
