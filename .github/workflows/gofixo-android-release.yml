@@ -1,0 +1,143 @@
+name: Gofixo Android Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mobile/version.json"
+      - "mobile/pubspec.yaml"
+      - "mobile/android/**"
+      - ".github/workflows/gofixo-android-release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gofixo-android-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and Publish Signed Android Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read release version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(python3 -c 'import json; print(json.load(open("version.json"))["version"])')"
+          BUILD="$(python3 -c 'import json; print(json.load(open("version.json"))["buildNumber"])')"
+          test -n "$VERSION"
+          test "$BUILD" -gt 0
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check release tag
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.6"
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test
+        run: flutter test
+
+      - name: Configure Android signing
+        env:
+          GOFIXO_KEYSTORE_B64: ${{ secrets.GOFIXO_KEYSTORE_B64 }}
+          GOFIXO_STORE_PASSWORD: ${{ secrets.GOFIXO_STORE_PASSWORD }}
+          GOFIXO_KEY_PASSWORD: ${{ secrets.GOFIXO_KEY_PASSWORD }}
+          GOFIXO_KEY_ALIAS: ${{ secrets.GOFIXO_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          for name in GOFIXO_KEYSTORE_B64 GOFIXO_STORE_PASSWORD GOFIXO_KEY_PASSWORD GOFIXO_KEY_ALIAS; do
+            test -n "${!name}" || { echo "::error::Missing signing secret $name"; exit 1; }
+          done
+          printf '%s' "$GOFIXO_KEYSTORE_B64" | base64 --decode > android/gofixo-release.jks
+          cat > android/key.properties <<EOF
+          storePassword=$GOFIXO_STORE_PASSWORD
+          keyPassword=$GOFIXO_KEY_PASSWORD
+          keyAlias=$GOFIXO_KEY_ALIAS
+          storeFile=$GITHUB_WORKSPACE/mobile/android/gofixo-release.jks
+          EOF
+          chmod 600 android/gofixo-release.jks android/key.properties
+          keytool -list -keystore android/gofixo-release.jks -storepass "$GOFIXO_STORE_PASSWORD" -alias "$GOFIXO_KEY_ALIAS" >/dev/null
+
+      - name: Build release APK
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          GOFIXO_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=768m -XX:+UseSerialGC -Dfile.encoding=UTF-8" -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2'
+        run: |
+          set -euo pipefail
+          test -n "$GOFIXO_GOOGLE_MAPS_API_KEY"
+          flutter build apk --release --build-name "${{ steps.version.outputs.version }}" --build-number "${{ steps.version.outputs.build }}"
+          test -s build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Verify APK signing
+        if: steps.existing.outputs.exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}"
+          APK_SIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner -perm -111 | sort -V | tail -n 1)"
+          test -n "$APK_SIGNER"
+          "$APK_SIGNER" verify --verbose "$APK"
+          "$APK_SIGNER" verify --print-certs "$APK"
+
+      - name: Create release manifest
+        if: steps.existing.outputs.exists != 'true'
+        run: |
+          cat > build/app/outputs/flutter-apk/gofixo-version.json <<EOF
+          {
+            "version": "${{ steps.version.outputs.version }}",
+            "buildNumber": ${{ steps.version.outputs.build }},
+            "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v${{ steps.version.outputs.version }}/gofixo-release.apk",
+            "notes": "Gofixo Android production release.",
+            "forceUpdate": false
+          }
+          EOF
+
+      - name: Publish GitHub release
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/gofixo-release.apk
+          gh release create "$TAG"             build/app/outputs/flutter-apk/gofixo-release.apk             build/app/outputs/flutter-apk/gofixo-version.json             --repo "$GITHUB_REPOSITORY"             --title "Gofixo $TAG"             --generate-notes             --latest
+
+      - name: Existing release
+        if: steps.existing.outputs.exists == 'true'
+        run: echo "Release v${{ steps.version.outputs.version }} already exists; no replacement performed."
