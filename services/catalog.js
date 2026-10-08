@@ -30,6 +30,38 @@ const HOME_SERVICE_CATEGORIES = Object.freeze(
 );
 const HOME_SERVICE_CATEGORY_KEYS = new Set(Object.keys(HOME_SERVICE_CATEGORIES));
 
+const HOME_SERVICE_BASE_FARES = Object.freeze({
+  electrician: 299,
+  plumber: 299,
+  ac_service: 399,
+  cleaning: 349,
+  painter: 499,
+  carpenter: 399,
+  appliance_repair: 399,
+  refrigerator_repair: 449,
+  washing_machine_repair: 449,
+  ro_water_purifier: 349,
+  cctv_security: 499,
+  internet_wifi: 299,
+  geyser_repair: 399,
+  pest_control: 399,
+  packers_movers: 799,
+  salon_beauty: 499,
+  cook: 499,
+  gardener: 299,
+  laundry: 299,
+  driver: 599,
+  tutor: 399,
+  babysitter: 499,
+  elder_care: 599,
+  other: 299,
+});
+
+function getServiceBaseFare(value) {
+  const key = normalizeServiceCategory(value);
+  return key ? Number(HOME_SERVICE_BASE_FARES[key] || HOME_SERVICE_BASE_FARES.other) : HOME_SERVICE_BASE_FARES.other;
+}
+
 function normalizeServiceCategory(value) {
   const raw = String(value || '').trim().toLowerCase();
   if (!raw) return null;
@@ -85,4 +117,5 @@ module.exports = {
   normalizeServiceCategory,
   normalizeServiceCategories,
   getServiceCatalog,
+  getServiceBaseFare,
 };
