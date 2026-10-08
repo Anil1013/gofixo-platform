@@ -173,9 +173,9 @@ class RoleScreen extends StatelessWidget {
                   Expanded(
                     child: _AccessCard(
                       icon: Icons.directions_car_rounded,
-                      title: 'Book with Gofixo',
-                      subtitle: 'Rides, delivery & home services',
-                      action: 'Get started',
+                      title: 'Ride & Services',
+                      subtitle: 'Book rides, delivery & home services',
+                      action: 'Continue',
                       onTap: () => _openAuth(c, 'customer'),
                     ),
                   ),
@@ -183,9 +183,9 @@ class RoleScreen extends StatelessWidget {
                   Expanded(
                     child: _AccessCard(
                       icon: Icons.handshake_rounded,
-                      title: 'Earn with Gofixo',
+                      title: 'Work & Earn',
                       subtitle: 'Drive, deliver or offer services',
-                      action: 'Join as a partner',
+                      action: 'Continue',
                       onTap: () => _openAuth(c, 'provider'),
                     ),
                   ),
