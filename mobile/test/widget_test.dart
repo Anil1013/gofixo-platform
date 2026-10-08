@@ -17,10 +17,10 @@ void main() {
     await tester.pump();
 
     expect(find.text('Gofixo'), findsWidgets);
-    expect(find.text('Choose your ride'), findsOneWidget);
-    expect(find.text('Home services'), findsOneWidget);
-    expect(find.text('Book now'), findsOneWidget);
-    expect(find.text('Partner with Gofixo'), findsOneWidget);
+    expect(find.text('How do you want to use Gofixo?'), findsOneWidget);
+    expect(find.text('Popular home services'), findsOneWidget);
+    expect(find.text('Book a ride'), findsOneWidget);
+    expect(find.text('Work & Earn'), findsOneWidget);
   });
 }
 
