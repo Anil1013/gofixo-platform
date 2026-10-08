@@ -146,9 +146,9 @@ class _SectionTitle extends StatelessWidget{
 class _RideTypeTiles extends StatelessWidget{
  final Session session;final Future<void> Function({bool silent}) onChanged;const _RideTypeTiles({required this.session,required this.onChanged});
  @override Widget build(BuildContext c)=>SizedBox(height:125,child:ListView(scrollDirection:Axis.horizontal,padding:const EdgeInsets.symmetric(horizontal:10),children:[
-  _Choice(label:'Bike',value:'bike',icon:Icons.two_wheeler,selected:'',onTap:(v)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:v,onChanged:onChanged)))),
-  _Choice(label:'Auto',value:'auto',icon:Icons.electric_rickshaw,selected:'',onTap:(v)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:v,onChanged:onChanged)))),
-  _Choice(label:'Car',value:'car',icon:Icons.directions_car,selected:'',onTap:(v)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:v,onChanged:onChanged)))),
+  _Choice('Bike','bike',Icons.two_wheeler,'',(v)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:v,onChanged:onChanged)))),
+  _Choice('Auto','auto',Icons.electric_rickshaw,'',(v)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:v,onChanged:onChanged)))),
+  _Choice('Car','car',Icons.directions_car,'',(v)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:v,onChanged:onChanged)))),
  ]));
 }
 
