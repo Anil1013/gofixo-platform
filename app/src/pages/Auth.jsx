@@ -1,6 +1,19 @@
 import { useState } from 'react';
 import { apiPost, setSession } from '../api';
 
+const HOME_SERVICE_SPECIALTIES = [
+  ['electrician', 'Electrician'],
+  ['plumber', 'Plumber'],
+  ['ac_service', 'AC Service'],
+  ['cleaning', 'Cleaning'],
+  ['painter', 'Painter'],
+  ['carpenter', 'Carpenter'],
+  ['appliance_repair', 'Appliance Repair'],
+  ['pest_control', 'Pest Control'],
+  ['packers_movers', 'Packers & Movers'],
+  ['salon_beauty', 'Salon & Beauty'],
+];
+
 const PROVIDER_TYPES = [
   { value: 'bike', label: 'Bike driver' },
   { value: 'auto', label: 'Auto driver' },
@@ -16,6 +29,7 @@ export default function Auth({ onAuthed }) {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [providerType, setProviderType] = useState('bike');
+  const [serviceCategories, setServiceCategories] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -30,7 +44,13 @@ export default function Auth({ onAuthed }) {
         if (role === 'customer') {
           await apiPost('/auth/customer/register', { name, phone, password });
         } else {
-          await apiPost('/providers/register', { name, phone, type: providerType, password });
+          await apiPost('/providers/register', {
+            name,
+            phone,
+            type: providerType,
+            password,
+            service_categories: ['general_worker', 'skilled_worker'].includes(providerType) ? serviceCategories : [],
+          });
         }
         setMode('login');
         setMessage('Account created — please log in.');
@@ -83,11 +103,33 @@ export default function Auth({ onAuthed }) {
         {mode === 'register' && role === 'provider' && (
           <>
             <label>What do you do?</label>
-            <select value={providerType} onChange={(e) => setProviderType(e.target.value)}>
+            <select value={providerType} onChange={(e) => { setProviderType(e.target.value); if (['bike', 'auto', 'car'].includes(e.target.value)) setServiceCategories([]); }}>
               {PROVIDER_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
               ))}
             </select>
+            {['general_worker', 'skilled_worker'].includes(providerType) && (
+              <>
+                <label>Home-service specialties</label>
+                <div className="service-specialty-grid">
+                  {HOME_SERVICE_SPECIALTIES.map(([value, label]) => (
+                    <label key={value} className="service-specialty-option">
+                      <input
+                        type="checkbox"
+                        checked={serviceCategories.includes(value)}
+                        onChange={(e) => setServiceCategories((current) => (
+                          e.target.checked
+                            ? [...current, value]
+                            : current.filter((item) => item !== value)
+                        ))}
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+                <small className="auth-help">Select the services you are qualified to accept. You can add more later from your partner profile.</small>
+              </>
+            )}
           </>
         )}
 
