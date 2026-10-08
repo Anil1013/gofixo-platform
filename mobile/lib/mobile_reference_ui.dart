@@ -308,16 +308,72 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
            ),
          ),
          const SizedBox(height:10),
-         TextField(
-           controller:dest,
-           onChanged:search,
-           decoration:InputDecoration(
-             filled:true,
-             fillColor:Colors.white,
-             prefixIcon:const Icon(Icons.search,color:gfGreen),
-             labelText:'WHERE TO?',
-             hintText:'Search destination, landmark or PIN code',
-             border:OutlineInputBorder(borderRadius:BorderRadius.circular(18)),
+         Container(
+           margin:const EdgeInsets.only(top:2),
+           padding:const EdgeInsets.symmetric(horizontal:6,vertical:6),
+           decoration:BoxDecoration(
+             color:Colors.white,
+             borderRadius:BorderRadius.circular(22),
+             border:Border.all(color:gfLine),
+             boxShadow:const[
+               BoxShadow(
+                 color:Color(0x1810213F),
+                 blurRadius:18,
+                 offset:Offset(0,7),
+               ),
+             ],
+           ),
+           child:Row(
+             children:[
+               Container(
+                 width:48,
+                 height:48,
+                 decoration:const BoxDecoration(
+                   color:Color(0xFFEFFFF5),
+                   shape:BoxShape.circle,
+                 ),
+                 child:const Icon(Icons.search_rounded,color:gfGreen,size:27),
+               ),
+               const SizedBox(width:10),
+               Expanded(
+                 child:TextField(
+                   controller:dest,
+                   onChanged:search,
+                   textInputAction:TextInputAction.search,
+                   decoration:const InputDecoration(
+                     border:InputBorder.none,
+                     isDense:true,
+                     labelText:'WHERE TO?',
+                     labelStyle:TextStyle(
+                       color:gfGreen,
+                       fontSize:11,
+                       fontWeight:FontWeight.w900,
+                       letterSpacing:.7,
+                     ),
+                     hintText:'Search destination, landmark or PIN code',
+                     hintStyle:TextStyle(
+                       color:gfMuted,
+                       fontSize:13,
+                     ),
+                     contentPadding:EdgeInsets.symmetric(vertical:8),
+                   ),
+                 ),
+               ),
+               if(dest.text.isNotEmpty)
+                 IconButton(
+                   tooltip:'Clear destination',
+                   onPressed:busy?null:()=>setState((){
+                     dest.clear();
+                     place=null;
+                     suggestions=[];
+                     destinationPoint=null;
+                     routePolylines={};
+                     km=null;
+                     fare=null;
+                   }),
+                   icon:const Icon(Icons.close_rounded,color:gfMuted,size:20),
+                 ),
+             ],
            ),
          ),
          const SizedBox(height:10),
