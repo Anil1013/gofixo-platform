@@ -639,14 +639,14 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
     final r=await ApiService.computeRoute(pos!.latitude,pos!.longitude,a,b);
     final d=(r['distanceMeters']as num).toDouble()/1000;
     final rawEta=num.tryParse(r['durationSeconds']?.toString()??'');
-    final eta=(rawEta!=null&&rawEta>0)?rawEta:(d>0?d/25*60:0);
+    final etaSeconds=(rawEta!=null&&rawEta>0)?rawEta:(d>0?d/25*3600:0);
     final points=_decodeGooglePolyline(r['encodedPolyline']?.toString()??'');
     if(points.length<2)throw Exception('No route found.');
     if(mounted)setState((){
       place=p;
       km=d;
       fare=_fare(type,d);
-      routeEtaSeconds=eta*60;
+      routeEtaSeconds=etaSeconds;
       destinationPoint=LatLng(a,b);
       routePolylines={
         Polyline(
