@@ -388,17 +388,25 @@ export default function ProviderHome({ onLogout }) {
           </div>
           <div className="reference-ride-card">
             <div className="reference-ride-top">
-              <div className="ride-type-icon">🏍️</div>
-              <div><strong>New Ride Request</strong><small>{secondsLeft !== null ? `${secondsLeft}s left` : 'Just now'}</small></div>
+              <div className="ride-type-icon">{activeBooking.service_type === 'services' ? '🔧' : '🏍️'}</div>
+              <div><strong>{activeBooking.service_type === 'services' ? 'New Home Service Request' : 'New Ride Request'}</strong><small>{secondsLeft !== null ? `${secondsLeft}s left` : 'Just now'}</small></div>
             </div>
             <div className="reference-route-line">
-              <div><span className="pickup-dot" /><strong>{activeBooking.pickup_location}</strong></div>
-              <div><span className="drop-dot" /><strong>{activeBooking.drop_or_service_address || 'Destination'}</strong></div>
+              <div><span className="pickup-dot" /><strong>{activeBooking.service_type === 'services' ? 'Service: ' : ''}{activeBooking.pickup_location}</strong></div>
+              <div><span className="drop-dot" /><strong>{activeBooking.service_type === 'services' ? 'Address: ' : ''}{activeBooking.drop_or_service_address || 'Destination'}</strong></div>
             </div>
-            <div className="reference-fare-row">
-              <strong>₹{Number(activeBooking.fare_amount || 0).toLocaleString('en-IN')}</strong>
-              <small>{activeBooking.route_distance_km ? Number(activeBooking.route_distance_km).toFixed(1) + ' km' : 'Nearby'}</small>
-            </div>
+            {activeBooking.service_type === 'services' && (
+              <div className="reference-service-detail">
+                <strong>{(activeBooking.service_category || 'other').replaceAll('_', ' ')}</strong>
+                <small>{activeBooking.service_description || 'Home service request'}</small>
+              </div>
+            )}
+            {activeBooking.service_type !== 'services' && (
+              <div className="reference-fare-row">
+                <strong>₹{Number(activeBooking.fare_amount || 0).toLocaleString('en-IN')}</strong>
+                <small>{activeBooking.route_distance_km ? Number(activeBooking.route_distance_km).toFixed(1) + ' km' : 'Nearby'}</small>
+              </div>
+            )}
             <div className="reference-request-actions">
               <button className="reject-reference" onClick={declineBooking} disabled={busy}>Reject</button>
               <button className="accept-reference" onClick={acceptBooking} disabled={busy}>Accept</button>
@@ -436,7 +444,7 @@ export default function ProviderHome({ onLogout }) {
 
       {activeBooking && activeBooking.status === 'accepted' && (
         <section className="provider-job-panel">
-          <div className="job-panel-head"><div><span className="section-kicker">PICKUP</span><h2>On the way</h2></div><span className="job-live-pill">● LIVE</span></div>
+          <div className="job-panel-head"><div><span className="section-kicker">{activeBooking.service_type === 'services' ? 'SERVICE' : 'PICKUP'}</span><h2>{activeBooking.service_type === 'services' ? 'On the way to service' : 'On the way'}</h2></div><span className="job-live-pill">● LIVE</span></div>
           <MapView markers={navigationMarkers} line={pickupRoute ? pickupRoute.line : null} height={200} />
           <div className="job-location-row"><span>📍</span><div><small>PICKUP</small><strong>{activeBooking.pickup_location}</strong></div></div>
           {pickupRoute && <div className="route-highlight"><strong>{pickupRoute.distanceKm.toFixed(1)} km</strong><span>about {pickupRoute.durationMin} min</span></div>}
