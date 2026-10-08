@@ -1,7 +1,7 @@
 {
-  "version": "1.0.12",
-  "buildNumber": 1000012,
-  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.12/gofixo-release.apk",
-  "notes": "Premium interactive maps, smooth recentering, and improved booking map experience (v1.0.12).",
+  "version": "1.0.13",
+  "buildNumber": 1000013,
+  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.13/gofixo-release.apk",
+  "notes": "New Gofixo update v1.0.13.",
   "forceUpdate": true
 }
