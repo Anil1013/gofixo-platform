@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "mobile/version.json"
+      - ".github/workflows/gofixo-android-release.yml"
   workflow_dispatch:
 
 permissions:
