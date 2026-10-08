@@ -1027,26 +1027,57 @@ class _MapControl extends StatelessWidget{
  @override Widget build(BuildContext c)=>Material(color:Colors.white,borderRadius:BorderRadius.circular(12),elevation:3,child:InkWell(onTap:onTap,borderRadius:BorderRadius.circular(12),child:SizedBox(width:44,height:44,child:Icon(icon,color:gfNavy,size:22))));
 }
 class _Partner extends StatelessWidget{final Map<String,dynamic>m;const _Partner({required this.m});@override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(22)),child:Row(children:[Container(width:58,height:58,padding:const EdgeInsets.all(4),decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEFFFF5)),child:ClipOval(child:Image.network('https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=85',fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Icon(Icons.person,color:gfGreen,size:34)))),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('PARTNER PROFILE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),Text(m['name']?.toString()??'Partner',style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900,color:gfNavy)),Text((m['type']?.toString()??'partner').replaceAll('_',' ')+' · '+(m['generated_id']?.toString()??''),style:const TextStyle(fontSize:11,color:gfMuted))])),const Icon(Icons.chevron_right,color:gfMuted)]));}
-class _Services extends StatelessWidget{
+class _Services extends StatefulWidget{
   final void Function(String type,String category,String label) onTap;
   const _Services({required this.onTap});
-  static const _items=[
-    ('skilled_worker','electrician','Electrician','https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=500&q=80'),
-    ('skilled_worker','plumber','Plumber','https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=500&q=80'),
-    ('skilled_worker','ac_service','AC Service','https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=500&q=80'),
-    ('general_worker','cleaning','Cleaning','https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=500&q=80'),
-    ('skilled_worker','painter','Painter','https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=500&q=80'),
-    ('skilled_worker','carpenter','Carpenter','https://images.unsplash.com/photo-1601058268499-e52658a84c9d?auto=format&fit=crop&w=500&q=80'),
-    ('skilled_worker','appliance_repair','Appliance Repair','https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=500&q=80'),
-    ('general_worker','pest_control','Pest Control','https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=500&q=80'),
-    ('general_worker','packers_movers','Packers & Movers','https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=500&q=80'),
-    ('general_worker','salon_beauty','Salon & Beauty','https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=500&q=80'),
-    ('general_worker','other','Other','https://images.unsplash.com/photo-1521791055366-0d553872125f?auto=format&fit=crop&w=500&q=80'),
+  static const _fallback=[
+    {'providerType':'skilled_worker','key':'electrician','label':'Electrician','imageUrl':'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'skilled_worker','key':'plumber','label':'Plumber','imageUrl':'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'skilled_worker','key':'ac_service','label':'AC Service','imageUrl':'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'general_worker','key':'cleaning','label':'Cleaning','imageUrl':'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'skilled_worker','key':'painter','label':'Painter','imageUrl':'https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'skilled_worker','key':'carpenter','label':'Carpenter','imageUrl':'https://images.unsplash.com/photo-1601058268499-e52658a84c9d?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'skilled_worker','key':'appliance_repair','label':'Appliance Repair','imageUrl':'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'skilled_worker','key':'refrigerator_repair','label':'Refrigerator Repair','imageUrl':'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'skilled_worker','key':'washing_machine_repair','label':'Washing Machine','imageUrl':'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'skilled_worker','key':'ro_water_purifier','label':'RO & Purifier','imageUrl':'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'skilled_worker','key':'cctv_security','label':'CCTV & Security','imageUrl':'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'skilled_worker','key':'internet_wifi','label':'Internet & Wi-Fi','imageUrl':'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'general_worker','key':'pest_control','label':'Pest Control','imageUrl':'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'general_worker','key':'packers_movers','label':'Packers & Movers','imageUrl':'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'general_worker','key':'salon_beauty','label':'Salon & Beauty','imageUrl':'https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'general_worker','key':'cook','label':'Cook','imageUrl':'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'general_worker','key':'gardener','label':'Gardener','imageUrl':'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'general_worker','key':'laundry','label':'Laundry','imageUrl':'https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'general_worker','key':'driver','label':'Personal Driver','imageUrl':'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'general_worker','key':'tutor','label':'Tutor','imageUrl':'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'general_worker','key':'babysitter','label':'Babysitter','imageUrl':'https://images.unsplash.com/photo-1491013516836-7db643ee125a?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'general_worker','key':'elder_care','label':'Elder Care','imageUrl':'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'general_worker','key':'other','label':'Other Service','imageUrl':'https://images.unsplash.com/photo-1521791055366-0d553872125f?auto=format&fit=crop&w=700&q=82'},
   ];
+  @override State<_Services> createState()=>_ServicesState();
+}
+class _ServicesState extends State<_Services>{
+  List<Map<String,dynamic>> items=[];
+  @override void initState(){super.initState();_load();}
+  Future<void> _load()async{
+    try{
+      final remote=await ApiService.serviceCatalog();
+      if(mounted)setState(()=>items=remote.isEmpty?List<Map<String,dynamic>>.from(_Services._fallback):remote);
+    }catch(_){
+      if(mounted)setState(()=>items=List<Map<String,dynamic>>.from(_Services._fallback));
+    }
+  }
   @override Widget build(BuildContext c)=>GridView.count(
     crossAxisCount:4,crossAxisSpacing:7,mainAxisSpacing:9,childAspectRatio:.72,
     shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),
-    children:_items.map((item)=>_Service(item.$4,item.$3,()=>onTap(item.$1,item.$2,item.$3))).toList(),
+    children:items.map((item){
+      final type=item['providerType']?.toString()??'general_worker';
+      final key=item['key']?.toString()??'other';
+      final label=item['label']?.toString()??key;
+      final url=item['imageUrl']?.toString()??'';
+      return _Service(url,label,()=>widget.onTap(type,key,label));
+    }).toList(),
   );
 }
 class _Service extends StatelessWidget {
