@@ -4,7 +4,6 @@ const pool = require('../config/db');
 const crypto = require('crypto');
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
-const { findNearestProvider, findNearbyProviders, claimNearestProvider, handleDeclineOrTimeout } = require('../services/matching');
 const { sendProviderPush } = require('../services/push');
 const { normalizeServiceCategory } = require('../services/catalog');
 
