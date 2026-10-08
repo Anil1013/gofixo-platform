@@ -1104,6 +1104,7 @@ class _ActiveState extends State<_Active>{
      OutlinedButton.icon(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>LiveTrackingPage(session:widget.session,booking:widget.b,isProvider:true))),icon:const Icon(Icons.map_outlined),label:const Text('Open live map')),
   ]));
 }
+}
 class _Booking extends StatelessWidget{
  final Map<String,dynamic>b; final Session session; final Future<void> Function({bool silent})onChanged;
  const _Booking({required this.b,required this.session,required this.onChanged});
