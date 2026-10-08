@@ -12,6 +12,7 @@ const { requireAdmin } = require('../middleware/admin');
 const { isValidPassword, PASSWORD_ERROR } = require('../utils/password');
 const { getVapidPublicKey } = require('../services/push');
 const { broadcastProviderLocation } = require('../services/realtime');
+const { normalizeServiceCategories } = require('../services/catalog');
 
 const PROVIDER_TYPES = ['bike', 'auto', 'car', 'general_worker', 'skilled_worker'];
 
