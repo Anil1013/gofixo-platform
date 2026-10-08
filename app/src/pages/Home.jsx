@@ -81,11 +81,6 @@ const RIDE_VISUALS = {
   car: { image: 'https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=900&q=88', title: 'Car', sub: 'Premium & safe', tone: 'blue' },
 };
 
-const SERVICE_VISUALS = {
-  general_worker: { image: 'https://www.trueprocleaners.com/imgs/oc-house-cleaning-european-01.webp', title: 'Home Help', sub: 'Cleaning & everyday help', tone: 'orange' },
-  skilled_worker: { image: 'https://gigswala.com/assets/electrician-india-CsTyPjpS.png', title: 'Skilled Expert', sub: 'Electrician, plumber & more', tone: 'blue' },
-};
-
 const HOME_SERVICE_CARDS = [
   { label: 'Electrician', category: 'electrician', type: 'skilled_worker', image: 'https://eletricistagravatai.com.br/images/eletricista-24h-perto-de-voce-em-gravatai-rs.jpeg' },
   { label: 'Plumber', category: 'plumber', type: 'skilled_worker', image: 'https://handymanpalmbayfl.com/images/plumbing_service_2.webp' },
@@ -380,7 +375,6 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
     }
   }
 
-  const types = category === 'ride' ? RIDE_TYPES : HOME_SERVICE_TYPES;
   const estimatedFare = category === 'ride' && route ? calculateFare(providerType, route.distanceKm) : null;
   const currentUser = getUser() || {};
   const previewServices = HOME_SERVICE_CARDS.slice(0, 4);
