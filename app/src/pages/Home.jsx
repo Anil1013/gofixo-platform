@@ -160,6 +160,10 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
 
   useEffect(() => {
     setCategory(initialCategory);
+    if (initialCategory === 'services') {
+      setProviderType('general_worker');
+      setServiceCategory((current) => current || 'other');
+    }
   }, [initialCategory]);
 
   useEffect(() => {
@@ -503,7 +507,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
       <section className="reference-home-section services-reference-section">
         <div className="reference-section-title">
           <h2>Home Services</h2>
-          <button type="button" onClick={() => { setCategory('services'); setServiceCategory('other'); setShowBooking(true); }}>See all →</button>
+          <button type="button" onClick={() => { setCategory('services'); setProviderType('general_worker'); setServiceCategory('other'); setWork(''); setShowBooking(true); }}>See all →</button>
         </div>
         <div className="reference-service-cards">
           {previewServices.map((item) => (
@@ -526,7 +530,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
           <span>GOFIXO HOME SERVICES</span>
           <h2>Trusted Professionals<br />for Your Home</h2>
           <p><b>✓</b> Verified &nbsp; <b>✓</b> Affordable &nbsp; <b>✓</b> On-Time</p>
-          <button type="button" onClick={() => { setCategory('services'); setShowBooking(true); }}>Book Now →</button>
+          <button type="button" onClick={() => { setCategory('services'); setProviderType('general_worker'); setServiceCategory('other'); setWork(''); setShowBooking(true); }}>Book Now →</button>
         </div>
         <img src="https://images.unsplash.com/photo-1756736668332-e921516c1305?auto=format&fit=crop&w=700&q=82" alt="" />
       </section>
