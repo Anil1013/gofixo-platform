@@ -10,7 +10,23 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'api_service.dart';
 
-const gfOrange=Color(0xFF12B85F),gfNavy=Color(0xFF10213F),gfMuted=Color(0xFF728097),gfBg=Color(0xFFF4F7FB),gfLine=Color(0xFFE4E9F1),gfGreen=Color(0xFF12B85F);\n\nString gfFormatEta(num? seconds){\n  final s=(seconds??0).round();\n  if(s<=0)return 'ETA unavailable';\n  final minutes=(s/60).ceil();\n  if(minutes<60)return '~$minutes min';\n  final h=minutes~/60, m=minutes%60;\n  return m==0?'~${h}h':'~${h}h ${m}m';\n}\n\nString gfFormatDistance(num? meters){\n  final m=(meters??0).toDouble();\n  if(m<=0)return 'Distance unavailable';\n  if(m<1000)return '${m.round()} m';\n  return '${(m/1000).toStringAsFixed(m<10000?1:0)} km';\n}
+const gfOrange=Color(0xFF12B85F),gfNavy=Color(0xFF10213F),gfMuted=Color(0xFF728097),gfBg=Color(0xFFF4F7FB),gfLine=Color(0xFFE4E9F1),gfGreen=Color(0xFF12B85F);
+
+String gfFormatEta(num? seconds){
+  final s=(seconds??0).round();
+  if(s<=0)return 'ETA unavailable';
+  final minutes=(s/60).ceil();
+  if(minutes<60)return '~$minutes min';
+  final h=minutes~/60, m=minutes%60;
+  return m==0?'~${h}h':'~${h}h ${m}m';
+}
+
+String gfFormatDistance(num? meters){
+  final m=(meters??0).toDouble();
+  if(m<=0)return 'Distance unavailable';
+  if(m<1000)return '${m.round()} m';
+  return '${(m/1000).toStringAsFixed(m<10000?1:0)} km';
+}
 
 
 class ReferenceCustomerHome extends StatefulWidget{
@@ -1029,7 +1045,8 @@ class _ActiveState extends State<_Active>{
       finally{if(mounted)setState(()=>submitting=false);}
     },child:Text(submitting?'Saving…':'Confirm payment received →'))),
    const SizedBox(height:6),
-   OutlinedButton.icon(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>LiveTrackingPage(session:widget.session,booking:widget.b,isProvider:true))),icon:const Icon(Icons.map_outlined),label:const Text('Open live map'))
+   OutlinedButton.icon(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>LiveTrackingPage(session:widget.session,booking:widget.b,isProvider:true))),icon:const Icon(Icons.map_outlined),label:const Text('Open live map')),
+   ]
   ]));
  }
 }
@@ -1238,6 +1255,8 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
   LatLng? destinationPoint;
   LatLng? lastRoutedPoint;
   Set<Polyline> routeLines={};
+  double? routeDistanceMeters;
+  double? routeEtaSeconds;
   String status='';
   bool connecting=false;
   bool followCamera=true;
@@ -1349,8 +1368,14 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
     try{
       final r=await ApiService.computeRoute(p.latitude,p.longitude,target.latitude,target.longitude);
       final pts=_decodeGooglePolyline(r['encodedPolyline']?.toString()??'');
+      final distance=double.tryParse(r['distanceMeters']?.toString()??'');
+      final eta=double.tryParse(r['durationSeconds']?.toString()??'');
       if(pts.length>=2&&mounted){
-        setState(()=>routeLines={Polyline(polylineId:const PolylineId('partner-route'),points:pts,color:gfGreen,width:5)});
+        setState((){
+          routeLines={Polyline(polylineId:const PolylineId('partner-route'),points:pts,color:gfGreen,width:5)};
+          routeDistanceMeters=distance;
+          routeEtaSeconds=eta;
+        });
         lastRoutedPoint=p;
       }
     }catch(_){}
