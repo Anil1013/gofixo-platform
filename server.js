@@ -396,7 +396,24 @@ async function ensureRuntimeSchema() {
     ALTER TABLE bookings
       ADD COLUMN IF NOT EXISTS payment_confirmed_by_provider BOOLEAN DEFAULT false,
       ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP,
-      ADD COLUMN IF NOT EXISTS route_distance_km NUMERIC(10,2)
+      ADD COLUMN IF NOT EXISTS route_distance_km NUMERIC(10,2),
+      ADD COLUMN IF NOT EXISTS service_category VARCHAR(50),
+      ADD COLUMN IF NOT EXISTS service_description TEXT
+  `);
+
+  await pool.query(`
+    ALTER TABLE service_providers
+      ADD COLUMN IF NOT EXISTS service_categories TEXT[] NOT NULL DEFAULT '{}'
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS bookings_service_category_idx
+      ON bookings (service_type, service_category)
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS service_providers_service_categories_gin_idx
+      ON service_providers USING GIN (service_categories)
   `);
 
   await pool.query(`
