@@ -207,72 +207,198 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
   finally{if(mounted)setState(()=>busy=false);}
 }
  void _snack(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.replaceFirst('Exception: ',''))));
- @override Widget build(BuildContext c)=>Scaffold(backgroundColor:gfBg,appBar:AppBar(title:Text(isService?'Request service':'Book a ride'),backgroundColor:gfBg,elevation:0),body:SafeArea(child:ListView(padding:EdgeInsets.fromLTRB(14,0,14,24+MediaQuery.viewPaddingOf(c).bottom),children:[
-  if(!isService)Row(children:[Expanded(child:_Choice('Bike','bike',Icons.two_wheeler,type,(v)=>setState(()=>type=v))),const SizedBox(width:7),Expanded(child:_Choice('Auto','auto',Icons.electric_rickshaw,type,(v)=>setState(()=>type=v))),const SizedBox(width:7),Expanded(child:_Choice('Car','car',Icons.directions_car,type,(v)=>setState(()=>type=v)))]) else Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(18)),child:Text(type=='skilled_worker'?'Skilled Expert Service':'Home Help Service',style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy))),const SizedBox(height:12),
-  _Location(pickup:pickup,onTap:busy?null:locate),
-  const SizedBox(height:8),
-  ClipRRect(
-    borderRadius:BorderRadius.circular(22),
-    child:SizedBox(
-      height:390,
-      child:Stack(
-        children:[
-          GoogleMap(
-            initialCameraPosition:CameraPosition(target:pos!=null?LatLng(pos!.latitude,pos!.longitude):const LatLng(28.6139,77.2090),zoom:15),
-            onMapCreated:(m){mapController=m;if(destinationPoint!=null){_fitMapToPoints();}else if(pos!=null){_centerMap(LatLng(pos!.latitude,pos!.longitude),16);}},
-            myLocationEnabled:true,
-            myLocationButtonEnabled:false,
-            zoomControlsEnabled:false,
-            compassEnabled:true,
-            rotateGesturesEnabled:true,
-            tiltGesturesEnabled:true,
-            scrollGesturesEnabled:true,
-            zoomGesturesEnabled:true,
-            markers:{
-              if(pos!=null)Marker(markerId:const MarkerId('pickup'),position:LatLng(pos!.latitude,pos!.longitude),infoWindow:const InfoWindow(title:'Your location')),
-              if(destinationPoint!=null)Marker(markerId:const MarkerId('drop'),position:destinationPoint!,infoWindow:const InfoWindow(title:'Destination'))
-            },
-            polylines:routePolylines,
-          ),
-          Positioned(
-            top:12,
-            right:12,
-            child:Column(
-              mainAxisSize:MainAxisSize.min,
-              children:[
-                _MapControl(icon:Icons.add,onTap:_zoomIn),
-                const SizedBox(height:6),
-                _MapControl(icon:Icons.remove,onTap:_zoomOut),
-                if(destinationPoint!=null||routePolylines.isNotEmpty)...[
-                  const SizedBox(height:6),
-                  _MapControl(icon:Icons.fit_screen,onTap:_fitMapToPoints),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    ),
-  ),
-  const SizedBox(height:8),
-  TextField(
-    controller:dest,
-    onChanged:search,
-    decoration:InputDecoration(
-      filled:true,fillColor:Colors.white,
-      prefixIcon:const Icon(Icons.search,color:gfGreen),
-      labelText:'WHERE TO?',hintText:'Search destination, landmark or PIN code',
-      border:OutlineInputBorder(borderRadius:BorderRadius.circular(18)),
-    ),
-  ),
-  const SizedBox(height:10),
-
-  if(suggestions.isNotEmpty)Container(color:Colors.white,child:Column(children:suggestions.take(5).map((s)=>ListTile(leading:const Icon(Icons.place,color:gfOrange),title:Text(s['mainText']?.toString()??s['text']?.toString()??''),subtitle:Text(s['secondaryText']?.toString()??''),onTap:busy?null:()=>select(s))).toList())),
-  const SizedBox(height:12),FilledButton.icon(style:FilledButton.styleFrom(backgroundColor:gfOrange,minimumSize:const Size.fromHeight(52)),onPressed:busy?null:calculate,icon:Icon(isService?Icons.handyman:Icons.alt_route),label:Text(isService?'Request service':'Show route & fare')),
-
-  if(isService&&place!=null)Padding(padding:const EdgeInsets.only(top:12),child:_Box(child:Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('SERVICE REQUEST',style:TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),Text(type=='skilled_worker'?'Skilled expert at your location':'Home help at your location',style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy)),Text(place!['address']?.toString()??dest.text,maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:10,color:gfMuted))])),FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:busy?null:book,child:const Text('Request'))]))),
-  if(!isService&&fare!=null)Padding(padding:const EdgeInsets.only(top:12),child:Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:const Color(0xFFEFFFF5),borderRadius:BorderRadius.circular(20)),child:Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('ESTIMATED FARE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),Text('₹'+fare!.toStringAsFixed(0),style:const TextStyle(fontSize:28,fontWeight:FontWeight.w900,color:gfNavy)),Text(km!.toStringAsFixed(1)+' km · '+type.toUpperCase(),style:const TextStyle(fontSize:11,color:gfMuted))])),FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:busy?null:book,child:const Text('Confirm ride'))]))),
- ]));
+ @override
+ Widget build(BuildContext c)=>Scaffold(
+   backgroundColor:gfBg,
+   appBar:AppBar(
+     title:Text(isService?'Request service':'Book a ride'),
+     backgroundColor:gfBg,
+     elevation:0,
+   ),
+   body:SafeArea(
+     child:ListView(
+       padding:EdgeInsets.fromLTRB(14,0,14,24+MediaQuery.viewPaddingOf(c).bottom),
+       children:[
+         if(!isService)
+           Row(children:[
+             Expanded(child:_Choice('Bike','bike',Icons.two_wheeler,type,(v)=>setState(()=>type=v))),
+             const SizedBox(width:7),
+             Expanded(child:_Choice('Auto','auto',Icons.electric_rickshaw,type,(v)=>setState(()=>type=v))),
+             const SizedBox(width:7),
+             Expanded(child:_Choice('Car','car',Icons.directions_car,type,(v)=>setState(()=>type=v))),
+           ])
+         else
+           Container(
+             padding:const EdgeInsets.all(14),
+             decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(18)),
+             child:Text(
+               type=='skilled_worker'?'Skilled Expert Service':'Home Help Service',
+               style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy),
+             ),
+           ),
+         const SizedBox(height:12),
+         _Location(pickup:pickup,onTap:busy?null:locate),
+         const SizedBox(height:8),
+         ClipRRect(
+           borderRadius:BorderRadius.circular(22),
+           child:SizedBox(
+             height:390,
+             child:Stack(
+               children:[
+                 GoogleMap(
+                   initialCameraPosition:CameraPosition(
+                     target:pos!=null?LatLng(pos!.latitude,pos!.longitude):const LatLng(28.6139,77.2090),
+                     zoom:15,
+                   ),
+                   onMapCreated:(m){
+                     mapController=m;
+                     if(destinationPoint!=null){
+                       _fitMapToPoints();
+                     }else if(pos!=null){
+                       _centerMap(LatLng(pos!.latitude,pos!.longitude),16);
+                     }
+                   },
+                   myLocationEnabled:true,
+                   myLocationButtonEnabled:false,
+                   zoomControlsEnabled:false,
+                   compassEnabled:true,
+                   rotateGesturesEnabled:true,
+                   tiltGesturesEnabled:true,
+                   scrollGesturesEnabled:true,
+                   zoomGesturesEnabled:true,
+                   markers:{
+                     if(pos!=null)
+                       Marker(
+                         markerId:const MarkerId('pickup'),
+                         position:LatLng(pos!.latitude,pos!.longitude),
+                         infoWindow:const InfoWindow(title:'Your location'),
+                       ),
+                     if(destinationPoint!=null)
+                       Marker(
+                         markerId:const MarkerId('drop'),
+                         position:destinationPoint!,
+                         infoWindow:const InfoWindow(title:'Destination'),
+                       ),
+                   },
+                   polylines:routePolylines,
+                 ),
+                 Positioned(
+                   top:12,
+                   right:12,
+                   child:Column(
+                     mainAxisSize:MainAxisSize.min,
+                     children:[
+                       _MapControl(icon:Icons.add,onTap:_zoomIn),
+                       const SizedBox(height:6),
+                       _MapControl(icon:Icons.remove,onTap:_zoomOut),
+                       if(destinationPoint!=null||routePolylines.isNotEmpty)...[
+                         const SizedBox(height:6),
+                         _MapControl(icon:Icons.fit_screen,onTap:_fitMapToPoints),
+                       ],
+                     ],
+                   ),
+                 ),
+               ],
+             ),
+           ),
+         ),
+         const SizedBox(height:10),
+         TextField(
+           controller:dest,
+           onChanged:search,
+           decoration:InputDecoration(
+             filled:true,
+             fillColor:Colors.white,
+             prefixIcon:const Icon(Icons.search,color:gfGreen),
+             labelText:'WHERE TO?',
+             hintText:'Search destination, landmark or PIN code',
+             border:OutlineInputBorder(borderRadius:BorderRadius.circular(18)),
+           ),
+         ),
+         const SizedBox(height:10),
+         if(suggestions.isNotEmpty)
+           Container(
+             color:Colors.white,
+             child:Column(
+               children:suggestions.take(5).map((s)=>ListTile(
+                 leading:const Icon(Icons.place,color:gfOrange),
+                 title:Text(s['mainText']?.toString()??s['text']?.toString()??''),
+                 subtitle:Text(s['secondaryText']?.toString()??''),
+                 onTap:busy?null:()=>select(s),
+               )).toList(),
+             ),
+           ),
+         const SizedBox(height:12),
+         FilledButton.icon(
+           style:FilledButton.styleFrom(backgroundColor:gfOrange,minimumSize:const Size.fromHeight(52)),
+           onPressed:busy?null:calculate,
+           icon:Icon(isService?Icons.handyman:Icons.alt_route),
+           label:Text(isService?'Request service':'Show route & fare'),
+         ),
+         if(isService&&place!=null)
+           Padding(
+             padding:const EdgeInsets.only(top:12),
+             child:_Box(
+               child:Row(
+                 children:[
+                   Expanded(
+                     child:Column(
+                       crossAxisAlignment:CrossAxisAlignment.start,
+                       children:[
+                         const Text('SERVICE REQUEST',style:TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
+                         Text(
+                           type=='skilled_worker'?'Skilled expert at your location':'Home help at your location',
+                           style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy),
+                         ),
+                         Text(
+                           place!['address']?.toString()??dest.text,
+                           maxLines:2,
+                           overflow:TextOverflow.ellipsis,
+                           style:const TextStyle(fontSize:10,color:gfMuted),
+                         ),
+                       ],
+                     ),
+                   ),
+                   FilledButton(
+                     style:FilledButton.styleFrom(backgroundColor:gfGreen),
+                     onPressed:busy?null:book,
+                     child:const Text('Request'),
+                   ),
+                 ],
+               ),
+             ),
+           ),
+         if(!isService&&fare!=null)
+           Padding(
+             padding:const EdgeInsets.only(top:12),
+             child:Container(
+               padding:const EdgeInsets.all(16),
+               decoration:BoxDecoration(color:const Color(0xFFEFFFF5),borderRadius:BorderRadius.circular(20)),
+               child:Row(
+                 children:[
+                   Expanded(
+                     child:Column(
+                       crossAxisAlignment:CrossAxisAlignment.start,
+                       children:[
+                         const Text('ESTIMATED FARE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
+                         Text('₹'+fare!.toStringAsFixed(0),style:const TextStyle(fontSize:28,fontWeight:FontWeight.w900,color:gfNavy)),
+                         Text(km!.toStringAsFixed(1)+' km · '+type.toUpperCase(),style:const TextStyle(fontSize:11,color:gfMuted)),
+                       ],
+                     ),
+                   ),
+                   FilledButton(
+                     style:FilledButton.styleFrom(backgroundColor:gfGreen),
+                     onPressed:busy?null:book,
+                     child:const Text('Confirm ride'),
+                   ),
+                 ],
+               ),
+             ),
+           ),
+       ],
+     ),
+   ),
+ );
 }
 class _MapControl extends StatelessWidget{
  final IconData icon;final VoidCallback onTap;
