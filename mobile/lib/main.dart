@@ -312,7 +312,7 @@ class _AccessCard extends StatelessWidget {
                   color: muted,
                 ),
               ),
-              const Spacer(),
+              const SizedBox(height: 12),
               Text(
                 action,
                 style: const TextStyle(
