@@ -2,6 +2,6 @@
   "version": "1.0.20",
   "buildNumber": 1000020,
   "downloadUrl": "https://gofixo.mob13r.com/releases/download/v1.0.20/gofixo-release.apk",
-  "notes": "Gofixo v1.0.20 production release: UI fixes, route ETA improvements, ride map improvements, and updater fixes.",
+  "notes": "Gofixo v1.0.20 release rebuild after mobile analyzer fixes.",
   "forceUpdate": true
 }
