@@ -170,7 +170,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
       border:OutlineInputBorder(borderRadius:BorderRadius.circular(18)),
     ),
   ),
-  _Location(pickup:pickup,onTap:busy?null:locate),const SizedBox(height:10),
+onst SizedBox(height:10),
 
   if(suggestions.isNotEmpty)Container(color:Colors.white,child:Column(children:suggestions.take(5).map((s)=>ListTile(leading:const Icon(Icons.place,color:gfOrange),title:Text(s['mainText']?.toString()??s['text']?.toString()??''),subtitle:Text(s['secondaryText']?.toString()??''),onTap:busy?null:()=>select(s))).toList())),
   const SizedBox(height:12),FilledButton.icon(style:FilledButton.styleFrom(backgroundColor:gfOrange,minimumSize:const Size.fromHeight(52)),onPressed:busy?null:calculate,icon:Icon(isService?Icons.handyman:Icons.alt_route),label:Text(isService?'Request service':'Show route & fare')),
