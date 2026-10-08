@@ -6,6 +6,7 @@ const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
 const { findNearestProvider, findNearbyProviders, claimNearestProvider, handleDeclineOrTimeout } = require('../services/matching');
 const { sendProviderPush } = require('../services/push');
+const { normalizeServiceCategory } = require('../services/catalog');
 
 const SERVICE_TYPES = new Set(['ride', 'services']);
 const PROVIDER_TYPES = new Set(['bike', 'auto', 'car', 'general_worker', 'skilled_worker']);
@@ -65,7 +66,7 @@ router.get('/mine', requireAuth(['customer']), async (req, res, next) => {
 router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) => {
   try {
     const result = await pool.query(
-      `SELECT b.id, b.service_type, b.customer_id, b.provider_id, b.pickup_location, b.drop_or_service_address,
+      `SELECT b.id, b.service_type, b.service_category, b.service_description, b.customer_id, b.provider_id, b.pickup_location, b.drop_or_service_address,
               b.fare_amount, b.route_distance_km, b.duration_minutes, b.status, b.payment_confirmed_by_provider,
               b.created_at, b.completed_at, b.pickup_lat, b.pickup_lng, b.offered_at,
               c.name AS customer_name,
@@ -79,6 +80,7 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
            b.status = 'requested'
            AND b.provider_id IS NULL
            AND b.provider_type = target_sp.type
+           AND (b.service_type <> 'services' OR COALESCE(cardinality(target_sp.service_categories), 0) = 0 OR b.service_category = ANY(target_sp.service_categories))
            AND target_sp.is_available = true
            AND target_sp.kyc_status = 'approved'
            AND target_sp.current_lat IS NOT NULL
@@ -130,6 +132,8 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       pickup_lng,
       estimated_fare,
       route_distance_km,
+      service_category: rawServiceCategory,
+      service_description: rawServiceDescription,
     } = req.body;
     const customer_id = req.user.id;
 
@@ -141,6 +145,25 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
     }
     if (!PROVIDER_TYPES.has(provider_type)) {
       return res.status(400).json({ error: 'Invalid provider_type' });
+    }
+    if (service_type === 'ride' && !['bike', 'auto', 'car'].includes(provider_type)) {
+      return res.status(400).json({ error: 'Ride bookings require a bike, auto or car provider' });
+    }
+    if (service_type === 'services' && !['general_worker', 'skilled_worker'].includes(provider_type)) {
+      return res.status(400).json({ error: 'Home services require a worker provider' });
+    }
+
+    const serviceCategory = service_type === 'services'
+      ? normalizeServiceCategory(rawServiceCategory)
+      : null;
+    const serviceDescription = service_type === 'services'
+      ? String(rawServiceDescription ?? '').trim().slice(0, 500)
+      : null;
+    if (service_type === 'services' && !serviceCategory) {
+      return res.status(400).json({ error: 'service_category is required for home services' });
+    }
+    if (service_type === 'services' && !serviceDescription) {
+      return res.status(400).json({ error: 'service_description is required for home services' });
     }
     const pickupLatitude = Number(pickup_lat);
     const pickupLongitude = Number(pickup_lng);
@@ -212,7 +235,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
            ))
          )) <= 3
        LIMIT 1`,
-      [provider_type, pickupLatitude, pickupLongitude]
+      [provider_type, pickupLatitude, pickupLongitude, serviceCategory]
     );
     if (nearby.rows.length === 0) {
       await client.query('ROLLBACK');
@@ -244,6 +267,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
        FROM service_providers p
        JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
        WHERE p.type = $1
+         AND ($4::text IS NULL OR COALESCE(cardinality(p.service_categories), 0) = 0 OR $4 = ANY(p.service_categories))
          AND p.is_available = true
          AND p.current_lat IS NOT NULL
          AND p.current_lng IS NOT NULL
@@ -259,7 +283,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
              sin(radians($2)) * sin(radians(p.current_lat))
            ))
          )) <= 3)`,
-      [provider_type, pickupLatitude, pickupLongitude]
+      [provider_type, pickupLatitude, pickupLongitude, serviceCategory]
     ).then(async (pushRows) => {
       for (const row of pushRows.rows) {
         const resultPush = await sendProviderPush(
@@ -402,6 +426,7 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
            FROM service_providers sp
            WHERE sp.id = $2
              AND sp.is_available = true
+             AND (b.service_type <> 'services' OR COALESCE(cardinality(sp.service_categories), 0) = 0 OR b.service_category = ANY(sp.service_categories))
              AND sp.kyc_status = 'approved'
              AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
              AND sp.location_updated_at > NOW() - INTERVAL '5 minutes'
@@ -420,6 +445,7 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
                ))
              )) <= 3
          )
+         AND (b.service_type <> 'services' OR COALESCE(cardinality(sp.service_categories), 0) = 0 OR b.service_category = ANY(sp.service_categories))
          AND NOT EXISTS (
            SELECT 1
            FROM bookings active_b
@@ -483,6 +509,7 @@ router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) =>
        WHERE b.id = $1
          AND b.status = 'requested'
          AND b.provider_id IS NULL
+         AND (b.service_type <> 'services' OR COALESCE(cardinality(sp.service_categories), 0) = 0 OR b.service_category = ANY(sp.service_categories))
          AND sp.is_available = true
          AND sp.kyc_status = 'approved'
          AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
