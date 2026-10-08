@@ -428,6 +428,7 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
            SELECT 1
            FROM service_providers sp
            WHERE sp.id = $2
+             AND sp.type = b.provider_type
              AND sp.is_available = true
              AND (b.service_type <> 'services' OR COALESCE(cardinality(sp.service_categories), 0) = 0 OR b.service_category = ANY(sp.service_categories))
              AND sp.kyc_status = 'approved'
