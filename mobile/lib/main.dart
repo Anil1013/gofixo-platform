@@ -325,6 +325,7 @@ class Auth extends StatefulWidget{
 class _AuthState extends State<Auth>{
  final form=GlobalKey<FormState>();final name=TextEditingController(),phone=TextEditingController(),pass=TextEditingController();
  String mode='login',type='bike';bool busy=false;String? error,msg;String appVersion='',buildNumber='';
+ final Set<String> serviceCategories={};
  bool get provider=>widget.role=='provider';
  @override void initState(){super.initState();_loadAppVersion();}
  Future<void> _loadAppVersion()async{try{final info=await PackageInfo.fromPlatform();if(mounted)setState((){appVersion=info.version;buildNumber=info.buildNumber;});}catch(_){}}
@@ -334,7 +335,7 @@ class _AuthState extends State<Auth>{
   setState((){busy=true;error=null;msg=null;});
   try{
    if(mode=='register'){
-    if(provider)await ApiService.registerProvider(name.text.trim(),phone.text.trim(),type,pass.text);
+    if(provider)await ApiService.registerProvider(name.text.trim(),phone.text.trim(),type,pass.text,serviceCategories:serviceCategories.toList());
     else await ApiService.registerCustomer(name.text.trim(),phone.text.trim(),pass.text);
     if(mounted)setState((){mode='login';msg='Account created. Please log in.';});
    }else if(mode=='forgot'){
@@ -356,7 +357,23 @@ class _AuthState extends State<Auth>{
    if(reg)const SizedBox(height:14),
    if(reg&&provider)DropdownButtonFormField<String>(value:type,decoration:const InputDecoration(labelText:'Partner type',border:OutlineInputBorder()),items:const[
     DropdownMenuItem(value:'bike',child:Text('Bike driver')),DropdownMenuItem(value:'auto',child:Text('Auto driver')),DropdownMenuItem(value:'car',child:Text('Car driver')),DropdownMenuItem(value:'general_worker',child:Text('Home helper')),DropdownMenuItem(value:'skilled_worker',child:Text('Skilled worker'))
-   ],onChanged:(v)=>setState(()=>type=v??'bike')),
+   ],onChanged:(v)=>setState((){type=v??'bike';if(type=='bike'||type=='auto'||type=='car')serviceCategories.clear();})),
+   if(reg&&provider&&(type=='general_worker'||type=='skilled_worker'))...
+     [
+       const Text('Home-service specialties',style:TextStyle(fontWeight:FontWeight.w800,color:navy)),
+       const SizedBox(height:8),
+       ...const [
+         ('electrician','Electrician'),('plumber','Plumber'),('ac_service','AC Service'),
+         ('cleaning','Cleaning'),('painter','Painter'),('carpenter','Carpenter'),
+         ('appliance_repair','Appliance Repair'),('pest_control','Pest Control'),
+         ('packers_movers','Packers & Movers'),('salon_beauty','Salon & Beauty'),
+       ].map((item)=>CheckboxListTile(
+         contentPadding:EdgeInsets.zero,dense:true,controlAffinity:ListTileControlAffinity.leading,
+         value:serviceCategories.contains(item.$1),title:Text(item.$2),
+         onChanged:(v)=>setState(()=>v==true?serviceCategories.add(item.$1):serviceCategories.remove(item.$1)),
+       )),
+       const SizedBox(height:6),
+     ],
    if(reg&&provider)const SizedBox(height:14),
    TextFormField(controller:phone,keyboardType:TextInputType.phone,maxLength:10,decoration:const InputDecoration(labelText:'Phone number',prefixText:'+91 ',border:OutlineInputBorder()),validator:(v)=>RegExp(r'^\d{10}$').hasMatch(v?.trim()??'')?null:'Enter 10 digits'),
    if(!forgot)const SizedBox(height:14),
