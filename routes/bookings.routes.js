@@ -130,6 +130,8 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       drop_or_service_address,
       pickup_lat,
       pickup_lng,
+      drop_lat,
+      drop_lng,
       estimated_fare,
       route_distance_km,
       service_category: rawServiceCategory,
