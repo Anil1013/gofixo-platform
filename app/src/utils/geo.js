@@ -1,59 +1,90 @@
-// Free, key-less location services (OpenStreetMap ecosystem):
-//  - Nominatim  : address <-> coordinates   (fair-use: ~1 request/sec, so search runs on an explicit tap, never per keystroke)
-//  - OSRM       : route line, distance, ETA (public demo server — fine for a pilot; self-host or switch provider at scale)
-// If traffic grows, only this file needs to change to move to Mapbox / HERE / Google.
+const API_BASE = 'https://gofixo.mob13r.com/api';
+
+let placesSessionToken = null;
+
+function newPlacesSession() {
+  placesSessionToken = globalThis.crypto?.randomUUID?.() || (
+    Date.now().toString(36) + '-' + Math.random().toString(36).slice(2)
+  );
+  return placesSessionToken;
+}
+
+function currentPlacesSession() {
+  return placesSessionToken || newPlacesSession();
+}
+
+export function resetPlacesSession() {
+  placesSessionToken = null;
+}
+
+async function apiJson(path, options = {}) {
+  const res = await fetch(`${API_BASE}${path}`, options);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Location request failed (${res.status})`);
+  return data;
+}
 
 export async function reverseGeocode(lat, lng) {
   try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18`,
-      { headers: { 'Accept-Language': 'en' } }
+    const data = await apiJson(
+      `/places/resolve?input=${encodeURIComponent(`${lat}, ${lng}`)}`
     );
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.display_name || null;
+    return data.place?.address || data.place?.name || null;
   } catch {
     return null;
   }
 }
 
 export async function reverseGeocodeDetails(lat, lng) {
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-      { headers: { 'Accept-Language': 'en-IN,en' } }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    return { label: data.display_name || '', address: data.address || {} };
-  } catch {
-    return null;
-  }
+  const label = await reverseGeocode(lat, lng);
+  return label ? { label, address: {} } : null;
 }
 
 export async function searchAddressSuggestions(query, near = null) {
   const raw = String(query || '').trim();
-  if (!raw) return [];
-  const url = new URL('https://nominatim.openstreetmap.org/search');
-  url.searchParams.set('format', 'jsonv2');
-  url.searchParams.set('limit', '6');
-  url.searchParams.set('addressdetails', '1');
-  url.searchParams.set('countrycodes', 'in');
-  url.searchParams.set('q', raw);
-  if (near && Number.isFinite(near.lat) && Number.isFinite(near.lng)) {
-    url.searchParams.set('viewbox', [near.lng - 0.35, near.lat + 0.35, near.lng + 0.35, near.lat - 0.35].join(','));
-  }
+  if (raw.length < 2) return [];
+
   try {
-    const res = await fetch(url.toString(), { headers: { 'Accept-Language': 'en-IN,en' } });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data) ? data.map((item) => {
-      const lat = Number(item.lat);
-      const lng = Number(item.lon);
-      return Number.isFinite(lat) && Number.isFinite(lng)
-        ? { lat, lng, label: item.display_name, address: item.address || {} } : null;
-    }).filter(Boolean) : [];
-  } catch { return []; }
+    const params = new URLSearchParams({
+      input: raw,
+      sessionToken: currentPlacesSession(),
+    });
+    const data = await apiJson(`/places/autocomplete?${params.toString()}`);
+
+    // Query predictions do not contain a Place ID, so keep only selectable
+    // place predictions in the UI. A typed query can still be resolved on Find.
+    return (Array.isArray(data.suggestions) ? data.suggestions : [])
+      .filter((item) => item.type === 'place' && item.placeId)
+      .map((item) => ({
+        placeId: item.placeId,
+        label: item.text || item.mainText || '',
+        mainText: item.mainText || item.text || '',
+        secondaryText: item.secondaryText || '',
+      }))
+      .filter((item) => item.label);
+  } catch {
+    return [];
+  }
+}
+
+export async function getPlaceDetails(placeId) {
+  const token = currentPlacesSession();
+  try {
+    const data = await apiJson(
+      `/places/details/${encodeURIComponent(placeId)}?sessionToken=${encodeURIComponent(token)}`
+    );
+    resetPlacesSession();
+    return {
+      lat: Number(data.lat),
+      lng: Number(data.lng),
+      label: data.address || data.name || '',
+      address: data.address || '',
+      placeId: data.placeId || placeId,
+    };
+  } catch (error) {
+    resetPlacesSession();
+    throw error;
+  }
 }
 
 export function getAddressParts(address = {}) {
@@ -69,94 +100,99 @@ export function getAddressParts(address = {}) {
 }
 
 export function formatStructuredAddress(parts = {}) {
-  return [parts.houseNumber, parts.street, parts.area, parts.locality, parts.pincode, parts.state].filter(Boolean).join(', ');
+  return [parts.houseNumber, parts.street, parts.area, parts.locality, parts.pincode, parts.state]
+    .filter(Boolean)
+    .join(', ');
 }
 
 export async function searchAddress(query) {
   const raw = String(query || '').trim();
   if (!raw) return null;
 
-  // Nominatim is good for addresses, but exact spelling can be fragile.
-  // Try the user's text first, then a few safe India/Gurgaon variants.
-  const normalized = raw
-    .replace(/\s*,\s*/g, ', ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  const variants = [];
-  const add = (value) => {
-    const v = String(value || '').trim();
-    if (v && !variants.includes(v)) variants.push(v);
-  };
-
-  add(normalized);
-  add(normalized.replace(/\bakshneem\b/gi, 'Akashneem'));
-  add(normalized.replace(/\bakashneem\b/gi, 'Akshneem'));
-  add(normalized.replace(/\bgurgaon\b/gi, 'Gurugram'));
-  add(normalized.replace(/\bgurugram\b/gi, 'Gurgaon'));
-  add(normalized.replace(/\bakshneem\b/gi, 'Akashneem').replace(/\bgurgaon\b/gi, 'Gurugram'));
-  add(normalized.replace(/\bakashneem\b/gi, 'Akshneem').replace(/\bgurgaon\b/gi, 'Gurgaon'));
-
-  // If the user gives a Gurgaon-style short address, explicitly add India.
-  if (/\b(gurgaon|gurugram)\b/i.test(normalized) && !/\bindia\b/i.test(normalized)) {
-    add(normalized + ', India');
-  }
-
-  for (let i = 0; i < variants.length; i += 1) {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&addressdetails=1&countrycodes=in&q=${encodeURIComponent(variants[i])}`,
-        { headers: { 'Accept-Language': 'en' } }
-      );
-      if (!res.ok) continue;
-
-      const data = await res.json();
-      if (Array.isArray(data) && data.length) {
-        // Prefer a result that contains the requested road/place words.
-        const words = normalized.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
-        const best = [...data].sort((a, b) => {
-          const aText = String(a.display_name || '').toLowerCase();
-          const bText = String(b.display_name || '').toLowerCase();
-          const score = (text) => words.reduce((n, word) => n + (text.includes(word) ? 1 : 0), 0);
-          return score(bText) - score(aText);
-        })[0];
-
-        const lat = Number(best.lat);
-        const lng = Number(best.lon);
-        if (Number.isFinite(lat) && Number.isFinite(lng)) {
-          return { lat, lng, label: best.display_name };
-        }
-      }
-    } catch {
-      // Try the next normalized variant.
-    }
-
-    // Nominatim's public service asks clients to keep request rates low.
-    if (i < variants.length - 1) {
-      await new Promise((resolve) => setTimeout(resolve, 1100));
-    }
-  }
-
-  return null;
-}
-
-export async function getRoute(from, to) {
   try {
-    const res = await fetch(
-      `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const route = data.routes && data.routes[0];
-    if (!route) return null;
+    const data = await apiJson(`/places/resolve?input=${encodeURIComponent(raw)}`);
+    const place = data.place;
+    if (!place || !Number.isFinite(Number(place.lat)) || !Number.isFinite(Number(place.lng))) {
+      return null;
+    }
     return {
-      distanceKm: route.distance / 1000,
-      durationMin: Math.max(1, Math.round(route.duration / 60)),
-      line: route.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
+      lat: Number(place.lat),
+      lng: Number(place.lng),
+      label: place.address || place.name || raw,
+      address: place.address || '',
+      placeId: place.placeId || '',
     };
   } catch {
     return null;
   }
+}
+
+export async function getRoute(from, to) {
+  if (!from || !to) return null;
+
+  try {
+    const data = await apiJson('/routes/compute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        origin: { lat: Number(from.lat), lng: Number(from.lng) },
+        destination: { lat: Number(to.lat), lng: Number(to.lng) },
+      }),
+    });
+
+    const distanceMeters = Number(data.distanceMeters);
+    const durationSeconds = Number(data.durationSeconds);
+    const encoded = String(data.encodedPolyline || '');
+    const line = decodeGooglePolyline(encoded);
+
+    if (!Number.isFinite(distanceMeters) || distanceMeters <= 0 || line.length < 2) return null;
+
+    return {
+      distanceKm: distanceMeters / 1000,
+      durationMin: Math.max(1, Math.round(durationSeconds / 60)),
+      line,
+      fallback: false,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function decodeGooglePolyline(encoded) {
+  const points = [];
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+
+  while (index < encoded.length) {
+    let shift = 0;
+    let result = 0;
+    let byte;
+
+    do {
+      if (index >= encoded.length) return points;
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+
+    lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+
+    shift = 0;
+    result = 0;
+
+    do {
+      if (index >= encoded.length) return points;
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+
+    lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+    points.push([lat / 1e5, lng / 1e5]);
+  }
+
+  return points;
 }
 
 export function formatDistance(km) {
