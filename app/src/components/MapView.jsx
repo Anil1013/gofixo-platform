@@ -37,6 +37,8 @@ export default function MapView({ markers = [], line = null, height = 200, dragg
   const el = useRef(null);
   const mapRef = useRef(null);
   const groupRef = useRef(null);
+  const lastFittedSignatureRef = useRef('');
+  const userInteractedRef = useRef(false);
 
   useEffect(() => {
     if (!el.current) return undefined;
@@ -51,6 +53,9 @@ export default function MapView({ markers = [], line = null, height = 200, dragg
       map.setView([28.4595, 77.0266], 12); // Gurugram until markers arrive
       groupRef.current = L.layerGroup().addTo(map);
       mapRef.current = map;
+      map.on('dragstart zoomstart', () => {
+        userInteractedRef.current = true;
+      });
       window.setTimeout(() => {
         try { map.invalidateSize(); } catch { /* map may already be removed */ }
       }, 150);
@@ -101,8 +106,17 @@ export default function MapView({ markers = [], line = null, height = 200, dragg
         safeLine.forEach((p) => points.push(p));
       }
 
-      if (points.length === 1) map.setView(points[0], 16);
-      else if (points.length > 1) map.fitBounds(points, { padding: [36, 36], maxZoom: 16 });
+      const signature = JSON.stringify({
+        markers: (Array.isArray(markers) ? markers : []).map((m) => [Number(m?.lat), Number(m?.lng)]),
+        line: safeLine,
+      });
+
+      // Fit only when the actual route/points change. Manual drag/zoom stays user-controlled.
+      if (signature !== lastFittedSignatureRef.current && !userInteractedRef.current) {
+        if (points.length === 1) map.setView(points[0], 16);
+        else if (points.length > 1) map.fitBounds(points, { padding: [36, 36], maxZoom: 16 });
+        lastFittedSignatureRef.current = signature;
+      }
       map.invalidateSize();
     } catch {
       // A bad route payload must never blank the whole booking screen.
