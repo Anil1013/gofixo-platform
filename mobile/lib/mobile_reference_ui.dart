@@ -95,74 +95,108 @@ class _CustomerHomeTab extends StatelessWidget{
  const _CustomerHomeTab({required this.session,required this.bookings,required this.onChanged,required this.onTab});
  @override Widget build(BuildContext c){
   final active=bookings.where((b){final s=b['status']?.toString();return s=='requested'||s=='accepted'||s=='ongoing';}).toList();
-  return RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.only(bottom:24),children:[
-   _CustomerHeader(onProfile:()=>onTab(4)),const SizedBox(height:10),
-   _CustomerRideHero(session:session,onChanged:onChanged),const SizedBox(height:18),
-   _SectionTitle(title:'Book a Ride',onSeeAll:()=>onTab(2)),const SizedBox(height:8),
-   _RideTypeTiles(session:session,onChanged:onChanged),const SizedBox(height:18),
-   _SectionTitle(title:'Home Services',onSeeAll:()=>onTab(2)),const SizedBox(height:8),
-   _Services(onTap:(t)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:t,onChanged:onChanged)))),
-   const SizedBox(height:12),_HomeServicesPromo(onTap:()=>onTab(2)),const SizedBox(height:18),
-   const _SectionTitle(title:'Why Gofixo?'),const SizedBox(height:8),const _WhyGofixo(),
-   if(active.isNotEmpty)...[const SizedBox(height:18),_ActiveBookingStrip(b:active.first,session:session)],
+  return RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.only(bottom:18),children:[
+   _CustomerHeader(onProfile:()=>onTab(4)),const SizedBox(height:6),_CustomerHero(session:session,onChanged:onChanged),const SizedBox(height:18),
+   _SectionTitle(title:'Book a Ride',onSeeAll:()=>onTab(2)),const SizedBox(height:8),_RideTypeShowcase(session:session,onChanged:onChanged),const SizedBox(height:20),
+   _SectionTitle(title:'Home Services',onSeeAll:()=>onTab(2)),const SizedBox(height:8),_Services(onTap:(t)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:t,onChanged:onChanged)))),
+   const SizedBox(height:14),_CustomerPromo(onTap:()=>onTab(2)),const SizedBox(height:18),
+   const _SectionTitle(title:'Why Gofixo?'),const SizedBox(height:8),const _CustomerBenefits(),
+   if(active.isNotEmpty)...[const SizedBox(height:16),_ActiveBookingStrip(b:active.first,session:session)],
   ]));
  }
 }
 
 class _CustomerHeader extends StatelessWidget{
  final VoidCallback onProfile;const _CustomerHeader({required this.onProfile});
- @override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.fromLTRB(16,12,12,10),color:Colors.white,child:Row(children:[
-  Container(width:42,height:42,decoration:BoxDecoration(color:gfGreen,borderRadius:BorderRadius.circular(14)),child:const Icon(Icons.location_on_rounded,color:Colors.white,size:27)),
+ @override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.fromLTRB(16,10,12,8),color:Colors.white,child:Row(children:[
+  Container(width:43,height:43,decoration:BoxDecoration(color:gfGreen,borderRadius:BorderRadius.circular(14)),child:const Icon(Icons.location_on_rounded,color:Colors.white,size:28)),
   const SizedBox(width:9),const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-   Text('Gofixo',style:TextStyle(fontSize:24,fontWeight:FontWeight.w900,color:gfNavy)),Text('Ride · Delivery · Home Services',style:TextStyle(fontSize:8,color:gfMuted))
+   Text('Gofixo',style:TextStyle(fontSize:25,fontWeight:FontWeight.w900,color:gfNavy,letterSpacing:-.6)),
+   Text('Ride · Delivery · Home Services',style:TextStyle(fontSize:8,color:gfMuted,fontWeight:FontWeight.w600))
   ])),
-  Stack(children:[IconButton(onPressed:(){},icon:const Icon(Icons.notifications_rounded,color:gfNavy)),Positioned(right:10,top:8,child:Container(width:7,height:7,decoration:const BoxDecoration(color:Colors.red,shape:BoxShape.circle)))]),
-  GestureDetector(onTap:onProfile,child:Container(width:40,height:40,decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEFFFF5)),child:const Icon(Icons.person_rounded,color:gfGreen))),
+  IconButton(onPressed:(){},icon:const Icon(Icons.notifications_none_rounded,color:gfNavy,size:27)),
+  GestureDetector(onTap:onProfile,child:Container(width:41,height:41,decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEAFBF2)),child:const Icon(Icons.person_rounded,color:gfGreen,size:25))),
  ]));
 }
 
-class _CustomerRideHero extends StatelessWidget{
- final Session session;final Future<void> Function({bool silent}) onChanged;const _CustomerRideHero({required this.session,required this.onChanged});
- @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.symmetric(horizontal:10),child:Container(
-  padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(24),border:Border.all(color:gfLine)),
-  child:Column(children:[
-   SizedBox(height:148,child:Row(children:[
-    Expanded(child:_PhotoCard('https://images.unsplash.com/photo-1679465427762-38cfdba8e2fb?auto=format&fit=crop&w=900&q=85','Bike')),
-    Expanded(child:_PhotoCard('https://images.unsplash.com/photo-1626149637281-4e227308da18?auto=format&fit=crop&w=900&q=85','Auto')),
-    Expanded(child:_PhotoCard('https://images.unsplash.com/photo-1685019718640-6e562edc365e?auto=format&fit=crop&w=900&q=85','Car')),
-   ])),const SizedBox(height:10),
-   InkWell(onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,onChanged:onChanged))),borderRadius:BorderRadius.circular(28),child:Container(padding:const EdgeInsets.symmetric(horizontal:14,vertical:13),decoration:BoxDecoration(color:const Color(0xFFF7F9FC),borderRadius:BorderRadius.circular(28)),child:Row(children:[
-    Container(width:34,height:34,decoration:const BoxDecoration(color:Color(0xFFEFFFF5),shape:BoxShape.circle),child:const Icon(Icons.my_location_rounded,color:gfGreen,size:18)),const SizedBox(width:10),
-    const Expanded(child:Text('Where are you going?',style:TextStyle(fontWeight:FontWeight.w800,color:gfMuted))),const Icon(Icons.search_rounded,color:gfNavy)
-   ]))),
-  ])));
+class _CustomerHero extends StatelessWidget{
+ final Session session;final Future<void> Function({bool silent}) onChanged;
+ const _CustomerHero({required this.session,required this.onChanged});
+ @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Column(children:[
+  ClipRRect(borderRadius:BorderRadius.circular(24),child:SizedBox(height:245,width:double.infinity,child:Stack(fit:StackFit.expand,children:[
+   Image.network('https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=1200&q=88',fit:BoxFit.cover,errorBuilder:(_,__,___)=>Container(color:const Color(0xFFDCEBFF))),
+   DecoratedBox(decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[Colors.white.withOpacity(.08),gfNavy.withOpacity(.78)]))),
+   const Positioned(left:18,top:18,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+    Text('Your City',style:TextStyle(color:Colors.white,fontSize:27,fontWeight:FontWeight.w900)),
+    Text('Your Services',style:TextStyle(color:Color(0xFFFFB03A),fontSize:27,fontWeight:FontWeight.w900)),
+    SizedBox(height:4),Text('Rides, Home Services\\nand more — All in One App',style:TextStyle(color:Colors.white,fontSize:12,fontWeight:FontWeight.w600,height:1.25))
+   ])),
+   Positioned(left:12,right:12,bottom:12,child:Row(children:[
+    _HeroRide('Bike','https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=700&q=88',session,onChanged),
+    _HeroRide('Auto','https://images.unsplash.com/photo-1626149637281-4e227308da18?auto=format&fit=crop&w=700&q=88',session,onChanged),
+    _HeroRide('Car','https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=700&q=88',session,onChanged),
+   ])),
+  ]))),
+  const SizedBox(height:10),
+  InkWell(onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,onChanged:onChanged))),borderRadius:BorderRadius.circular(28),child:Container(padding:const EdgeInsets.symmetric(horizontal:15,vertical:13),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(28),boxShadow:const[BoxShadow(color:Color(0x18000000),blurRadius:14,offset:Offset(0,5))]),child:Row(children:[
+   Container(width:37,height:37,decoration:const BoxDecoration(color:Color(0xFFEAFBF2),shape:BoxShape.circle),child:const Icon(Icons.location_on_rounded,color:gfGreen,size:20)),const SizedBox(width:10),
+   const Expanded(child:Text('Where are you going?',style:TextStyle(fontSize:14,fontWeight:FontWeight.w800,color:gfMuted))),Container(width:37,height:37,decoration:const BoxDecoration(color:gfNavy,shape:BoxShape.circle),child:const Icon(Icons.my_location_rounded,color:Colors.white,size:18))
+  ])))
+ ]));
+}
+class _HeroRide extends StatelessWidget{
+ final String label,url;final Session session;final Future<void> Function({bool silent}) onChanged;
+ const _HeroRide(this.label,this.url,this.session,this.onChanged);
+ @override Widget build(BuildContext c)=>Expanded(child:Padding(padding:const EdgeInsets.symmetric(horizontal:4),child:InkWell(onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:label.toLowerCase(),onChanged:onChanged))),child:Container(height:70,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(16),boxShadow:const[BoxShadow(color:Color(0x30000000),blurRadius:8)]),child:Stack(children:[
+  ClipRRect(borderRadius:BorderRadius.circular(16),child:Image.network(url,fit:BoxFit.cover,width:double.infinity,height:70,errorBuilder:(_,__,___)=>const ColoredBox(color:Color(0xFFE8EEF5)))),
+  Positioned(left:0,right:0,bottom:0,child:Container(height:24,decoration:BoxDecoration(color:Colors.white.withOpacity(.94),borderRadius:const BorderRadius.vertical(bottom:Radius.circular(16))),child:Center(child:Text(label,style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy,fontSize:11)))))
+ ]))));
+ }
 }
 
 class _SectionTitle extends StatelessWidget{
  final String title;final VoidCallback? onSeeAll;const _SectionTitle({required this.title,this.onSeeAll});
- @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Row(children:[Expanded(child:Text(title,style:const TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:gfNavy))),if(onSeeAll!=null)TextButton(onPressed:onSeeAll,child:const Text('See all →',style:TextStyle(fontSize:11,fontWeight:FontWeight.w900,color:gfGreen)))]));
+ @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Row(crossAxisAlignment:CrossAxisAlignment.center,children:[Expanded(child:Text(title,style:const TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:gfNavy,letterSpacing:-.3))),if(onSeeAll!=null)TextButton(onPressed:onSeeAll,child:const Text('See all  →',style:TextStyle(fontSize:11,fontWeight:FontWeight.w900,color:Color(0xFF1787D8))))]));
 }
 
-class _RideTypeTiles extends StatelessWidget{
- final Session session;final Future<void> Function({bool silent}) onChanged;const _RideTypeTiles({required this.session,required this.onChanged});
- @override Widget build(BuildContext c)=>SizedBox(height:125,child:ListView(scrollDirection:Axis.horizontal,padding:const EdgeInsets.symmetric(horizontal:10),children:[
-  _Choice('Bike','bike',Icons.two_wheeler,'',(v)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:v,onChanged:onChanged)))),
-  _Choice('Auto','auto',Icons.electric_rickshaw,'',(v)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:v,onChanged:onChanged)))),
-  _Choice('Car','car',Icons.directions_car,'',(v)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:v,onChanged:onChanged)))),
+class _RideTypeShowcase extends StatelessWidget{
+ final Session session;final Future<void> Function({bool silent}) onChanged;const _RideTypeShowcase({required this.session,required this.onChanged});
+ @override Widget build(BuildContext c)=>SizedBox(height:178,child:ListView(scrollDirection:Axis.horizontal,padding:const EdgeInsets.symmetric(horizontal:12),children:[
+  _RideCardNew('Bike','Fast & Affordable','https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=700&q=88','bike',session,onChanged),
+  _RideCardNew('Auto','Comfortable Rides','https://images.unsplash.com/photo-1626149637281-4e227308da18?auto=format&fit=crop&w=700&q=88','auto',session,onChanged),
+  _RideCardNew('Car','Spacious & Safe','https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=700&q=88','car',session,onChanged),
  ]));
 }
-
-class _HomeServicesPromo extends StatelessWidget{
- final VoidCallback onTap;const _HomeServicesPromo({required this.onTap});
- @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:InkWell(onTap:onTap,borderRadius:BorderRadius.circular(20),child:Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:const Color(0xFFEFFFF5),borderRadius:BorderRadius.circular(20),border:Border.all(color:const Color(0xFFBFEFD4))),child:Row(children:[
-  const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('GOFIXO HOME SERVICES',style:TextStyle(fontSize:8,letterSpacing:1.2,fontWeight:FontWeight.w900,color:gfGreen)),SizedBox(height:5),Text('Trusted Professionals\nfor Your Home',style:TextStyle(fontSize:19,fontWeight:FontWeight.w900,color:gfNavy)),SizedBox(height:5),Text('✓ Verified  ✓ Affordable  ✓ On-Time',style:TextStyle(fontSize:9,color:gfGreen))])),
-  Container(width:105,height:105,decoration:BoxDecoration(color:gfNavy,borderRadius:BorderRadius.circular(16)),child:const Icon(Icons.handyman_rounded,color:Colors.white,size:45)),
+class _RideCardNew extends StatelessWidget{
+ final String title,sub,url,type;final Session session;final Future<void> Function({bool silent}) onChanged;
+ const _RideCardNew(this.title,this.sub,this.url,this.type,this.session,this.onChanged);
+ @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.only(right:10),child:SizedBox(width:145,child:InkWell(onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:type,onChanged:onChanged))),borderRadius:BorderRadius.circular(20),child:Container(decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(20),boxShadow:const[BoxShadow(color:Color(0x12000000),blurRadius:9,offset:Offset(0,4))]),child:Column(children:[
+  Expanded(child:ClipRRect(borderRadius:const BorderRadius.vertical(top:Radius.circular(20)),child:Image.network(url,fit:BoxFit.cover,width:double.infinity,errorBuilder:(_,__,___)=>const ColoredBox(color:Color(0xFFEAF1F8))))),
+  Padding(padding:const EdgeInsets.fromLTRB(6,7,6,8),child:Column(children:[Text(title,style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),const SizedBox(height:2),Text(sub,style:const TextStyle(fontSize:9,color:gfMuted))]))
  ]))));
+ }
 }
 
-class _WhyGofixo extends StatelessWidget{
- const _WhyGofixo();@override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Row(children:[
-  Expanded(child:_Stat('Verified','✓',Icons.verified_rounded)),const SizedBox(width:8),Expanded(child:_Stat('Fair pricing','₹',Icons.currency_rupee_rounded)),const SizedBox(width:8),Expanded(child:_Stat('Fast','⚡',Icons.bolt_rounded))
+class _CustomerPromo extends StatelessWidget{
+ final VoidCallback onTap;const _CustomerPromo({required this.onTap});
+ @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:InkWell(onTap:onTap,borderRadius:BorderRadius.circular(22),child:Container(height:138,clipBehavior:Clip.antiAlias,decoration:BoxDecoration(color:const Color(0xFFE9FFF4),borderRadius:BorderRadius.circular(22)),child:Stack(children:[
+  Positioned(right:0,top:0,bottom:0,width:150,child:Image.network('https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=700&q=88',fit:BoxFit.cover,errorBuilder:(_,__,___)=>const ColoredBox(color:Color(0xFFD9F6E7)))),
+  Positioned(left:16,top:15,bottom:10,right:145,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+   const Text('GOFIXO HOME SERVICES',style:TextStyle(fontSize:8,letterSpacing:1.2,fontWeight:FontWeight.w900,color:gfGreen)),const SizedBox(height:4),const Text('Trusted Professionals\\nfor Your Home',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy,height:1.05)),const SizedBox(height:5),const Text('✓ Verified  ✓ Affordable  ✓ On-Time',style:TextStyle(fontSize:8,color:gfGreen)),const Spacer(),FilledButton(onPressed:onTap,style:FilledButton.styleFrom(backgroundColor:gfGreen,padding:const EdgeInsets.symmetric(horizontal:15,vertical:8),minimumSize:Size.zero),child:const Text('Book Now →',style:TextStyle(fontSize:10,fontWeight:FontWeight.w900)))
+  ]))
+ ])));
+ }
+}
+
+class _CustomerBenefits extends StatelessWidget{
+ const _CustomerBenefits();@override Widget build(BuildContext c)=>SizedBox(height:102,child:ListView(scrollDirection:Axis.horizontal,padding:const EdgeInsets.symmetric(horizontal:12),children:[
+  _Benefit('Verified',Icons.verified_rounded,'Drivers & Experts'),_Benefit('Affordable',Icons.currency_rupee_rounded,'Fair pricing'),_Benefit('On-Time',Icons.schedule_rounded,'Reliable service'),_Benefit('24/7',Icons.support_agent_rounded,'Support')
+ ]));
+}
+class _Benefit extends StatelessWidget{
+ final String title,sub;final IconData icon;const _Benefit(this.title,this.icon,this.sub);
+ @override Widget build(BuildContext c)=>Container(width:105,margin:const EdgeInsets.only(right:8),padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(18),border:Border.all(color:gfLine)),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+  Container(width:31,height:31,decoration:const BoxDecoration(color:Color(0xFFEAFBF2),shape:BoxShape.circle),child:Icon(icon,color:gfGreen,size:18)),const SizedBox(height:5),Text(title,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w900,color:gfNavy)),Text(sub,textAlign:TextAlign.center,style:const TextStyle(fontSize:7,color:gfMuted))
  ]));
 }
 
@@ -227,13 +261,49 @@ class _ProviderHomeTab extends StatelessWidget{
  @override Widget build(BuildContext c){
   final requested=jobs.where((j)=>j['status']=='requested').toList();final active=jobs.where((j)=>j['status']=='accepted'||j['status']=='ongoing').toList();
   final rides=int.tryParse(me['today_rides']?.toString()??'')??0;final earned=double.tryParse(me['total_earned_this_cycle']?.toString()??'0')??0;final rating=double.tryParse(me['avg_rating']?.toString()??'0')??0;
-  return RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.only(bottom:24),children:[
-   _ProviderHeader(online:me['is_available']==true,onOnline:onOnline),const SizedBox(height:12),Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_Partner(m:me)),const SizedBox(height:10),
-   Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Row(children:[Expanded(child:_Stat('Today Rides',rides.toString(),Icons.route)),const SizedBox(width:8),Expanded(child:_Stat('Earnings','₹'+earned.toStringAsFixed(0),Icons.account_balance_wallet)),const SizedBox(width:8),Expanded(child:_Stat('Rating',rating==0?'—':rating.toStringAsFixed(1),Icons.star))])),
-   const SizedBox(height:14),const Padding(padding:EdgeInsets.symmetric(horizontal:12),child:_Keep()),const SizedBox(height:16),const _SectionTitle(title:'Live Jobs'),const SizedBox(height:8),
-   if(requested.isNotEmpty)...requested.take(2).map((j)=>Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_Incoming(session:session,b:j,changed:onChanged))) else if(active.isEmpty)const Padding(padding:EdgeInsets.symmetric(horizontal:12),child:_Waiting()) else ...active.map((j)=>Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_Active(session:session,b:j,changed:onChanged))),
+  final first=requested.isNotEmpty?requested.first:(active.isNotEmpty?active.first:null);
+  return RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.only(bottom:18),children:[
+   _ProviderHeader(online:me['is_available']==true,onOnline:onOnline),const SizedBox(height:10),
+   Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_Partner(m:me)),const SizedBox(height:10),
+   Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Row(children:[
+    Expanded(child:_Stat('Today Rides',rides.toString(),Icons.route_rounded)),const SizedBox(width:8),Expanded(child:_Stat('Earnings','₹'+earned.toStringAsFixed(0),Icons.currency_rupee_rounded)),const SizedBox(width:8),Expanded(child:_Stat('Rating',rating==0?'—':rating.toStringAsFixed(1),Icons.star_rounded))
+   ])),const SizedBox(height:12),
+   const Padding(padding:EdgeInsets.symmetric(horizontal:12),child:_Keep()),const SizedBox(height:16),
+   const Padding(padding:EdgeInsets.symmetric(horizontal:12),child:Text('Incoming Bookings',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900,color:gfNavy))),
+   const SizedBox(height:8),
+   if(requested.isNotEmpty) ...requested.take(2).map((j)=>Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_Incoming(session:session,b:j,changed:onChanged)))
+   else if(active.isNotEmpty)...[Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_ProviderMiniMap(b:active.first)),const SizedBox(height:8),Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_Active(session:session,b:active.first,changed:onChanged))]
+   else const Padding(padding:EdgeInsets.symmetric(horizontal:12),child:_Waiting()),
+   if(first!=null&&requested.isNotEmpty)...[const SizedBox(height:10),Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_ProviderMiniMap(b:first))],
+   const SizedBox(height:10),Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_ProviderOnlineBanner(online:me['is_available']==true,onTap:onOnline)),
   ]));
  }
+}
+class _ProviderHeader extends StatelessWidget{
+ final bool online;final VoidCallback? onOnline;const _ProviderHeader({required this.online,required this.onOnline});
+ @override Widget build(BuildContext c)=>Container(color:Colors.white,padding:const EdgeInsets.fromLTRB(16,10,14,8),child:Row(children:[
+  Container(width:43,height:43,decoration:BoxDecoration(color:gfGreen,borderRadius:BorderRadius.circular(14)),child:const Icon(Icons.location_on_rounded,color:Colors.white,size:28)),
+  const SizedBox(width:9),const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('Gofixo',style:TextStyle(fontSize:25,fontWeight:FontWeight.w900,color:gfNavy)),Text('Partner · Earn with Gofixo',style:TextStyle(fontSize:9,color:gfMuted,fontWeight:FontWeight.w700))])),
+  GestureDetector(onTap:onOnline,child:AnimatedContainer(duration:const Duration(milliseconds:220),padding:const EdgeInsets.symmetric(horizontal:10,vertical:8),decoration:BoxDecoration(color:online?const Color(0xFFE0FAEA):const Color(0xFFF0F3F7),borderRadius:BorderRadius.circular(24)),child:Row(children:[Text(online?'Online':'Offline',style:TextStyle(fontSize:11,fontWeight:FontWeight.w900,color:online?gfGreen:gfMuted)),const SizedBox(width:6),Container(width:18,height:18,decoration:BoxDecoration(color:online?gfGreen:Colors.white,shape:BoxShape.circle))])))
+ ]));
+}
+class _ProviderMiniMap extends StatelessWidget{
+ final Map<String,dynamic>b;const _ProviderMiniMap({required this.b});
+ @override Widget build(BuildContext c){
+  final pLat=double.tryParse((b['pickup_lat']??b['pickup_latitude'])?.toString()??'')??28.4595;
+  final pLng=double.tryParse((b['pickup_lng']??b['pickup_longitude'])?.toString()??'')??77.0266;
+  final dLat=double.tryParse((b['drop_lat']??b['drop_latitude'])?.toString()??'')??pLat+.018;
+  final dLng=double.tryParse((b['drop_lng']??b['drop_longitude'])?.toString()??'')??pLng+.022;
+  final center=LatLng((pLat+dLat)/2,(pLng+dLng)/2);
+  return ClipRRect(borderRadius:BorderRadius.circular(22),child:SizedBox(height:245,child:Stack(children:[
+   GoogleMap(initialCameraPosition:CameraPosition(target:center,zoom:13.8),markers:{Marker(markerId:const MarkerId('pickup'),position:LatLng(pLat,pLng),infoWindow:const InfoWindow(title:'Customer Pickup')),Marker(markerId:const MarkerId('destination'),position:LatLng(dLat,dLng),infoWindow:const InfoWindow(title:'Destination'))},polylines:{Polyline(polylineId:const PolylineId('preview'),points:[LatLng(pLat,pLng),center,LatLng(dLat,dLng)],width:5,color:gfGreen)},zoomControlsEnabled:false,myLocationButtonEnabled:false,compassEnabled:false),
+   Positioned(left:12,right:12,top:12,child:Container(padding:const EdgeInsets.all(11),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(15),boxShadow:const[BoxShadow(color:Color(0x22000000),blurRadius:10)]),child:Row(children:[const Icon(Icons.navigation_rounded,color:gfGreen,size:20),const SizedBox(width:8),Expanded(child:Text(b['pickup_location']?.toString()??'Customer pickup',maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy))),Text((b['distance_km']??'').toString()+' km',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy))]))),
+  ])));
+ }
+}
+class _ProviderOnlineBanner extends StatelessWidget{
+ final bool online;final VoidCallback? onTap;const _ProviderOnlineBanner({required this.online,required this.onTap});
+ @override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.fromLTRB(14,12,10,12),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(18),border:Border.all(color:gfLine)),child:Row(children:[Container(width:10,height:10,decoration:BoxDecoration(color:online?gfGreen:Colors.redAccent,shape:BoxShape.circle)),const SizedBox(width:9),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(online?'You are Online':'You are Offline',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),Text(online?'Getting ride requests nearby':'Go online to receive nearby jobs',style:const TextStyle(fontSize:9,color:gfMuted))])),FilledButton(onPressed:onTap,style:FilledButton.styleFrom(backgroundColor:online?Colors.redAccent:gfGreen),child:Text(online?'Go Offline':'Go Online'))]));
 }
 
 class _ProviderHeader extends StatelessWidget{
