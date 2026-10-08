@@ -61,7 +61,7 @@ class RoleScreen extends StatelessWidget {
   static const _customerImage =
       'https://images.unsplash.com/photo-1662499840736-0178ce197a70?auto=format&fit=crop&w=1200&q=82';
   static const _partnerImage =
-      'https://images.unsplash.com/photo-1647539989255-ac2634cc8c92?auto=format&fit=crop&w=1200&q=82';
+      'https://images.unsplash.com/photo-1741236922040-ea3a74896c17?auto=format&fit=crop&w=1200&q=82';
   static const _serviceImage =
       'https://images.unsplash.com/photo-1747110594869-789610507597?auto=format&fit=crop&w=1200&q=82';
 
