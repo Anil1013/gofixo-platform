@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
 const { sendProviderPush } = require('../services/push');
-const { normalizeServiceCategory } = require('../services/catalog');
+const { normalizeServiceCategory, getServiceBaseFare } = require('../services/catalog');
 const { calculateRideFare } = require('../services/ride-pricing');
 
 const SERVICE_TYPES = new Set(['ride', 'services']);
@@ -191,6 +191,14 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
     const routeDistance = route_distance_km === undefined || route_distance_km === null || route_distance_km === '' ? null : Number(route_distance_km);
     const clientEstimatedFare = estimated_fare === undefined || estimated_fare === null || estimated_fare === '' ? null : Number(estimated_fare);
     let calculatedFare = null;
+
+    if (service_type === 'services') {
+      // Home-service bookings must carry a locked starting fare so the existing
+      // completion/earning lifecycle works for every universal service category.
+      // The provider may inspect the job before accepting, but the customer-facing
+      // base price is server-authoritative and cannot be rewritten at completion.
+      calculatedFare = getServiceBaseFare(serviceCategory);
+    }
 
     if (service_type === 'ride') {
       if (!Number.isFinite(routeDistance) || routeDistance <= 0 || routeDistance > 1000) {
