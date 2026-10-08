@@ -537,11 +537,11 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
   Future<void> _upload(String docType)async{
     final providerId=int.tryParse(widget.me['id']?.toString()??'');
     if(providerId==null||working)return;
-    final picked=await FilePicker.platform.pickFiles(type:FileType.custom,allowedExtensions:const['jpg','jpeg','png','webp','pdf']);
-    if(picked==null||picked.files.single.path==null)return;
+    final picked=await FilePicker.pickFile(type:FileType.custom,allowedExtensions:const['jpg','jpeg','png','webp','pdf']);
+    if(picked==null||picked.path==null)return;
     setState(()=>working=true);
     try{
-      await ApiService.uploadProviderDocument(widget.session.token,providerId,docType,picked.files.single.path!);
+      await ApiService.uploadProviderDocument(widget.session.token,providerId,docType,picked.path!);
       if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('${docType.replaceAll('_',' ')} uploaded.')));
       await _load();
     }catch(e){
