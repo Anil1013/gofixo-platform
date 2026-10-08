@@ -1,7 +1,7 @@
 {
-  "version": "1.0.20",
-  "buildNumber": 1000020,
-  "downloadUrl": "https://gofixo.mob13r.com/releases/download/v1.0.20/gofixo-release.apk",
-  "notes": "Gofixo v1.0.20 production release with latest green UI, customer/partner UI updates, images, destination route preview, map drag/zoom controls, and destination-fit camera behavior.",
+  "version": "1.0.21",
+  "buildNumber": 1000021,
+  "downloadUrl": "https://gofixo.mob13r.com/releases/download/v1.0.21/gofixo-release.apk",
+  "notes": "Gofixo v1.0.21 with a redesigned real-photo entry experience, clearer Customer and Partner journeys, real ride/service photography, and the latest map and ETA improvements.",
   "forceUpdate": true
 }
