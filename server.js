@@ -397,6 +397,8 @@ async function ensureRuntimeSchema() {
       ADD COLUMN IF NOT EXISTS payment_confirmed_by_provider BOOLEAN DEFAULT false,
       ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP,
       ADD COLUMN IF NOT EXISTS route_distance_km NUMERIC(10,2),
+      ADD COLUMN IF NOT EXISTS drop_lat NUMERIC(9,6),
+      ADD COLUMN IF NOT EXISTS drop_lng NUMERIC(9,6),
       ADD COLUMN IF NOT EXISTS service_category VARCHAR(50),
       ADD COLUMN IF NOT EXISTS service_description TEXT
   `);
