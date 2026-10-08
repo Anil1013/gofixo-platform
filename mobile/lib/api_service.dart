@@ -32,7 +32,8 @@ class ApiService {
     final d=await _request('GET','/places/resolve?input='+Uri.encodeQueryComponent(input));
     return Map<String,dynamic>.from((d as Map)['place'] as Map);
   }
-  /// Returns Google Routes distance + traffic-aware duration + encoded polyline.\n  static Future<Map<String,dynamic>> computeRoute(double originLat,double originLng,double destinationLat,double destinationLng)async{
+  /// Returns Google Routes distance + traffic-aware duration + encoded polyline.
+  static Future<Map<String,dynamic>> computeRoute(double originLat,double originLng,double destinationLat,double destinationLng)async{
     final d=await _request('POST','/routes/compute',body:{
       'origin':{'lat':originLat,'lng':originLng},
       'destination':{'lat':destinationLat,'lng':destinationLng},
