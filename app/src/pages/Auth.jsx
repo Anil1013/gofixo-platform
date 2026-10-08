@@ -127,7 +127,7 @@ export default function Auth({ onAuthed }) {
                     </label>
                   ))}
                 </div>
-                <small className="auth-help">Select the services you are qualified to accept. You can add more later from your partner profile.</small>
+                <small className="auth-help">Select the services you are qualified to accept.</small>
               </>
             )}
           </>
