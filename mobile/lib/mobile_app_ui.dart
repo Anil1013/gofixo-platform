@@ -930,7 +930,6 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
    ),
  );
 }
-}
 class _LiveMetric extends StatelessWidget{
   final IconData icon; final String label; final String value;
   const _LiveMetric({required this.icon,required this.label,required this.value});
