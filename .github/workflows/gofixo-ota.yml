@@ -257,7 +257,7 @@ jobs:
             if marker not in s:
                 s = s.replace("    location / {", "    " + block + "    location / {", 1)
 
-            legacy_marker = "location /releases/download/"
+            legacy_marker = "location ~ ^/releases/download/v"
             legacy_block = """location ~ ^/releases/download/v[0-9]+\\.[0-9]+\\.[0-9]+/gofixo-release\\.apk$ {
                 rewrite ^/releases/download/v([0-9]+\\.[0-9]+\\.[0-9]+)/gofixo-release\\.apk$ /download/gofixo-release-v$1.apk redirect;
             }
