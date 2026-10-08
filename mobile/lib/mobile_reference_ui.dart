@@ -472,9 +472,9 @@ class ReferenceBookingPage extends StatefulWidget{
 class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  GoogleMapController? mapController;
  StreamSubscription<Position>? locationSub;
- final dest=TextEditingController();String type='bike',pickup='Detecting your location…';String serviceCategory='other',serviceDescription='';Position? pos;Map<String,dynamic>? place;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[];Set<Polyline> routePolylines={};LatLng? destinationPoint;double? km,fare;bool busy=false;Timer? debounce;LatLng? lastReversePoint;
- @override void initState(){super.initState();type=widget.type;serviceCategory=widget.serviceCategory??'other';serviceDescription=widget.serviceDescription??'';WidgetsBinding.instance.addPostFrameCallback((_)=>locate());}
- @override void dispose(){debounce?.cancel();locationSub?.cancel();dest.dispose();super.dispose();}
+ final dest=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your location…';String serviceCategory='other',serviceDescription='';Position? pos;Map<String,dynamic>? place;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[];Set<Polyline> routePolylines={};LatLng? destinationPoint;double? km,fare;bool busy=false;Timer? debounce;LatLng? lastReversePoint;
+ @override void initState(){super.initState();type=widget.type;serviceCategory=widget.serviceCategory??'other';serviceDescription=widget.serviceDescription??'';serviceDesc.text=serviceDescription;WidgetsBinding.instance.addPostFrameCallback((_)=>locate());}
+ @override void dispose(){debounce?.cancel();locationSub?.cancel();dest.dispose();serviceDesc.dispose();super.dispose();}
  Future<void>locate()async{if(busy)return;setState(()=>busy=true);try{if(!await Geolocator.isLocationServiceEnabled())throw Exception('Please turn on Location Services.');var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)throw Exception('Location permission is required.');Position?best;for(var i=0;i<3;i++){final x=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:0,timeLimit:Duration(seconds:12)));if(best==null||x.accuracy<best.accuracy)best=x;if(x.accuracy<=30)break;}final x=best!;if(x.accuracy>150)throw Exception('GPS accuracy is too weak. Please move outdoors and try again.');final a=await _reverse(x.latitude,x.longitude);if(mounted){setState((){pos=x;pickup=a;lastReversePoint=LatLng(x.latitude,x.longitude);});await _centerMap(LatLng(x.latitude,x.longitude),17);}_startLocationStream();}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
  void _startLocationStream(){locationSub?.cancel();locationSub=Geolocator.getPositionStream(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:5)).listen((x)async{if(!mounted||x.accuracy>150)return;final point=LatLng(x.latitude,x.longitude);final old=pos;setState(()=>pos=x);if(old==null||Geolocator.distanceBetween(old.latitude,old.longitude,x.latitude,x.longitude)>=3){if(lastReversePoint==null||Geolocator.distanceBetween(lastReversePoint!.latitude,lastReversePoint!.longitude,x.latitude,x.longitude)>=50){final address=await _reverse(x.latitude,x.longitude);if(!mounted)return;setState((){pickup=address;lastReversePoint=point;});}}});}
  void search(String v){debounce?.cancel();place=null;final q=v.trim();if(q.length<2){setState(()=>suggestions=[]);return;}debounce=Timer(const Duration(milliseconds:450),()async{try{final s=await ApiService.placeAutocomplete(q);if(mounted&&dest.text.trim()==q)setState(()=>suggestions=s);}catch(_){try{final points=await locationFromAddress(q);if(points.isNotEmpty&&mounted&&dest.text.trim()==q){final p=points.first;setState(()=>suggestions=[{'type':'native','placeId':'native:${p.latitude},${p.longitude}','text':q,'mainText':q,'secondaryText':'Device address search'}]);}}catch(_){if(mounted&&dest.text.trim()==q)setState(()=>suggestions=[]);}}});}
@@ -689,7 +689,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
              filled:true,
              fillColor:Colors.white,
              prefixIcon:const Icon(Icons.search,color:gfGreen),
-             labelText:'WHERE TO?',
+             labelText:isService?'SERVICE ADDRESS':'WHERE TO?',
              hintText:'Search destination, landmark or PIN code',
              border:OutlineInputBorder(borderRadius:BorderRadius.circular(18)),
            ),
@@ -705,6 +705,22 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                  subtitle:Text(s['secondaryText']?.toString()??''),
                  onTap:busy?null:()=>select(s),
                )).toList(),
+             ),
+           ),
+         if(isService)
+           Padding(
+             padding:const EdgeInsets.only(bottom:12),
+             child:TextField(
+               controller:serviceDesc,
+               maxLines:3,
+               onChanged:(v)=>serviceDescription=v.trim(),
+               decoration:InputDecoration(
+                 filled:true,fillColor:Colors.white,
+                 labelText:'What do you need?',
+                 hintText:'Describe the work, issue or service required',
+                 prefixIcon:const Icon(Icons.handyman_outlined,color:gfGreen),
+                 border:OutlineInputBorder(borderRadius:BorderRadius.circular(18)),
+               ),
              ),
            ),
          const SizedBox(height:12),
@@ -726,7 +742,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                        children:[
                          const Text('SERVICE REQUEST',style:TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
                          Text(
-                           type=='skilled_worker'?'Skilled expert at your location':'Home help at your location',
+                           serviceCategory.replaceAll('_',' ').toUpperCase(),
                            style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy),
                          ),
                          Text(
