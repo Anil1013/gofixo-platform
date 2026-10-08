@@ -219,7 +219,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
    ),
    body:SafeArea(
      child:ListView(
-       padding:EdgeInsets.fromLTRB(14,0,14,24+MediaQuery.viewPaddingOf(c).bottom),
+       padding:EdgeInsets.fromLTRB(14,0,14,34+MediaQuery.viewPaddingOf(c).bottom),
        children:[
          if(!isService)
            Row(children:[
@@ -379,22 +379,80 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
          const SizedBox(height:10),
          if(suggestions.isNotEmpty)
            Container(
-             color:Colors.white,
+             decoration:BoxDecoration(
+               color:Colors.white,
+               borderRadius:BorderRadius.circular(20),
+               border:Border.all(color:gfLine),
+               boxShadow:const[
+                 BoxShadow(
+                   color:Color(0x1210213F),
+                   blurRadius:16,
+                   offset:Offset(0,6),
+                 ),
+               ],
+             ),
              child:Column(
-               children:suggestions.take(5).map((s)=>ListTile(
-                 leading:const Icon(Icons.place,color:gfOrange),
-                 title:Text(s['mainText']?.toString()??s['text']?.toString()??''),
-                 subtitle:Text(s['secondaryText']?.toString()??''),
+               children:suggestions.take(5).map((s)=>InkWell(
                  onTap:busy?null:()=>select(s),
+                 child:Padding(
+                   padding:const EdgeInsets.symmetric(horizontal:12,vertical:11),
+                   child:Row(
+                     children:[
+                       Container(
+                         width:38,
+                         height:38,
+                         decoration:const BoxDecoration(
+                           color:Color(0xFFEFFFF5),
+                           shape:BoxShape.circle,
+                         ),
+                         child:const Icon(Icons.location_on_rounded,color:gfGreen,size:20),
+                       ),
+                       const SizedBox(width:10),
+                       Expanded(
+                         child:Column(
+                           crossAxisAlignment:CrossAxisAlignment.start,
+                           children:[
+                             Text(
+                               s['mainText']?.toString()??s['text']?.toString()??'',
+                               maxLines:1,
+                               overflow:TextOverflow.ellipsis,
+                               style:const TextStyle(fontSize:13,fontWeight:FontWeight.w800,color:gfNavy),
+                             ),
+                             const SizedBox(height:2),
+                             Text(
+                               s['secondaryText']?.toString()??'',
+                               maxLines:1,
+                               overflow:TextOverflow.ellipsis,
+                               style:const TextStyle(fontSize:10,color:gfMuted),
+                             ),
+                           ],
+                         ),
+                       ),
+                       const Icon(Icons.chevron_right_rounded,color:gfMuted,size:20),
+                     ],
+                   ),
+                 ),
                )).toList(),
              ),
            ),
-         const SizedBox(height:12),
-         FilledButton.icon(
-           style:FilledButton.styleFrom(backgroundColor:gfOrange,minimumSize:const Size.fromHeight(52)),
-           onPressed:busy?null:calculate,
-           icon:Icon(isService?Icons.handyman:Icons.alt_route),
-           label:Text(isService?'Request service':'Show route & fare'),
+         const SizedBox(height:14),
+         SizedBox(
+           width:double.infinity,
+           child:FilledButton.icon(
+             style:FilledButton.styleFrom(
+               backgroundColor:gfGreen,
+               foregroundColor:Colors.white,
+               minimumSize:const Size.fromHeight(54),
+               shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(17)),
+               elevation:0,
+             ),
+             onPressed:busy?null:calculate,
+             icon:Icon(isService?Icons.handyman_rounded:Icons.alt_route_rounded),
+             label:Text(
+               isService?'Find a service partner':'Show route & fare',
+               style:const TextStyle(fontSize:14,fontWeight:FontWeight.w900),
+             ),
+           ),
          ),
          if(isService&&place!=null)
            Padding(
@@ -431,31 +489,81 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
            ),
          if(!isService&&fare!=null)
            Padding(
-             padding:const EdgeInsets.only(top:12),
+             padding:const EdgeInsets.only(top:12,bottom:6),
              child:Container(
                padding:const EdgeInsets.all(16),
-               decoration:BoxDecoration(color:const Color(0xFFEFFFF5),borderRadius:BorderRadius.circular(20)),
-               child:Row(
-                 children:[
-                   Expanded(
-                     child:Column(
-                       crossAxisAlignment:CrossAxisAlignment.start,
-                       children:[
-                         const Text('ESTIMATED FARE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
-                         Text('₹'+fare!.toStringAsFixed(0),style:const TextStyle(fontSize:28,fontWeight:FontWeight.w900,color:gfNavy)),
-                         Text(km!.toStringAsFixed(1)+' km · '+type.toUpperCase(),style:const TextStyle(fontSize:11,color:gfMuted)),
-                       ],
-                     ),
+               decoration:BoxDecoration(
+                 color:Colors.white,
+                 borderRadius:BorderRadius.circular(22),
+                 border:Border.all(color:gfLine),
+                 boxShadow:const[
+                   BoxShadow(
+                     color:Color(0x1210213F),
+                     blurRadius:16,
+                     offset:Offset(0,6),
                    ),
-                   FilledButton(
-                     style:FilledButton.styleFrom(backgroundColor:gfGreen),
-                     onPressed:busy?null:book,
-                     child:const Text('Confirm ride'),
+                 ],
+               ),
+               child:Column(
+                 crossAxisAlignment:CrossAxisAlignment.start,
+                 children:[
+                   Row(
+                     children:[
+                       const Expanded(
+                         child:Text(
+                           'YOUR RIDE ESTIMATE',
+                           style:TextStyle(fontSize:10,fontWeight:FontWeight.w900,letterSpacing:.8,color:gfGreen),
+                         ),
+                       ),
+                       Container(
+                         padding:const EdgeInsets.symmetric(horizontal:9,vertical:5),
+                         decoration:BoxDecoration(
+                           color:const Color(0xFFEFFFF5),
+                           borderRadius:BorderRadius.circular(20),
+                         ),
+                         child:Text(
+                           type.toUpperCase(),
+                           style:const TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen),
+                         ),
+                       ),
+                     ],
+                   ),
+                   const SizedBox(height:7),
+                   Row(
+                     crossAxisAlignment:CrossAxisAlignment.end,
+                     children:[
+                       Expanded(
+                         child:Column(
+                           crossAxisAlignment:CrossAxisAlignment.start,
+                           children:[
+                             Text(
+                               '₹'+fare!.toStringAsFixed(0),
+                               style:const TextStyle(fontSize:31,fontWeight:FontWeight.w900,color:gfNavy),
+                             ),
+                             const SizedBox(height:2),
+                             Text(
+                               km!.toStringAsFixed(1)+' km · Estimated fare',
+                               style:const TextStyle(fontSize:11,color:gfMuted),
+                             ),
+                           ],
+                         ),
+                       ),
+                       FilledButton(
+                         style:FilledButton.styleFrom(
+                           backgroundColor:gfGreen,
+                           minimumSize:const Size(128,48),
+                           shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(15)),
+                         ),
+                         onPressed:busy?null:book,
+                         child:const Text('Confirm ride',style:TextStyle(fontWeight:FontWeight.w900)),
+                       ),
+                     ],
                    ),
                  ],
                ),
              ),
            ),
+         const SizedBox(height:18),
        ],
      ),
    ),
