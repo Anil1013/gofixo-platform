@@ -1,7 +1,7 @@
 {
-  "version": "1.0.15",
-  "buildNumber": 1000015,
-  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.15/gofixo-release.apk",
-  "notes": "Gofixo v1.0.15: reliable touch map pan/zoom, improved destination interaction and ride booking UX.",
+  "version": "1.0.16",
+  "buildNumber": 1000016,
+  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.16/gofixo-release.apk",
+  "notes": "Gofixo v1.0.16: customer/provider bottom navigation, structured Home/Bookings/Services/Wallet/Profile tabs, plus improved provider dashboard UX.",
   "forceUpdate": true
 }
