@@ -1,7 +1,7 @@
 {
-  "version": "1.0.18",
-  "buildNumber": 1000018,
-  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.18/gofixo-release.apk",
-  "notes": "Gofixo v1.0.18: premium ride booking UI polish, improved destination search presentation, map interaction and release stability.",
+  "version": "1.0.19",
+  "buildNumber": 1000019,
+  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.19.apk",
+  "notes": "Gofixo v1.0.19: real ride arrival state, live route/ETA improvements, locked upfront fare and ride-flow stability.",
   "forceUpdate": true
 }
