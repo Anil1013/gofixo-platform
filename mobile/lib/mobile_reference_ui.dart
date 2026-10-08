@@ -120,37 +120,70 @@ class _CustomerHeader extends StatelessWidget{
 }
 
 class _CustomerHero extends StatelessWidget{
- final Session session;final Future<void> Function({bool silent}) onChanged;
+ final Session session; final Future<void> Function({bool silent}) onChanged;
  const _CustomerHero({required this.session,required this.onChanged});
- @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Column(children:[
-  ClipRRect(borderRadius:BorderRadius.circular(24),child:SizedBox(height:245,width:double.infinity,child:Stack(fit:StackFit.expand,children:[
-   Image.network('https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=1200&q=88',fit:BoxFit.cover,errorBuilder:(_,__,___)=>Container(color:const Color(0xFFDCEBFF))),
-   DecoratedBox(decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[Colors.white.withOpacity(.08),gfNavy.withOpacity(.78)]))),
-   const Positioned(left:18,top:18,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    Text('Your City',style:TextStyle(color:Colors.white,fontSize:27,fontWeight:FontWeight.w900)),
-    Text('Your Services',style:TextStyle(color:Color(0xFFFFB03A),fontSize:27,fontWeight:FontWeight.w900)),
-    SizedBox(height:4),Text('Rides, Home Services\\nand more — All in One App',style:TextStyle(color:Colors.white,fontSize:12,fontWeight:FontWeight.w600,height:1.25))
-   ])),
-   Positioned(left:12,right:12,bottom:12,child:Row(children:[
-    _HeroRide('Bike','https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=700&q=88',session,onChanged),
-    _HeroRide('Auto','https://images.unsplash.com/photo-1626149637281-4e227308da18?auto=format&fit=crop&w=700&q=88',session,onChanged),
-    _HeroRide('Car','https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=700&q=88',session,onChanged),
-   ])),
-  ]))),
-  const SizedBox(height:10),
-  InkWell(onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,onChanged:onChanged))),borderRadius:BorderRadius.circular(28),child:Container(padding:const EdgeInsets.symmetric(horizontal:15,vertical:13),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(28),boxShadow:const[BoxShadow(color:Color(0x18000000),blurRadius:14,offset:Offset(0,5))]),child:Row(children:[
-   Container(width:37,height:37,decoration:const BoxDecoration(color:Color(0xFFEAFBF2),shape:BoxShape.circle),child:const Icon(Icons.location_on_rounded,color:gfGreen,size:20)),const SizedBox(width:10),
-   const Expanded(child:Text('Where are you going?',style:TextStyle(fontSize:14,fontWeight:FontWeight.w800,color:gfMuted))),Container(width:37,height:37,decoration:const BoxDecoration(color:gfNavy,shape:BoxShape.circle),child:const Icon(Icons.my_location_rounded,color:Colors.white,size:18))
-  ])))
- ]));
+ @override Widget build(BuildContext c){
+  return Padding(
+   padding:const EdgeInsets.symmetric(horizontal:12),
+   child:Column(children:[
+    ClipRRect(
+     borderRadius:BorderRadius.circular(24),
+     child:SizedBox(
+      height:245,width:double.infinity,
+      child:Stack(fit:StackFit.expand,children:[
+       Image.network('https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=1200&q=88',fit:BoxFit.cover,errorBuilder:(context,error,stack)=>const ColoredBox(color:Color(0xFFDCEBFF))),
+       DecoratedBox(decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[Colors.transparent,gfNavy.withValues(alpha:.78)]))),
+       const Positioned(left:18,top:18,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text('Your City',style:TextStyle(color:Colors.white,fontSize:27,fontWeight:FontWeight.w900)),
+        Text('Your Services',style:TextStyle(color:Color(0xFFFFB03A),fontSize:27,fontWeight:FontWeight.w900)),
+        SizedBox(height:4),
+        Text('Rides, Home Services\nand more — All in One App',style:TextStyle(color:Colors.white,fontSize:12,fontWeight:FontWeight.w600,height:1.25))
+       ])),
+       Positioned(left:12,right:12,bottom:12,child:Row(children:[
+        _HeroRide('Bike','https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=700&q=88',session,onChanged),
+        _HeroRide('Auto','https://images.unsplash.com/photo-1626149637281-4e227308da18?auto=format&fit=crop&w=700&q=88',session,onChanged),
+        _HeroRide('Car','https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=700&q=88',session,onChanged),
+       ])),
+      ]),
+     ),
+    ),
+    const SizedBox(height:10),
+    InkWell(
+     onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,onChanged:onChanged))),
+     borderRadius:BorderRadius.circular(28),
+     child:Container(
+      padding:const EdgeInsets.symmetric(horizontal:15,vertical:13),
+      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(28),boxShadow:const[BoxShadow(color:Color(0x18000000),blurRadius:14,offset:Offset(0,5))]),
+      child:Row(children:[
+       Container(width:37,height:37,decoration:const BoxDecoration(color:Color(0xFFEAFBF2),shape:BoxShape.circle),child:const Icon(Icons.location_on_rounded,color:gfGreen,size:20)),
+       const SizedBox(width:10),
+       const Expanded(child:Text('Where are you going?',style:TextStyle(fontSize:14,fontWeight:FontWeight.w800,color:gfMuted))),
+       Container(width:37,height:37,decoration:const BoxDecoration(color:gfNavy,shape:BoxShape.circle),child:const Icon(Icons.my_location_rounded,color:Colors.white,size:18)),
+      ]),
+     ),
+    ),
+   ]),
+  );
+ }
 }
 class _HeroRide extends StatelessWidget{
- final String label,url;final Session session;final Future<void> Function({bool silent}) onChanged;
+ final String label,url; final Session session; final Future<void> Function({bool silent}) onChanged;
  const _HeroRide(this.label,this.url,this.session,this.onChanged);
- @override Widget build(BuildContext c)=>Expanded(child:Padding(padding:const EdgeInsets.symmetric(horizontal:4),child:InkWell(onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:label.toLowerCase(),onChanged:onChanged))),child:Container(height:70,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(16),boxShadow:const[BoxShadow(color:Color(0x30000000),blurRadius:8)]),child:Stack(children:[
-  ClipRRect(borderRadius:BorderRadius.circular(16),child:Image.network(url,fit:BoxFit.cover,width:double.infinity,height:70,errorBuilder:(_,__,___)=>const ColoredBox(color:Color(0xFFE8EEF5)))),
-  Positioned(left:0,right:0,bottom:0,child:Container(height:24,decoration:BoxDecoration(color:Colors.white.withOpacity(.94),borderRadius:const BorderRadius.vertical(bottom:Radius.circular(16))),child:Center(child:Text(label,style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy,fontSize:11)))))
- ]))));
+ @override Widget build(BuildContext c){
+  return Expanded(child:Padding(
+   padding:const EdgeInsets.symmetric(horizontal:4),
+   child:InkWell(
+    onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:label.toLowerCase(),onChanged:onChanged))),
+    child:Container(
+     height:70,
+     decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(16),boxShadow:const[BoxShadow(color:Color(0x30000000),blurRadius:8)]),
+     child:Stack(children:[
+      ClipRRect(borderRadius:BorderRadius.circular(16),child:Image.network(url,fit:BoxFit.cover,width:double.infinity,height:70,errorBuilder:(context,error,stack)=>const ColoredBox(color:Color(0xFFE8EEF5)))),
+      Positioned(left:0,right:0,bottom:0,child:Container(height:24,decoration:BoxDecoration(color:Colors.white.withValues(alpha:.94),borderRadius:const BorderRadius.vertical(bottom:Radius.circular(16))),child:Center(child:Text(label,style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy,fontSize:11))))),
+     ]),
+    ),
+   ),
+  ));
  }
 }
 
@@ -221,7 +254,7 @@ class _CustomerServicesTab extends StatelessWidget{
  final Session session;final Future<void> Function({bool silent}) onChanged;const _CustomerServicesTab({required this.session,required this.onChanged});
  @override Widget build(BuildContext c)=>ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
   const _PageHeading(title:'Services',subtitle:'Everything Gofixo can do for you.'),
-  const _Title(kicker:'RIDES',title:'Choose your ride'),const SizedBox(height:8),_RideTypeTiles(session:session,onChanged:onChanged),
+  const _Title(kicker:'RIDES',title:'Choose your ride'),const SizedBox(height:8),_RideTypeShowcase(session:session,onChanged:onChanged),
   const SizedBox(height:16),const _Title(kicker:'HOME SERVICES',title:'Book a professional'),const SizedBox(height:8),
   _Services(onTap:(t)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:t,onChanged:onChanged)))),
  ]);
@@ -280,13 +313,32 @@ class _ProviderHomeTab extends StatelessWidget{
  }
 }
 class _ProviderHeader extends StatelessWidget{
- final bool online;final VoidCallback? onOnline;const _ProviderHeader({required this.online,required this.onOnline});
- @override Widget build(BuildContext c)=>Container(color:Colors.white,padding:const EdgeInsets.fromLTRB(16,10,14,8),child:Row(children:[
-  Container(width:43,height:43,decoration:BoxDecoration(color:gfGreen,borderRadius:BorderRadius.circular(14)),child:const Icon(Icons.location_on_rounded,color:Colors.white,size:28)),
-  const SizedBox(width:9),const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('Gofixo',style:TextStyle(fontSize:25,fontWeight:FontWeight.w900,color:gfNavy)),Text('Partner · Earn with Gofixo',style:TextStyle(fontSize:9,color:gfMuted,fontWeight:FontWeight.w700))])),
-  GestureDetector(onTap:onOnline,child:AnimatedContainer(duration:const Duration(milliseconds:220),padding:const EdgeInsets.symmetric(horizontal:10,vertical:8),decoration:BoxDecoration(color:online?const Color(0xFFE0FAEA):const Color(0xFFF0F3F7),borderRadius:BorderRadius.circular(24)),child:Row(children:[Text(online?'Online':'Offline',style:TextStyle(fontSize:11,fontWeight:FontWeight.w900,color:online?gfGreen:gfMuted)),const SizedBox(width:6),Container(width:18,height:18,decoration:BoxDecoration(color:online?gfGreen:Colors.white,shape:BoxShape.circle))])))
- ]));
+ final bool online; final VoidCallback? onOnline;
+ const _ProviderHeader({required this.online,required this.onOnline});
+ @override Widget build(BuildContext c){
+  return Container(
+   color:Colors.white,padding:const EdgeInsets.fromLTRB(16,10,14,8),
+   child:Row(children:[
+    Container(width:43,height:43,decoration:BoxDecoration(color:gfGreen,borderRadius:BorderRadius.circular(14)),child:const Icon(Icons.location_on_rounded,color:Colors.white,size:28)),
+    const SizedBox(width:9),
+    const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+     Text('Gofixo',style:TextStyle(fontSize:25,fontWeight:FontWeight.w900,color:gfNavy)),
+     Text('Partner · Earn with Gofixo',style:TextStyle(fontSize:9,color:gfMuted,fontWeight:FontWeight.w700))
+    ])),
+    GestureDetector(onTap:onOnline,child:Container(
+     padding:const EdgeInsets.symmetric(horizontal:10,vertical:8),
+     decoration:BoxDecoration(color:online?const Color(0xFFE0FAEA):const Color(0xFFF0F3F7),borderRadius:BorderRadius.circular(24)),
+     child:Row(children:[
+      Text(online?'Online':'Offline',style:TextStyle(fontSize:11,fontWeight:FontWeight.w900,color:online?gfGreen:gfMuted)),
+      const SizedBox(width:6),
+      Container(width:18,height:18,decoration:BoxDecoration(color:online?gfGreen:Colors.white,shape:BoxShape.circle)),
+     ]),
+    )),
+   ]),
+  );
+ }
 }
+
 class _ProviderMiniMap extends StatelessWidget{
  final Map<String,dynamic>b;const _ProviderMiniMap({required this.b});
  @override Widget build(BuildContext c){
@@ -304,15 +356,6 @@ class _ProviderMiniMap extends StatelessWidget{
 class _ProviderOnlineBanner extends StatelessWidget{
  final bool online;final VoidCallback? onTap;const _ProviderOnlineBanner({required this.online,required this.onTap});
  @override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.fromLTRB(14,12,10,12),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(18),border:Border.all(color:gfLine)),child:Row(children:[Container(width:10,height:10,decoration:BoxDecoration(color:online?gfGreen:Colors.redAccent,shape:BoxShape.circle)),const SizedBox(width:9),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(online?'You are Online':'You are Offline',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),Text(online?'Getting ride requests nearby':'Go online to receive nearby jobs',style:const TextStyle(fontSize:9,color:gfMuted))])),FilledButton(onPressed:onTap,style:FilledButton.styleFrom(backgroundColor:online?Colors.redAccent:gfGreen),child:Text(online?'Go Offline':'Go Online'))]));
-}
-
-class _ProviderHeader extends StatelessWidget{
- final bool online;final VoidCallback? onOnline;const _ProviderHeader({required this.online,required this.onOnline});
- @override Widget build(BuildContext c)=>Container(color:Colors.white,padding:const EdgeInsets.fromLTRB(14,12,12,10),child:Row(children:[
-  Container(width:42,height:42,decoration:BoxDecoration(color:gfGreen,borderRadius:BorderRadius.circular(14)),child:const Icon(Icons.handyman_rounded,color:Colors.white)),const SizedBox(width:9),
-  const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('Gofixo Partner',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,color:gfNavy)),Text('Earn with rides & home services',style:TextStyle(fontSize:8,color:gfMuted))])),
-  GestureDetector(onTap:onOnline,child:Container(padding:const EdgeInsets.symmetric(horizontal:11,vertical:8),decoration:BoxDecoration(color:online?const Color(0xFFDFF9E9):const Color(0xFFEFF2F6),borderRadius:BorderRadius.circular(30)),child:Text(online?'Online':'Offline',style:TextStyle(fontSize:11,fontWeight:FontWeight.w900,color:online?gfGreen:gfMuted))))
- ]));
 }
 
 class _ProviderJobsTab extends StatelessWidget{
