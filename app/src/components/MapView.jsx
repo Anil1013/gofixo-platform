@@ -102,7 +102,7 @@ export default function MapView({ markers = [], line = null, height = 200, dragg
 
       const safeLine = normalizeLine(line);
       if (safeLine.length > 1) {
-        L.polyline(safeLine, { color: '#8B5CF6', weight: 5, opacity: 0.85 }).addTo(group);
+        L.polyline(safeLine, { color: '#16A34A', weight: 5, opacity: 0.85 }).addTo(group);
         safeLine.forEach((p) => points.push(p));
       }
 
