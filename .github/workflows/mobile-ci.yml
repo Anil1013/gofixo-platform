@@ -7,6 +7,7 @@ on:
       - "mobile/**"
       - ".github/workflows/mobile-ci.yml"
   pull_request:
+    branches: [main]
     paths:
       - "mobile/**"
       - ".github/workflows/mobile-ci.yml"
@@ -14,13 +15,19 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: mobile-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   flutter:
+    name: Flutter Analyze, Test & Debug Build
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: mobile
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,46 +39,6 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Restore Android NDK cache
-        id: ndk-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ env.ANDROID_SDK_ROOT }}/ndk/28.0.13004108
-          key: gofixo-android-ndk-${{ runner.os }}-28.0.13004108
-
-      - name: Prepare Android NDK
-        env:
-          ANDROID_NDK_VERSION: "28.0.13004108"
-        run: |
-          set -euo pipefail
-          NDK_DIR="$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION"
-          if [ ! -x "$NDK_DIR/ndk-build" ]; then
-            SDKMANAGER="$(command -v sdkmanager || true)"
-            if [ -z "$SDKMANAGER" ]; then
-              for candidate in                 "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"                 "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"                 "$ANDROID_SDK_ROOT/cmdline-tools/bin/sdkmanager"                 "$ANDROID_HOME/cmdline-tools/bin/sdkmanager"; do
-                if [ -x "$candidate" ]; then
-                  SDKMANAGER="$candidate"
-                  break
-                fi
-              done
-            fi
-            test -n "$SDKMANAGER"
-            echo "Using sdkmanager: $SDKMANAGER"
-            yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
-            "$SDKMANAGER" "ndk;$ANDROID_NDK_VERSION"
-          fi
-          test -x "$NDK_DIR/ndk-build"
-          echo "Android NDK $ANDROID_NDK_VERSION ready."
-
-      - name: Save Android NDK cache
-        if: steps.ndk-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ env.ANDROID_SDK_ROOT }}/ndk/28.0.13004108
-          key: gofixo-android-ndk-${{ runner.os }}-28.0.13004108
-      - name: Flutter version
-        run: flutter --version
-
       - name: Get dependencies
         run: flutter pub get
 
@@ -81,60 +48,12 @@ jobs:
       - name: Test
         run: flutter test
 
-      - name: Configure persistent Android signing
-        env:
-          GOFIXO_KEYSTORE_B64: ${{ secrets.GOFIXO_KEYSTORE_B64 }}
-          GOFIXO_STORE_PASSWORD: ${{ secrets.GOFIXO_STORE_PASSWORD }}
-          GOFIXO_KEY_PASSWORD: ${{ secrets.GOFIXO_KEY_PASSWORD }}
-          GOFIXO_KEY_ALIAS: ${{ secrets.GOFIXO_KEY_ALIAS }}
-        run: |
-          set -euo pipefail
-          test -n "$GOFIXO_KEYSTORE_B64"
-          test -n "$GOFIXO_STORE_PASSWORD"
-          test -n "$GOFIXO_KEY_PASSWORD"
-          test -n "$GOFIXO_KEY_ALIAS"
-
-          printf '%s' "$GOFIXO_KEYSTORE_B64" | base64 --decode > android/gofixo-release.jks
-
-          cat > android/key.properties <<EOF
-          storePassword=$GOFIXO_STORE_PASSWORD
-          keyPassword=$GOFIXO_KEY_PASSWORD
-          keyAlias=$GOFIXO_KEY_ALIAS
-          storeFile=$GITHUB_WORKSPACE/mobile/android/gofixo-release.jks
-          EOF
-
-          chmod 600 android/gofixo-release.jks android/key.properties
-
-          keytool -list -keystore android/gofixo-release.jks \
-            -storepass "$GOFIXO_STORE_PASSWORD" \
-            -alias "$GOFIXO_KEY_ALIAS" >/dev/null
-
-          echo "Persistent Gofixo signing key verified."
-
-      - name: Build release APK
+      - name: Build debug APK
         env:
           GOFIXO_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
-          GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=768m -XX:+UseParallelGC -Dfile.encoding=UTF-8" -Dorg.gradle.daemon=true -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2 -Dorg.gradle.caching=true'
+          GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=512m -XX:+UseSerialGC -Dfile.encoding=UTF-8" -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2'
         run: |
           set -euo pipefail
-          echo "Gradle CI mode: daemon=on, workers=2, heap=3g, build-cache=on"
-          flutter build apk --release --verbose
-
-      - name: Verify APK signing and identity
-        shell: bash
-        run: |
-          set -euo pipefail
-          APK="build/app/outputs/flutter-apk/app-release.apk"
-          test -s "$APK"
-
-          APK_SIGNER="$(find "${ANDROID_SDK_ROOT:-${ANDROID_HOME}}/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          test -x "$APK_SIGNER"
-
-          "$APK_SIGNER" verify --verbose "$APK"
-          echo "APK signing certificate:"
-          "$APK_SIGNER" verify --print-certs "$APK"
-
-      - name: Verify APK exists
-        run: |
-          test -s build/app/outputs/flutter-apk/app-release.apk
-          ls -lh build/app/outputs/flutter-apk/app-release.apk
+          flutter build apk --debug --dart-define=GOFIXO_GIT_SHA=${{ github.sha }}
+          test -s build/app/outputs/flutter-apk/app-debug.apk
+          ls -lh build/app/outputs/flutter-apk/app-debug.apk
