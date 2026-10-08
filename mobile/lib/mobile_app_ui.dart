@@ -8,6 +8,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:file_picker/file_picker.dart';
 import 'api_service.dart';
 
 const gfOrange=Color(0xFF12B85F),gfNavy=Color(0xFF10213F),gfMuted=Color(0xFF728097),gfBg=Color(0xFFF4F7FB),gfLine=Color(0xFFE4E9F1),gfGreen=Color(0xFF12B85F);
@@ -98,7 +99,7 @@ class _ReferenceProviderHomeState extends State<ReferenceProviderHome>{
    _ProviderHomeTab(session:widget.session,me:me??{},jobs:jobs,onChanged:load,onOnline:busy?null:toggle),
    _ProviderJobsTab(session:widget.session,jobs:jobs,onChanged:load),
    _ProviderEarningsTab(me:me??{},jobs:jobs),
-   _ProviderServicesTab(me:me??{}),
+   _ProviderServicesTab(session:widget.session,me:me??{}),
    _ProviderProfileTab(session:widget.session,me:me??{},onLogout:widget.onLogout),
   ];
   return Scaffold(backgroundColor:gfBg,body:SafeArea(child:IndexedStack(index:tab,children:pages)),bottomNavigationBar:NavigationBar(
@@ -497,17 +498,148 @@ class _ProviderEarningsTab extends StatelessWidget{
  }
 }
 
-class _ProviderServicesTab extends StatelessWidget{
- final Map<String,dynamic> me;const _ProviderServicesTab({required this.me});
- @override Widget build(BuildContext c){
-  final type=(me['type']?.toString()??'partner').replaceAll('_',' ');final approved=me['kyc_status']?.toString()=='approved';
-  return ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
-   const _PageHeading(title:'Services',subtitle:'Your Gofixo service eligibility.'),
-   _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('SERVICE TYPE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),const SizedBox(height:5),Text(type.toUpperCase(),style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:gfNavy)),const SizedBox(height:8),Text(approved?'KYC approved — eligible for matching.':'KYC pending — approval is required before going online.',style:TextStyle(fontSize:11,color:approved?gfGreen:gfMuted,fontWeight:FontWeight.w700))])),
-   const SizedBox(height:12),_ServiceInfo(title:'Rides',icon:Icons.local_taxi_rounded,enabled:type=='bike'||type=='auto'||type=='car'),_ServiceInfo(title:'Home services',icon:Icons.handyman_rounded,enabled:type.contains('worker')),_ServiceInfo(title:'Nearby matching',icon:Icons.radar_rounded,enabled:approved),
-   const SizedBox(height:12),const _Box(child:Text('Keep your location fresh and subscription active to receive nearby jobs.',style:TextStyle(fontSize:11,color:gfMuted)))
-  ]);
- }
+class _ProviderServicesTab extends StatefulWidget{
+  final Session session;
+  final Map<String,dynamic> me;
+  const _ProviderServicesTab({required this.session,required this.me});
+  @override State<_ProviderServicesTab> createState()=>_ProviderServicesTabState();
+}
+class _ProviderServicesTabState extends State<_ProviderServicesTab>{
+  List<Map<String,dynamic>> plans=[];
+  Map<String,dynamic>? subscription;
+  bool loading=true,working=false;
+  @override void initState(){super.initState();_load();}
+  Future<void> _load()async{
+    try{
+      final all=await ApiService.plans();
+      final type=widget.me['type']?.toString()??'';
+      final id=int.tryParse(widget.me['id']?.toString()??'')??0;
+      final current=await ApiService.subscription(widget.session.token,id);
+      if(mounted)setState((){
+        plans=all.where((p)=>p['provider_type']?.toString()==type).toList();
+        subscription=current;
+        loading=false;
+      });
+    }catch(_){if(mounted)setState(()=>loading=false);}
+  }
+  Future<void> _subscribe(Map<String,dynamic> plan)async{
+    final id=int.tryParse(plan['id']?.toString()??'');
+    if(id==null||working)return;
+    setState(()=>working=true);
+    try{
+      await ApiService.subscribe(widget.session.token,id);
+      await _load();
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Plan activated. You can now go online.')));
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception:','').trim())));
+    }finally{if(mounted)setState(()=>working=false);}
+  }
+  Future<void> _upload(String docType)async{
+    final providerId=int.tryParse(widget.me['id']?.toString()??'');
+    if(providerId==null||working)return;
+    final picked=await FilePicker.platform.pickFiles(type:FileType.custom,allowedExtensions:const['jpg','jpeg','png','webp','pdf']);
+    if(picked==null||picked.files.single.path==null)return;
+    setState(()=>working=true);
+    try{
+      await ApiService.uploadProviderDocument(widget.session.token,providerId,docType,picked.files.single.path!);
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('${docType.replaceAll('_',' ')} uploaded.')));
+      await _load();
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception:','').trim())));
+    }finally{if(mounted)setState(()=>working=false);}
+  }
+  Widget _docButton(String type,String label,Set<String>uploaded)=>Expanded(
+    child:OutlinedButton.icon(
+      onPressed:working?null:()=>_upload(type),
+      icon:Icon(uploaded.contains(type)?Icons.check_circle:Icons.upload_file_rounded,size:17),
+      label:Text(uploaded.contains(type)?'$label ✓':label,maxLines:1,overflow:TextOverflow.ellipsis),
+    ),
+  );
+  @override Widget build(BuildContext c){
+    final type=widget.me['type']?.toString()??'partner';
+    final approved=widget.me['kyc_status']?.toString()=='approved';
+    final uploaded=((widget.me['documents'] as List?)??const[]).whereType<Map>().map((x)=>x['doc_type']?.toString()).whereType<String>().toSet();
+    final worker=type=='general_worker'||type=='skilled_worker';
+    final driver=type=='bike'||type=='auto'||type=='car';
+    return ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
+      const _PageHeading(title:'Services',subtitle:'Manage your Gofixo work, verification and earning plan.'),
+      _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        const Text('YOUR SERVICES',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
+        const SizedBox(height:5),
+        Text(type.replaceAll('_',' ').toUpperCase(),style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:gfNavy)),
+        const SizedBox(height:8),
+        if(worker&&widget.me['service_categories'] is List)
+          Text((widget.me['service_categories'] as List).map((x)=>x.toString().replaceAll('_',' ')).join(' · ').toUpperCase(),style:const TextStyle(fontSize:10,color:gfMuted,fontWeight:FontWeight.w700)),
+        const SizedBox(height:8),
+        Text(approved?'KYC approved — eligible for matching.':'KYC pending — upload documents and wait for approval.',style:TextStyle(fontSize:11,color:approved?gfGreen:gfMuted,fontWeight:FontWeight.w700)),
+      ])),
+      const SizedBox(height:12),
+      _ServiceInfo(title:'Rides',icon:Icons.local_taxi_rounded,enabled:driver),
+      _ServiceInfo(title:'Home services',icon:Icons.handyman_rounded,enabled:worker),
+      _ServiceInfo(title:'Nearby matching',icon:Icons.radar_rounded,enabled:approved),
+      const SizedBox(height:12),
+      _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        const Text('KYC DOCUMENTS',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
+        const SizedBox(height:6),
+        Text(uploaded.isEmpty?'Upload the documents requested by Gofixo.':'Uploaded: '+uploaded.map((x)=>x.replaceAll('_',' ')).join(', '),style:const TextStyle(fontSize:11,color:gfMuted)),
+        const SizedBox(height:10),
+        Row(children:[
+          _docButton('aadhar_front','Aadhaar front',uploaded),
+          const SizedBox(width:7),
+          _docButton('aadhar_back','Aadhaar back',uploaded),
+        ]),
+        const SizedBox(height:7),
+        Row(children:[
+          if(driver)...[
+            _docButton('driving_license','Driving licence',uploaded),
+            const SizedBox(width:7),
+            _docButton('vehicle_rc','Vehicle RC',uploaded),
+          ]else...[
+            _docButton('police_verification','Police verification',uploaded),
+            const SizedBox(width:7),
+            _docButton('profile_photo','Profile photo',uploaded),
+          ],
+        ]),
+        if(driver)...[
+          const SizedBox(height:7),
+          Row(children:[
+            _docButton('vehicle_photo_front','Vehicle front',uploaded),
+            const SizedBox(width:7),
+            _docButton('vehicle_photo_back','Vehicle back',uploaded),
+          ]),
+        ],
+      ])),
+      const SizedBox(height:12),
+      _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        const Text('EARNING PLAN',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
+        const SizedBox(height:6),
+        if(loading)const LinearProgressIndicator(minHeight:2),
+        if(!loading&&subscription!=null)...[
+          Text(subscription!['plan_name']?.toString()??'Active plan',style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy)),
+          const SizedBox(height:4),
+          Text('Earned ₹'+(subscription!['total_earned_this_cycle']??0).toString()+' · Cap ₹'+(subscription!['earning_cap']??'—').toString(),style:const TextStyle(fontSize:11,color:gfMuted)),
+          Text('Expires '+(subscription!['expiry_date']?.toString().split('T').first??'—'),style:const TextStyle(fontSize:10,color:gfMuted)),
+        ] else if(!loading)...[
+          const Text('Choose a plan to start receiving jobs.',style:TextStyle(fontSize:11,color:gfMuted)),
+          const SizedBox(height:8),
+          ...plans.map((p)=>Container(
+            margin:const EdgeInsets.only(bottom:7),
+            padding:const EdgeInsets.all(11),
+            decoration:BoxDecoration(color:gfBg,borderRadius:BorderRadius.circular(15)),
+            child:Row(children:[
+              Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                Text(p['plan_name']?.toString()??'Plan',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
+                Text('₹'+(p['fee']??0).toString()+' · '+(p['validity_days']??0).toString()+' days · earning cap ₹'+(p['earning_cap']??'—').toString(),style:const TextStyle(fontSize:10,color:gfMuted)),
+              ])),
+              FilledButton(onPressed:working?null:()=>_subscribe(p),style:FilledButton.styleFrom(backgroundColor:gfGreen),child:const Text('Activate')),
+            ]),
+          )),
+        ],
+      ])),
+      const SizedBox(height:10),
+      const _Box(child:Text('KYC approval + an active earning plan + fresh location are required before Gofixo can match nearby jobs.',style:TextStyle(fontSize:11,color:gfMuted))),
+    ]);
+  }
 }
 
 class _ServiceInfo extends StatelessWidget{
@@ -896,22 +1028,26 @@ class _MapControl extends StatelessWidget{
 }
 class _Partner extends StatelessWidget{final Map<String,dynamic>m;const _Partner({required this.m});@override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(22)),child:Row(children:[Container(width:58,height:58,padding:const EdgeInsets.all(4),decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEFFFF5)),child:ClipOval(child:Image.network('https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=85',fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Icon(Icons.person,color:gfGreen,size:34)))),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('PARTNER PROFILE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),Text(m['name']?.toString()??'Partner',style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900,color:gfNavy)),Text((m['type']?.toString()??'partner').replaceAll('_',' ')+' · '+(m['generated_id']?.toString()??''),style:const TextStyle(fontSize:11,color:gfMuted))])),const Icon(Icons.chevron_right,color:gfMuted)]));}
 class _Services extends StatelessWidget{
- final void Function(String type,String category,String label) onTap;
- const _Services({required this.onTap});
- @override Widget build(BuildContext c)=>GridView.count(
-   crossAxisCount:4,crossAxisSpacing:7,mainAxisSpacing:9,childAspectRatio:.72,
-   shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),
-   children:[
-    _Service('https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=500&q=80','Electrician',()=>onTap('skilled_worker','electrician','Electrician')),
-    _Service('https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=500&q=80','Plumber',()=>onTap('skilled_worker','plumber','Plumber')),
-    _Service('https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=500&q=80','AC Service',()=>onTap('skilled_worker','ac_service','AC Service')),
-    _Service('https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=500&q=80','Cleaning',()=>onTap('general_worker','cleaning','Cleaning')),
-    _Service('https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=500&q=80','Painter',()=>onTap('skilled_worker','painter','Painter')),
-    _Service('https://images.unsplash.com/photo-1601058268499-e52658a84c9d?auto=format&fit=crop&w=500&q=80','Carpenter',()=>onTap('skilled_worker','carpenter','Carpenter')),
-    _Service('https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=500&q=80','Appliance Repair',()=>onTap('skilled_worker','appliance_repair','Appliance Repair')),
-    _Service('https://images.unsplash.com/photo-1521791055366-0d553872125f?auto=format&fit=crop&w=500&q=80','More Services',()=>onTap('general_worker','other','Other')),
-   ],
- );
+  final void Function(String type,String category,String label) onTap;
+  const _Services({required this.onTap});
+  static const _items=[
+    ('skilled_worker','electrician','Electrician','https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=500&q=80'),
+    ('skilled_worker','plumber','Plumber','https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=500&q=80'),
+    ('skilled_worker','ac_service','AC Service','https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=500&q=80'),
+    ('general_worker','cleaning','Cleaning','https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=500&q=80'),
+    ('skilled_worker','painter','Painter','https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=500&q=80'),
+    ('skilled_worker','carpenter','Carpenter','https://images.unsplash.com/photo-1601058268499-e52658a84c9d?auto=format&fit=crop&w=500&q=80'),
+    ('skilled_worker','appliance_repair','Appliance Repair','https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=500&q=80'),
+    ('general_worker','pest_control','Pest Control','https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=500&q=80'),
+    ('general_worker','packers_movers','Packers & Movers','https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=500&q=80'),
+    ('general_worker','salon_beauty','Salon & Beauty','https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=500&q=80'),
+    ('general_worker','other','Other','https://images.unsplash.com/photo-1521791055366-0d553872125f?auto=format&fit=crop&w=500&q=80'),
+  ];
+  @override Widget build(BuildContext c)=>GridView.count(
+    crossAxisCount:4,crossAxisSpacing:7,mainAxisSpacing:9,childAspectRatio:.72,
+    shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),
+    children:_items.map((item)=>_Service(item.$4,item.$3,()=>onTap(item.$1,item.$2,item.$3))).toList(),
+  );
 }
 class _Service extends StatelessWidget {
   final String url;
