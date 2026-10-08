@@ -229,6 +229,8 @@ class _CustomerHero extends StatelessWidget{
    ]),
   );
 }
+}
+
 class _HeroRide extends StatelessWidget{
  final String label,url; final Session session; final Future<void> Function({bool silent}) onChanged;
  const _HeroRide(this.label,this.url,this.session,this.onChanged);
