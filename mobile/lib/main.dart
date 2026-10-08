@@ -56,21 +56,29 @@ class RoleScreen extends StatelessWidget {
   final VoidCallback onLogin;
   const RoleScreen({super.key, required this.onLogin});
 
+  static const _heroImage =
+      'https://images.unsplash.com/photo-1647539989255-ac2634cc8c92?auto=format&fit=crop&w=1400&q=82';
+  static const _customerImage =
+      'https://images.unsplash.com/photo-1662499840736-0178ce197a70?auto=format&fit=crop&w=1200&q=82';
+  static const _partnerImage =
+      'https://images.unsplash.com/photo-1647539989255-ac2634cc8c92?auto=format&fit=crop&w=1200&q=82';
+  static const _serviceImage =
+      'https://images.unsplash.com/photo-1747110594869-789610507597?auto=format&fit=crop&w=1200&q=82';
+
   void _openAuth(BuildContext context, String role) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => Auth(role: role, onDone: onLogin),
-      ),
+      MaterialPageRoute(builder: (_) => Auth(role: role, onDone: onLogin)),
     );
   }
 
   @override
   Widget build(BuildContext c) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FB),
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
         elevation: 0,
         title: const Text(
           'Gofixo',
@@ -82,84 +90,58 @@ class RoleScreen extends StatelessWidget {
               c,
               MaterialPageRoute(builder: (_) => const AppInfoPage()),
             ),
-            icon: const Icon(Icons.settings_outlined),
+            icon: const Icon(Icons.settings_outlined, color: navy),
           ),
         ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 28),
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 30),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(18, 18, 10, 12),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF12B85F), Color(0xFF0A9F50)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(26),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Gofixo',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 30,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Rides & services, right at your doorstep.',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          FilledButton(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: orange,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 12,
-                              ),
-                            ),
-                            onPressed: () => _openAuth(c, 'customer'),
-                            child: const Text(
-                              'Book a ride',
-                              style: TextStyle(fontWeight: FontWeight.w800),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(
-                      width: 115,
-                      height: 115,
-                      child: Icon(
-                        Icons.directions_car_filled,
-                        color: Colors.white,
-                        size: 76,
-                      ),
-                    ),
-                  ],
+              _PhotoHero(
+                imageUrl: _heroImage,
+                title: 'Move. Live. Get things done.',
+                subtitle: 'Rides and trusted home services, right when you need them.',
+                button: 'Book a ride',
+                onTap: () => _openAuth(c, 'customer'),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'What do you need today?',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: navy,
                 ),
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 5),
               const Text(
-                'How do you want to use Gofixo?',
+                'Choose your Gofixo experience',
+                style: TextStyle(fontSize: 13, color: muted),
+              ),
+              const SizedBox(height: 12),
+              _RolePhotoCard(
+                imageUrl: _customerImage,
+                title: 'Book rides & services',
+                subtitle: 'Bike, Auto, Car and reliable home services.',
+                button: 'Continue as Customer',
+                icon: Icons.directions_car_rounded,
+                onTap: () => _openAuth(c, 'customer'),
+              ),
+              const SizedBox(height: 12),
+              _RolePhotoCard(
+                imageUrl: _partnerImage,
+                title: 'Earn with Gofixo',
+                subtitle: 'Drive, deliver or offer your professional services.',
+                button: 'Continue as Partner',
+                icon: Icons.handshake_rounded,
+                onTap: () => _openAuth(c, 'provider'),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Home services',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
@@ -167,40 +149,11 @@ class RoleScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _AccessCard(
-                      icon: Icons.directions_car_rounded,
-                      title: 'Ride & Services',
-                      subtitle: 'Book rides, delivery & home services',
-                      action: 'Continue',
-                      onTap: () => _openAuth(c, 'customer'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _AccessCard(
-                      icon: Icons.handshake_rounded,
-                      title: 'Work & Earn',
-                      subtitle: 'Drive, deliver or offer services',
-                      action: 'Continue',
-                      onTap: () => _openAuth(c, 'provider'),
-                    ),
-                  ),
-                ],
+              _ServicePhotoStrip(
+                imageUrl: _serviceImage,
+                onTap: () => _openAuth(c, 'customer'),
               ),
-              const SizedBox(height: 22),
-              const Text(
-                'Popular home services',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: navy,
-                ),
-              ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -214,24 +167,254 @@ class RoleScreen extends StatelessWidget {
                 ]
                     .map(
                       (x) => Chip(
-                        avatar: const Icon(
-                          Icons.handyman_outlined,
-                          size: 17,
-                        ),
+                        avatar: const Icon(Icons.handyman_outlined, size: 17),
                         label: Text(x),
                       ),
                     )
                     .toList(),
               ),
-              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PhotoHero extends StatelessWidget {
+  final String imageUrl;
+  final String title;
+  final String subtitle;
+  final String button;
+  final VoidCallback onTap;
+
+  const _PhotoHero({
+    required this.imageUrl,
+    required this.title,
+    required this.subtitle,
+    required this.button,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext c) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(26),
+      child: SizedBox(
+        height: 245,
+        width: double.infinity,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _NetworkPhoto(imageUrl: imageUrl, icon: Icons.directions_car_filled),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xDD061B2E), Color(0x5212B85F), Color(0xAA061B2E)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const Text(
+                    'GOFIXO',
+                    style: TextStyle(
+                      color: Color(0xFF7CFFB1),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      height: 1.05,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      height: 1.3,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: orange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    ),
+                    onPressed: onTap,
+                    child: Text(button, style: const TextStyle(fontWeight: FontWeight.w900)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RolePhotoCard extends StatelessWidget {
+  final String imageUrl;
+  final String title;
+  final String subtitle;
+  final String button;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _RolePhotoCard({
+    required this.imageUrl,
+    required this.title,
+    required this.subtitle,
+    required this.button,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext c) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(22),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: 166,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _NetworkPhoto(imageUrl: imageUrl, icon: icon),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xF0091A2D), Color(0x90102B3F), Color(0x22102B3F)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: const BoxDecoration(
+                            color: Color(0xDDFFFFFF),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(icon, color: orange, size: 21),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 19,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        height: 1.25,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      button,
+                      style: const TextStyle(
+                        color: Color(0xFF7CFFB1),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ServicePhotoStrip extends StatelessWidget {
+  final String imageUrl;
+  final VoidCallback onTap;
+
+  const _ServicePhotoStrip({required this.imageUrl, required this.onTap});
+
+  @override
+  Widget build(BuildContext c) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: 128,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _NetworkPhoto(imageUrl: imageUrl, icon: Icons.handyman_rounded),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xDD10213F), Color(0x4410213F)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                ),
+              ),
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 2),
-                child: Text(
-                  'New here? Choose an option above. You can log in or create your account on the next screen.',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: muted,
-                    height: 1.35,
+                padding: EdgeInsets.all(16),
+                child: Align(
+                  alignment: Alignment.bottomLeft,
+                  child: Text(
+                    'Trusted help at home',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
               ),
@@ -243,91 +426,38 @@ class RoleScreen extends StatelessWidget {
   }
 }
 
-class _AccessCard extends StatelessWidget {
+class _NetworkPhoto extends StatelessWidget {
+  final String imageUrl;
   final IconData icon;
-  final String title;
-  final String subtitle;
-  final String action;
-  final VoidCallback onTap;
 
-  const _AccessCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.action,
-    required this.onTap,
-  });
+  const _NetworkPhoto({required this.imageUrl, required this.icon});
 
   @override
   Widget build(BuildContext c) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(22),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 172),
-          padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFE4E9F1)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0F10213F),
-                blurRadius: 12,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFEFFFF5),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: orange, size: 26),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  color: navy,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 10,
-                  height: 1.3,
-                  color: muted,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                action,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  color: orange,
-                ),
-              ),
-            ],
-          ),
-        ),
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Container(
+        color: const Color(0xFFE8EEF2),
+        alignment: Alignment.center,
+        child: Icon(icon, color: orange, size: 64),
       ),
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return Container(
+          color: const Color(0xFFE8EEF2),
+          alignment: Alignment.center,
+          child: const SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        );
+      },
     );
   }
 }
+
 class Auth extends StatefulWidget{
  final String role;final VoidCallback onDone;
  const Auth({super.key,required this.role,required this.onDone});
