@@ -498,3 +498,32 @@ nav { display: flex; flex-direction: column; gap: 2px; }
   .document-viewer-backdrop { padding: 8px; }
   .document-viewer { width: 100%; height: 92vh; border-radius: 10px; }
 }
+
+
+.provider-specialty-chip {
+  display: inline-block;
+  max-width: 150px;
+  margin: 2px 3px 2px 0;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #EAF8F1;
+  color: #0D8F50;
+  border: 1px solid #CFE9DC;
+  font-size: 10px;
+  line-height: 1.2;
+  text-transform: capitalize;
+}
+
+.data-table {
+  min-width: 920px;
+}
+
+@media (max-width: 640px) {
+  .content {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .data-table {
+    min-width: 820px;
+  }
+}
