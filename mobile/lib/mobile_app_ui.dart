@@ -378,17 +378,65 @@ class _ProviderHeader extends StatelessWidget{
  }
 }
 
-class _ProviderMiniMap extends StatelessWidget{
+class _ProviderMiniMap extends StatefulWidget{
  final Map<String,dynamic>b;const _ProviderMiniMap({required this.b});
+ @override State<_ProviderMiniMap> createState()=>_ProviderMiniMapState();
+}
+class _ProviderMiniMapState extends State<_ProviderMiniMap>{
+ GoogleMapController? controller;
+ bool touched=false;
+ LatLng? pickup;
+ LatLng? destination;
+
  @override Widget build(BuildContext c){
-  final pLat=double.tryParse((b['pickup_lat']??b['pickup_latitude'])?.toString()??'')??28.4595;
-  final pLng=double.tryParse((b['pickup_lng']??b['pickup_longitude'])?.toString()??'')??77.0266;
-  final dLat=double.tryParse((b['drop_lat']??b['drop_latitude'])?.toString()??'')??pLat+.018;
-  final dLng=double.tryParse((b['drop_lng']??b['drop_longitude'])?.toString()??'')??pLng+.022;
-  final center=LatLng((pLat+dLat)/2,(pLng+dLng)/2);
+  final pLat=double.tryParse((widget.b['pickup_lat']??widget.b['pickup_latitude'])?.toString()??'');
+  final pLng=double.tryParse((widget.b['pickup_lng']??widget.b['pickup_longitude'])?.toString()??'');
+  final dLat=double.tryParse((widget.b['drop_lat']??widget.b['drop_latitude'])?.toString()??'');
+  final dLng=double.tryParse((widget.b['drop_lng']??widget.b['drop_longitude'])?.toString()??'');
+  pickup=(pLat!=null&&pLng!=null)?LatLng(pLat,pLng):null;
+  destination=(dLat!=null&&dLng!=null)?LatLng(dLat,dLng):null;
+  final center=pickup??destination??const LatLng(28.6139,77.2090);
+  final points=<LatLng>[if(pickup!=null)pickup!,if(destination!=null)destination!];
+
+  Future<void> fit() async {
+   if(controller==null||points.isEmpty)return;
+   try{
+    if(points.length==1){
+     await controller!.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target:points.first,zoom:16)));
+    }else{
+     var minLat=points.first.latitude,maxLat=points.first.latitude,minLng=points.first.longitude,maxLng=points.first.longitude;
+     for(final p in points.skip(1)){minLat=min(minLat,p.latitude);maxLat=max(maxLat,p.latitude);minLng=min(minLng,p.longitude);maxLng=max(maxLng,p.longitude);}
+     final latPad=(maxLat-minLat).abs()*0.12,lngPad=(maxLng-minLng).abs()*0.12;
+     await controller!.animateCamera(CameraUpdate.newLatLngBounds(LatLngBounds(
+       southwest:LatLng(minLat-latPad,minLng-lngPad),northeast:LatLng(maxLat+latPad,maxLng+lngPad)),70));
+    }
+   }catch(_){}
+  }
+
   return ClipRRect(borderRadius:BorderRadius.circular(22),child:SizedBox(height:245,child:Stack(children:[
-   GoogleMap(initialCameraPosition:CameraPosition(target:center,zoom:13.8),markers:{Marker(markerId:const MarkerId('pickup'),position:LatLng(pLat,pLng),infoWindow:const InfoWindow(title:'Customer Pickup')),Marker(markerId:const MarkerId('destination'),position:LatLng(dLat,dLng),infoWindow:const InfoWindow(title:'Destination'))},polylines:{Polyline(polylineId:const PolylineId('preview'),points:[LatLng(pLat,pLng),center,LatLng(dLat,dLng)],width:5,color:gfGreen)},zoomControlsEnabled:false,myLocationButtonEnabled:false,compassEnabled:false),
-   Positioned(left:12,right:12,top:12,child:Container(padding:const EdgeInsets.all(11),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(15),boxShadow:const[BoxShadow(color:Color(0x22000000),blurRadius:10)]),child:Row(children:[const Icon(Icons.navigation_rounded,color:gfGreen,size:20),const SizedBox(width:8),Expanded(child:Text(b['pickup_location']?.toString()??'Customer pickup',maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy))),Text((b['distance_km']??'').toString()+' km',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy))]))),
+   GoogleMap(
+    initialCameraPosition:CameraPosition(target:center,zoom:13.8),
+    onMapCreated:(m){controller=m;WidgetsBinding.instance.addPostFrameCallback((_)=>fit());},
+    onCameraMoveStarted:(){touched=true;},
+    gestureRecognizers:<Factory<OneSequenceGestureRecognizer>>{
+      Factory<OneSequenceGestureRecognizer>(()=>EagerGestureRecognizer()),
+    },
+    rotateGesturesEnabled:true,tiltGesturesEnabled:true,scrollGesturesEnabled:true,zoomGesturesEnabled:true,
+    markers:{
+      if(pickup!=null)Marker(markerId:const MarkerId('pickup'),position:pickup!,infoWindow:const InfoWindow(title:'Customer Pickup')),
+      if(destination!=null)Marker(markerId:const MarkerId('destination'),position:destination!,infoWindow:const InfoWindow(title:'Destination')),
+    },
+    polylines:{
+      if(pickup!=null&&destination!=null)Polyline(polylineId:const PolylineId('preview'),points:[pickup!,destination!],width:5,color:gfGreen),
+    },
+    zoomControlsEnabled:false,myLocationButtonEnabled:false,compassEnabled:true,
+   ),
+   Positioned(left:12,right:12,top:12,child:Container(padding:const EdgeInsets.all(11),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(15),boxShadow:const[BoxShadow(color:Color(0x22000000),blurRadius:10)]),child:Row(children:[
+    const Icon(Icons.navigation_rounded,color:gfGreen,size:20),const SizedBox(width:8),
+    Expanded(child:Text(widget.b['pickup_location']?.toString()??'Customer pickup',maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy))),
+    Text((widget.b['distance_km']??'').toString()+' km',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy))
+   ]))),
+   Positioned(right:12,bottom:12,child:GestureDetector(onTap:()=>fit(),child:Container(width:40,height:40,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(13),boxShadow:const[BoxShadow(color:Color(0x22000000),blurRadius:8)]),child:const Icon(Icons.fit_screen,color:gfGreen,size:20)))),
   ])));
  }
 }
@@ -1157,6 +1205,7 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
   Timer? routeTimer;
   LatLng? providerPoint;
   LatLng? pickupPoint;
+  LatLng? destinationPoint;
   LatLng? lastRoutedPoint;
   Set<Polyline> routeLines={};
   String status='';
@@ -1170,11 +1219,16 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
     final plat=double.tryParse(widget.booking['pickup_lat']?.toString()??'');
     final plng=double.tryParse(widget.booking['pickup_lng']?.toString()??'');
     if(plat!=null&&plng!=null)pickupPoint=LatLng(plat,plng);
+    final dlat=double.tryParse((widget.booking['drop_lat']??widget.booking['drop_latitude'])?.toString()??'');
+    final dlng=double.tryParse((widget.booking['drop_lng']??widget.booking['drop_longitude'])?.toString()??'');
+    if(dlat!=null&&dlng!=null)destinationPoint=LatLng(dlat,dlng);
     final vlat=double.tryParse(widget.booking['provider_lat']?.toString()??'');
     final vlng=double.tryParse(widget.booking['provider_lng']?.toString()??'');
     if(vlat!=null&&vlng!=null)providerPoint=LatLng(vlat,vlng);
     if(widget.isProvider){
       _startProviderGps();
+      routeTimer=Timer.periodic(const Duration(seconds:20),(_)=>_refreshRoute());
+      _refreshRoute();
     }else{
       _connectRealtime();
       _startBookingPoll();
@@ -1257,11 +1311,13 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
   }
 
   Future<void>_refreshRoute()async{
-    if(widget.isProvider||providerPoint==null||pickupPoint==null)return;
+    if(providerPoint==null)return;
     final p=providerPoint!;
+    final target=(status=='ongoing'&&destinationPoint!=null)?destinationPoint:pickupPoint;
+    if(target==null)return;
     if(lastRoutedPoint!=null&&Geolocator.distanceBetween(lastRoutedPoint!.latitude,lastRoutedPoint!.longitude,p.latitude,p.longitude)<100)return;
     try{
-      final r=await ApiService.computeRoute(p.latitude,p.longitude,pickupPoint!.latitude,pickupPoint!.longitude);
+      final r=await ApiService.computeRoute(p.latitude,p.longitude,target.latitude,target.longitude);
       final pts=_decodeGooglePolyline(r['encodedPolyline']?.toString()??'');
       if(pts.length>=2&&mounted){
         setState(()=>routeLines={Polyline(polylineId:const PolylineId('partner-route'),points:pts,color:gfGreen,width:5)});
@@ -1284,6 +1340,22 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
     return points;
   }
 
+  Future<void>_fitAllPoints()async{
+    final map=mapController;
+    if(map==null)return;
+    final points=<LatLng>[if(pickupPoint!=null)pickupPoint!,if(destinationPoint!=null)destinationPoint!,if(providerPoint!=null)providerPoint!];
+    for(final line in routeLines)points.addAll(line.points);
+    if(points.isEmpty)return;
+    try{
+      if(points.length==1){await map.animateCamera(CameraUpdate.newLatLngZoom(points.first,15));return;}
+      var minLat=points.first.latitude,maxLat=points.first.latitude,minLng=points.first.longitude,maxLng=points.first.longitude;
+      for(final p in points.skip(1)){minLat=min(minLat,p.latitude);maxLat=max(maxLat,p.latitude);minLng=min(minLng,p.longitude);maxLng=max(maxLng,p.longitude);}
+      final latPad=(maxLat-minLat).abs()*0.10,lngPad=(maxLng-minLng).abs()*0.10;
+      await map.animateCamera(CameraUpdate.newLatLngBounds(LatLngBounds(
+        southwest:LatLng(minLat-latPad,minLng-lngPad),northeast:LatLng(maxLat+latPad,maxLng+lngPad)),90));
+    }catch(_){}
+  }
+
   void _followProvider(){
     final map=mapController;
     final point=providerPoint;
@@ -1298,6 +1370,7 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
     final center=providerPoint??pickupPoint??const LatLng(28.6139,77.2090);
     final markers=<Marker>{
       if(pickupPoint!=null)Marker(markerId:const MarkerId('pickup'),position:pickupPoint!,infoWindow:const InfoWindow(title:'Pickup')),
+      if(destinationPoint!=null)Marker(markerId:const MarkerId('destination'),position:destinationPoint!,icon:BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),infoWindow:const InfoWindow(title:'Destination')),
       if(providerPoint!=null)Marker(markerId:const MarkerId('partner'),position:providerPoint!,icon:BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),infoWindow:InfoWindow(title:widget.isProvider?'You':'Gofixo Partner')),
     };
     final title=status=='ongoing'?'Trip in progress':status=='accepted'?'Partner is on the way':'Live trip';
@@ -1306,8 +1379,15 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
       body:Stack(children:[
         GoogleMap(
           initialCameraPosition:CameraPosition(target:center,zoom:15),
-          onMapCreated:(m){mapController=m;_followProvider();},
+          onMapCreated:(m){mapController=m;WidgetsBinding.instance.addPostFrameCallback((_)=>_fitAllPoints());},
           onCameraMoveStarted:(){if(!movingCamera)followCamera=false;},
+          gestureRecognizers:<Factory<OneSequenceGestureRecognizer>>{
+            Factory<OneSequenceGestureRecognizer>(()=>EagerGestureRecognizer()),
+          },
+          rotateGesturesEnabled:true,
+          tiltGesturesEnabled:true,
+          scrollGesturesEnabled:true,
+          zoomGesturesEnabled:true,
           myLocationEnabled:widget.isProvider,
           myLocationButtonEnabled:true,
           markers:markers,
@@ -1325,6 +1405,7 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
               Text(widget.isProvider?'Trip map':title,style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
               Text(widget.isProvider?'GPS is updating live':(status=='accepted'?'Partner location is live':'Connecting to partner…'),style:const TextStyle(fontSize:11,color:gfMuted)),
             ])),
+            IconButton(onPressed:(){setState(()=>followCamera=true);_fitAllPoints();},icon:const Icon(Icons.fit_screen,color:gfGreen)),
             if(!widget.isProvider)IconButton(onPressed:(){setState(()=>followCamera=true);_followProvider();},icon:const Icon(Icons.my_location,color:gfGreen)),
           ]),
         )),
