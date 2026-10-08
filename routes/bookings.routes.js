@@ -68,7 +68,7 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
     const result = await pool.query(
       `SELECT b.id, b.service_type, b.service_category, b.service_description, b.customer_id, b.provider_id, b.pickup_location, b.drop_or_service_address,
               b.fare_amount, b.route_distance_km, b.duration_minutes, b.status, b.payment_confirmed_by_provider,
-              b.created_at, b.completed_at, b.pickup_lat, b.pickup_lng, b.offered_at,
+              b.created_at, b.completed_at, b.pickup_lat, b.pickup_lng, b.drop_lat, b.drop_lng, b.offered_at,
               c.name AS customer_name,
               CASE WHEN b.status IN ('accepted', 'ongoing', 'completed') THEN c.phone END AS customer_phone
        FROM bookings b
@@ -472,7 +472,7 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
              AND active_b.id <> b.id
          )
        RETURNING b.id, b.service_type, b.customer_id, b.provider_id, b.pickup_location,
-                 b.drop_or_service_address, b.status, b.pickup_lat, b.pickup_lng, b.created_at`,
+                 b.drop_or_service_address, b.status, b.pickup_lat, b.pickup_lng, b.drop_lat, b.drop_lng, b.created_at`,
       [req.params.id, req.user.id]
     );
 
