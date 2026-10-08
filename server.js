@@ -16,6 +16,7 @@ const authRoutes = require('./routes/auth.routes');
 const adminRoutes = require('./routes/admin.routes');
 const pool = require('./config/db');
 const { attachRealtime } = require('./services/realtime');
+const { getServiceCatalog } = require('./services/catalog');
 
 const app = express();
 
@@ -129,6 +130,11 @@ async function googlePlacesRequest(url, fieldMask, body) {
   }
   return data;
 }
+
+app.get('/api/catalog/services', (req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.json(getServiceCatalog());
+});
 
 app.get('/api/places/autocomplete', async (req, res) => {
   const input = String(req.query.input || '').trim();
