@@ -5,7 +5,7 @@ import 'api_service.dart';
 import 'update_service.dart';
 import 'ota_service.dart';
 import 'app_info_page.dart';
-import 'mobile_reference_ui.dart';
+import 'mobile_app_ui.dart';
 
 const orange=Color(0xFF12B85F), navy=Color(0xFF172B4D), muted=Color(0xFF64748B);
 
