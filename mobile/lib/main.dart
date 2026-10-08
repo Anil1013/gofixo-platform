@@ -56,6 +56,15 @@ class RoleScreen extends StatelessWidget {
   final VoidCallback onLogin;
   const RoleScreen({super.key, required this.onLogin});
 
+  void _openAuth(BuildContext context, String role) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Auth(role: role, onDone: onLogin),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext c) {
     return Scaffold(
@@ -122,18 +131,14 @@ class RoleScreen extends StatelessWidget {
                             style: FilledButton.styleFrom(
                               backgroundColor: Colors.white,
                               foregroundColor: orange,
-                            ),
-                            onPressed: () => Navigator.push(
-                              c,
-                              MaterialPageRoute(
-                                builder: (_) => Auth(
-                                  role: 'customer',
-                                  onDone: onLogin,
-                                ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
                               ),
                             ),
+                            onPressed: () => _openAuth(c, 'customer'),
                             child: const Text(
-                              'Book now',
+                              'Book a ride',
                               style: TextStyle(fontWeight: FontWeight.w800),
                             ),
                           ),
@@ -152,9 +157,9 @@ class RoleScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 22),
               const Text(
-                'Choose your ride',
+                'How do you want to use Gofixo?',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
@@ -163,59 +168,32 @@ class RoleScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: _EntryCard(
-                      title: 'Bike',
-                      icon: Icons.two_wheeler,
-                      onTap: () => Navigator.push(
-                        c,
-                        MaterialPageRoute(
-                          builder: (_) => Auth(
-                            role: 'customer',
-                            onDone: onLogin,
-                          ),
-                        ),
-                      ),
+                    child: _AccessCard(
+                      icon: Icons.directions_car_rounded,
+                      title: 'Book with Gofixo',
+                      subtitle: 'Rides, delivery & home services',
+                      action: 'Get started',
+                      onTap: () => _openAuth(c, 'customer'),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: _EntryCard(
-                      title: 'Auto',
-                      icon: Icons.electric_rickshaw,
-                      onTap: () => Navigator.push(
-                        c,
-                        MaterialPageRoute(
-                          builder: (_) => Auth(
-                            role: 'customer',
-                            onDone: onLogin,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _EntryCard(
-                      title: 'Car',
-                      icon: Icons.directions_car,
-                      onTap: () => Navigator.push(
-                        c,
-                        MaterialPageRoute(
-                          builder: (_) => Auth(
-                            role: 'customer',
-                            onDone: onLogin,
-                          ),
-                        ),
-                      ),
+                    child: _AccessCard(
+                      icon: Icons.handshake_rounded,
+                      title: 'Earn with Gofixo',
+                      subtitle: 'Drive, deliver or offer services',
+                      action: 'Join as a partner',
+                      onTap: () => _openAuth(c, 'provider'),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 22),
               const Text(
-                'Home services',
+                'Popular home services',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
@@ -245,61 +223,16 @@ class RoleScreen extends StatelessWidget {
                     )
                     .toList(),
               ),
-              const SizedBox(height: 20),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: const Color(0xFFE4E9F1),
+              const SizedBox(height: 8),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 2),
+                child: Text(
+                  'New here? Choose an option above. You can log in or create your account on the next screen.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: muted,
+                    height: 1.35,
                   ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.handyman_rounded,
-                      color: orange,
-                      size: 32,
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Partner with Gofixo',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w900,
-                              color: navy,
-                            ),
-                          ),
-                          SizedBox(height: 3),
-                          Text(
-                            'Go online, accept jobs and earn.',
-                            style: TextStyle(color: muted),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.push(
-                        c,
-                        MaterialPageRoute(
-                          builder: (_) => Auth(
-                            role: 'provider',
-                            onDone: onLogin,
-                          ),
-                        ),
-                      ),
-                      icon: const Icon(
-                        Icons.arrow_forward_rounded,
-                        color: orange,
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ],
@@ -309,14 +242,92 @@ class RoleScreen extends StatelessWidget {
     );
   }
 }
-class _EntryCard extends StatelessWidget{
- final String title;final IconData icon;final VoidCallback onTap;
- const _EntryCard({required this.title,required this.icon,required this.onTap});
- @override Widget build(BuildContext c)=>InkWell(onTap:onTap,borderRadius:BorderRadius.circular(20),child:Container(height:120,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(20),border:Border.all(color:const Color(0xFFE4E9F1))),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-  Icon(icon,color:orange,size:46),const SizedBox(height:8),Text(title,style:const TextStyle(fontWeight:FontWeight.w800,color:navy))
- ])));
-}
 
+class _AccessCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String action;
+  final VoidCallback onTap;
+
+  const _AccessCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.action,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext c) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 172),
+          padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFE4E9F1)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0F10213F),
+                blurRadius: 12,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFEFFFF5),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: orange, size: 26),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  color: navy,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10,
+                  height: 1.3,
+                  color: muted,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                action,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: orange,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 class Auth extends StatefulWidget{
  final String role;final VoidCallback onDone;
  const Auth({super.key,required this.role,required this.onDone});
