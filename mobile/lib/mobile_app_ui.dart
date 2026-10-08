@@ -10,7 +10,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'api_service.dart';
 
-const gfOrange=Color(0xFF12B85F),gfNavy=Color(0xFF10213F),gfMuted=Color(0xFF728097),gfBg=Color(0xFFF4F7FB),gfLine=Color(0xFFE4E9F1),gfGreen=Color(0xFF12B85F);
+const gfOrange=Color(0xFF12B85F),gfNavy=Color(0xFF10213F),gfMuted=Color(0xFF728097),gfBg=Color(0xFFF4F7FB),gfLine=Color(0xFFE4E9F1),gfGreen=Color(0xFF12B85F);\n\nString gfFormatEta(num? seconds){\n  final s=(seconds??0).round();\n  if(s<=0)return 'ETA unavailable';\n  final minutes=(s/60).ceil();\n  if(minutes<60)return '~$minutes min';\n  final h=minutes~/60, m=minutes%60;\n  return m==0?'~${h}h':'~${h}h ${m}m';\n}\n\nString gfFormatDistance(num? meters){\n  final m=(meters??0).toDouble();\n  if(m<=0)return 'Distance unavailable';\n  if(m<1000)return '${m.round()} m';\n  return '${(m/1000).toStringAsFixed(m<10000?1:0)} km';\n}
 
 
 class ReferenceCustomerHome extends StatefulWidget{
@@ -520,7 +520,7 @@ class ReferenceBookingPage extends StatefulWidget{
 class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  GoogleMapController? mapController;
  StreamSubscription<Position>? locationSub;
- final dest=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your location…';String serviceCategory='other',serviceDescription='';Position? pos;Map<String,dynamic>? place;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[];Set<Polyline> routePolylines={};LatLng? destinationPoint;double? km,fare;bool busy=false;Timer? debounce;LatLng? lastReversePoint;
+ final dest=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your location…';String serviceCategory='other',serviceDescription='';Position? pos;Map<String,dynamic>? place;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[];Set<Polyline> routePolylines={};LatLng? destinationPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce;LatLng? lastReversePoint;
  @override void initState(){super.initState();type=widget.type;serviceCategory=widget.serviceCategory??'other';serviceDescription=widget.serviceDescription??'';serviceDesc.text=serviceDescription;WidgetsBinding.instance.addPostFrameCallback((_)=>locate());}
  @override void dispose(){debounce?.cancel();locationSub?.cancel();dest.dispose();serviceDesc.dispose();super.dispose();}
  Future<void>locate()async{if(busy)return;setState(()=>busy=true);try{if(!await Geolocator.isLocationServiceEnabled())throw Exception('Please turn on Location Services.');var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)throw Exception('Location permission is required.');Position?best;for(var i=0;i<3;i++){final x=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:0,timeLimit:Duration(seconds:12)));if(best==null||x.accuracy<best.accuracy)best=x;if(x.accuracy<=30)break;}final x=best!;if(x.accuracy>150)throw Exception('GPS accuracy is too weak. Please move outdoors and try again.');final a=await _reverse(x.latitude,x.longitude);if(mounted){setState((){pos=x;pickup=a;lastReversePoint=LatLng(x.latitude,x.longitude);});await _centerMap(LatLng(x.latitude,x.longitude),17);}_startLocationStream();}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
@@ -825,9 +825,9 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                      child:Column(
                        crossAxisAlignment:CrossAxisAlignment.start,
                        children:[
-                         const Text('ESTIMATED FARE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
+                         const Text('UPFRONT ESTIMATE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
                          Text('₹'+fare!.toStringAsFixed(0),style:const TextStyle(fontSize:28,fontWeight:FontWeight.w900,color:gfNavy)),
-                         Text(km!.toStringAsFixed(1)+' km · '+type.toUpperCase(),style:const TextStyle(fontSize:11,color:gfMuted)),
+                         Text(km!.toStringAsFixed(1)+' km · '+gfFormatEta(routeEtaSeconds)+' · '+type.toUpperCase(),style:const TextStyle(fontSize:11,color:gfMuted)),
                        ],
                      ),
                    ),
@@ -844,6 +844,22 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
      ),
    ),
  );
+}
+class _LiveMetric extends StatelessWidget{
+  final IconData icon; final String label; final String value;
+  const _LiveMetric({required this.icon,required this.label,required this.value});
+  @override Widget build(BuildContext c)=>Container(
+    padding:const EdgeInsets.symmetric(horizontal:10,vertical:9),
+    decoration:BoxDecoration(color:gfBg,borderRadius:BorderRadius.circular(14)),
+    child:Row(children:[
+      Icon(icon,color:gfGreen,size:19),
+      const SizedBox(width:7),
+      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text(label,style:const TextStyle(fontSize:9,color:gfMuted,fontWeight:FontWeight.w700)),
+        Text(value,style:const TextStyle(fontSize:14,color:gfNavy,fontWeight:FontWeight.w900)),
+      ])),
+    ]),
+  );
 }
 class _MapControl extends StatelessWidget{
  final IconData icon;final VoidCallback onTap;
@@ -1412,13 +1428,23 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
         Positioned(left:14,right:14,bottom:18,child:Container(
           padding:const EdgeInsets.all(16),
           decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(20),boxShadow:const[BoxShadow(color:Color(0x22000000),blurRadius:18)]),
-          child:Row(children:[
-            Container(width:44,height:44,decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEFFFF5)),child:const Icon(Icons.two_wheeler,color:gfGreen)),
-            const SizedBox(width:12),
-            Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-              Text(widget.isProvider?'Live trip':'Gofixo Partner',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
-              Text(widget.isProvider?'Your GPS is updating every few seconds':status=='ongoing'?'Ride is in progress':'Partner is heading to pickup',style:const TextStyle(fontSize:11,color:gfMuted)),
-            ])),
+          child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Row(children:[
+              Container(width:44,height:44,decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEFFFF5)),child:const Icon(Icons.navigation_rounded,color:gfGreen)),
+              const SizedBox(width:12),
+              Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                Text(status=='ongoing'?'Ride in progress':status=='accepted'?'Partner is arriving':'Live ride',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
+                Text(status=='ongoing'?'Heading to destination':'Heading to pickup',style:const TextStyle(fontSize:11,color:gfMuted)),
+              ])),
+            ]),
+            if(routeDistanceMeters!=null||routeEtaSeconds!=null) ...[
+              const SizedBox(height:14),
+              Row(children:[
+                Expanded(child:_LiveMetric(icon:Icons.route_rounded,label:'Distance',value:gfFormatDistance(routeDistanceMeters))),
+                const SizedBox(width:10),
+                Expanded(child:_LiveMetric(icon:Icons.schedule_rounded,label:'Live ETA',value:gfFormatEta(routeEtaSeconds))),
+              ]),
+            ],
           ]),
         )),
       ]),
