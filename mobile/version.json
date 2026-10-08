@@ -1,7 +1,7 @@
 {
-  "version": "1.0.16",
-  "buildNumber": 1000016,
-  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.16/gofixo-release.apk",
-  "notes": "Gofixo v1.0.16: customer/provider bottom navigation, structured Home/Bookings/Services/Wallet/Profile tabs, plus improved provider dashboard UX.",
+  "version": "1.0.17",
+  "buildNumber": 1000017,
+  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.17/gofixo-release.apk",
+  "notes": "Gofixo v1.0.17: premium customer and partner home redesign inspired by the supplied Gofixo reference UI, with ride cards, service grid, partner booking map and online controls.",
   "forceUpdate": true
 }
