@@ -7,6 +7,7 @@ CREATE TABLE service_providers (
   name VARCHAR(100) NOT NULL,
   phone VARCHAR(15) UNIQUE NOT NULL,
   type VARCHAR(20) NOT NULL,                       -- bike / auto / car / general_worker / skilled_worker
+  service_categories TEXT[] NOT NULL DEFAULT '{}',       -- home-service specializations
   password_hash TEXT,
   password_changed_at TIMESTAMP DEFAULT NOW(),
   kyc_status VARCHAR(20) DEFAULT 'pending',        -- pending / approved / rejected
@@ -52,6 +53,8 @@ CREATE TABLE bookings (
   id SERIAL PRIMARY KEY,
   service_type VARCHAR(10) NOT NULL,               -- ride / services
   provider_type VARCHAR(20),                       -- bike / auto / car / general_worker / skilled_worker
+  service_category VARCHAR(50),                       -- home-service category only
+  service_description TEXT,                            -- customer-requested work description
   customer_id INT REFERENCES customers(id),
   provider_id INT REFERENCES service_providers(id),
   pickup_location TEXT,
@@ -101,3 +104,6 @@ CREATE UNIQUE INDEX booking_ratings_one_per_side
 CREATE UNIQUE INDEX provider_subscriptions_one_active
   ON provider_subscriptions (provider_id)
   WHERE status = 'active';
+
+CREATE INDEX IF NOT EXISTS bookings_service_category_idx ON bookings (service_type, service_category);
+CREATE INDEX IF NOT EXISTS service_providers_service_categories_gin_idx ON service_providers USING GIN (service_categories);
