@@ -153,7 +153,7 @@ class UpdateService {
     if (uri == null ||
         uri.scheme != 'https' ||
         !RegExp(
-          r'/releases/download/v\d+\.\d+\.\d+/gofixo-release\.apk(?:$|[?#])',
+          r'(?:/releases/download/v\d+\.\d+\.\d+/gofixo-release\.apk|/download/gofixo-release-v\d+\.\d+\.\d+\.apk)(?:$|[?#])',
         ).hasMatch(uri.path)) {
       _showError(
         context,
