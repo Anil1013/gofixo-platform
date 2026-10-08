@@ -992,3 +992,28 @@ button.cta:disabled { opacity: 0.5; }
   font-size: 12px;
   line-height: 1.5;
 }
+
+
+.service-specialty-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin: 7px 0 4px;
+}
+.service-specialty-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #dfe7e3;
+  border-radius: 11px;
+  background: #f8fcfa;
+  font-size: 11px;
+}
+.service-specialty-option input { margin: 0; accent-color: #12B85F; }
+.auth-help { display: block; color: #728097; font-size: 10px; line-height: 1.45; margin: 2px 0 8px; }
+
+@media (max-width: 390px) {
+  .service-specialty-grid { grid-template-columns: 1fr; }
+}
