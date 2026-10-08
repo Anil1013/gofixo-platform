@@ -513,7 +513,7 @@ router.patch('/:id/location', requireAuth(['provider']), async (req, res, next) 
 router.get('/me', requireAuth(['provider']), async (req, res, next) => {
   try {
     const result = await pool.query(
-      `SELECT sp.id, sp.generated_id, sp.name, sp.phone, sp.type, sp.kyc_status, sp.kyc_review_note,
+      `SELECT sp.id, sp.generated_id, sp.name, sp.phone, sp.type, sp.service_categories, sp.kyc_status, sp.kyc_review_note,
         sp.bank_upi_id, sp.avg_rating, sp.is_available, sp.current_lat, sp.current_lng,
         sp.location_updated_at, sp.created_at,
         (
