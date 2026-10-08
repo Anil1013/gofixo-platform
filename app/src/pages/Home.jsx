@@ -87,14 +87,14 @@ const SERVICE_VISUALS = {
 };
 
 const HOME_SERVICE_CARDS = [
-  { label: 'Electrician', type: 'skilled_worker', image: 'https://eletricistagravatai.com.br/images/eletricista-24h-perto-de-voce-em-gravatai-rs.jpeg' },
-  { label: 'Plumber', type: 'skilled_worker', image: 'https://handymanpalmbayfl.com/images/plumbing_service_2.webp' },
-  { label: 'AC Service', type: 'skilled_worker', image: 'https://imagedelivery.net/xaKlCos5cTg_1RWzIu_h-A/63023f11-6fa4-41a7-ca68-748ee14fc600/public' },
-  { label: 'Cleaning', type: 'general_worker', image: 'https://www.trueprocleaners.com/imgs/oc-house-cleaning-european-01.webp' },
-  { label: 'Carpenter', type: 'skilled_worker', image: 'https://images.unsplash.com/photo-1756736668332-e921516c1305?auto=format&fit=crop&w=700&q=82' },
-  { label: 'Home Repair', type: 'skilled_worker', image: 'https://manitasenbarcelona.com/images/sobre-nosotros-manitas-barcelona.jpg' },
-  { label: 'Appliance Repair', type: 'skilled_worker', image: 'https://www.trueprocleaners.com/imgs/oc-house-cleaning-european-01.webp' },
-  { label: 'More', type: 'general_worker', image: 'https://allhomerepairs247.com/images/woman-ipad-red.webp' },
+  { label: 'Electrician', category: 'electrician', type: 'skilled_worker', image: 'https://eletricistagravatai.com.br/images/eletricista-24h-perto-de-voce-em-gravatai-rs.jpeg' },
+  { label: 'Plumber', category: 'plumber', type: 'skilled_worker', image: 'https://handymanpalmbayfl.com/images/plumbing_service_2.webp' },
+  { label: 'AC Service', category: 'ac_service', type: 'skilled_worker', image: 'https://imagedelivery.net/xaKlCos5cTg_1RWzIu_h-A/63023f11-6fa4-41a7-ca68-748ee14fc600/public' },
+  { label: 'Cleaning', category: 'cleaning', type: 'general_worker', image: 'https://www.trueprocleaners.com/imgs/oc-house-cleaning-european-01.webp' },
+  { label: 'Carpenter', category: 'carpenter', type: 'skilled_worker', image: 'https://images.unsplash.com/photo-1756736668332-e921516c1305?auto=format&fit=crop&w=700&q=82' },
+  { label: 'Home Repair', category: 'other', type: 'skilled_worker', image: 'https://manitasenbarcelona.com/images/sobre-nosotros-manitas-barcelona.jpg' },
+  { label: 'Appliance Repair', category: 'appliance_repair', type: 'skilled_worker', image: 'https://www.trueprocleaners.com/imgs/oc-house-cleaning-european-01.webp' },
+  { label: 'More', category: 'other', type: 'general_worker', image: 'https://allhomerepairs247.com/images/woman-ipad-red.webp' },
 ];
 
 const LOCATION_PROMPTED_KEY = 'gofixo_location_prompted';
@@ -138,6 +138,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
   const [providerType, setProviderType] = useState('bike');
   const [location, setLocation] = useState('');
   const [work, setWork] = useState('');
+  const [serviceCategory, setServiceCategory] = useState('');
   const [coords, setCoords] = useState(null);
   const [pickupPincode, setPickupPincode] = useState('');
   const [pickupArea, setPickupArea] = useState('');
@@ -356,7 +357,9 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
         service_type: category,
         provider_type: providerType,
         pickup_location: [location, pickupHouse, pickupStreet, pickupArea, pickupPincode].filter(Boolean).join(', '),
-        drop_or_service_address: category === 'services' ? work : [destination, dropHouse, dropStreet, dropArea, dropPincode].filter(Boolean).join(', '),
+        drop_or_service_address: category === 'services' ? [location, pickupHouse, pickupStreet, pickupArea, pickupPincode].filter(Boolean).join(', ') : [destination, dropHouse, dropStreet, dropArea, dropPincode].filter(Boolean).join(', '),
+        service_category: category === 'services' ? (serviceCategory || 'other') : undefined,
+        service_description: category === 'services' ? work.trim() : undefined,
         pickup_lat: coords.lat,
         pickup_lng: coords.lng,
         drop_lat: category === 'ride' ? resolvedDestination.lat : undefined,
@@ -500,13 +503,14 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
       <section className="reference-home-section services-reference-section">
         <div className="reference-section-title">
           <h2>Home Services</h2>
-          <button type="button" onClick={() => { setCategory('services'); setShowBooking(true); }}>See all →</button>
+          <button type="button" onClick={() => { setCategory('services'); setServiceCategory('other'); setShowBooking(true); }}>See all →</button>
         </div>
         <div className="reference-service-cards">
           {previewServices.map((item) => (
             <button type="button" key={item.label} onClick={() => {
               setCategory('services');
               setProviderType(item.type);
+              setServiceCategory(item.category);
               setWork(item.label);
               setShowBooking(true);
             }}>
@@ -582,6 +586,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => {
                       setProviderType(item.type);
+                      setServiceCategory(item.category);
                       setWork(item.label);
                       setError('');
                     }}
@@ -598,6 +603,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                 onChange={(e) => {
                   setWork(e.target.value);
                   setProviderType(e.target.value.trim() ? 'skilled_worker' : 'general_worker');
+                  setServiceCategory(e.target.value.trim() ? 'other' : '');
                   setError('');
                 }}
                 placeholder="Or describe another service…"
