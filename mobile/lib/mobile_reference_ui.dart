@@ -159,7 +159,29 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
   }
 }
  Future<void>_centerMap(LatLng p,double zoom)async{try{await mapController?.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target:p,zoom:zoom)));}catch(_){} }
- Future<void>_fitMapToPoints()async{if(pos==null&&destinationPoint==null)return;try{if(pos!=null&&destinationPoint!=null){final a=pos!,b=destinationPoint!;final sw=LatLng(a.latitude<b.latitude?a.latitude:b.latitude,a.longitude<b.longitude?a.longitude:b.longitude);final ne=LatLng(a.latitude>b.latitude?a.latitude:b.latitude,a.longitude>b.longitude?a.longitude:b.longitude);await mapController?.animateCamera(CameraUpdate.newLatLngBounds(LatLngBounds(southwest:sw,northeast:ne),70));}else if(destinationPoint!=null){await _centerMap(destinationPoint!,15);}}catch(_){} }
+ Future<void>_zoomIn()async{try{await mapController?.animateCamera(CameraUpdate.zoomIn());}catch(_){}}
+ Future<void>_zoomOut()async{try{await mapController?.animateCamera(CameraUpdate.zoomOut());}catch(_){}}
+ Future<void>_fitMapToPoints()async{
+  final map=mapController;
+  if(map==null|| (pos==null&&destinationPoint==null))return;
+  try{
+   final points=<LatLng>[];
+   if(pos!=null)points.add(LatLng(pos!.latitude,pos!.longitude));
+   if(destinationPoint!=null)points.add(destinationPoint!);
+   for(final polyline in routePolylines)points.addAll(polyline.points);
+   if(points.length<2){
+    if(destinationPoint!=null)await _centerMap(destinationPoint!,16);
+    else if(pos!=null)await _centerMap(LatLng(pos!.latitude,pos!.longitude),16);
+    return;
+   }
+   var minLat=points.first.latitude,maxLat=points.first.latitude,minLng=points.first.longitude,maxLng=points.first.longitude;
+   for(final p in points.skip(1)){minLat=min(minLat,p.latitude);maxLat=max(maxLat,p.latitude);minLng=min(minLng,p.longitude);maxLng=max(maxLng,p.longitude);}
+   final latPad=(maxLat-minLat).abs()*0.08;
+   final lngPad=(maxLng-minLng).abs()*0.08;
+   final sw=LatLng(minLat-latPad,minLng-lngPad);
+   final ne=LatLng(maxLat+latPad,maxLng+lngPad);
+   await map.animateCamera(CameraUpdate.newLatLngBounds(LatLngBounds(southwest:sw,northeast:ne),90));
+  }catch(_){} }
  double _fare(String t,double d){final base=t=='bike'?30:t=='auto'?40:60;final min=base;final slabs=t=='bike'?[[10,6],[20,5.5],[30,5],[50,4.5],[double.infinity,4.5]]:t=='auto'?[[10,7.5],[20,6.5],[30,6],[50,5.5],[double.infinity,5.5]]:[[10,9.5],[20,9],[30,8],[50,6.5],[100,5],[double.infinity,2.5]];var left=d,prev=0.0,total=0.0;for(final x in slabs){final limit=x[0].toDouble(),rate=x[1].toDouble();final take=left<=0?0.0:(left<limit-prev?left:limit-prev);if(take>0)total+=take*rate;left-=take;prev=limit;if(left<=0)break;}return (base+total).clamp(min,double.infinity).roundToDouble();}
  Future<void>book()async{
   if(pos==null)return;
@@ -184,31 +206,50 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
   finally{if(mounted)setState(()=>busy=false);}
 }
  void _snack(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.replaceFirst('Exception: ',''))));
- @override Widget build(BuildContext c)=>Scaffold(backgroundColor:gfBg,appBar:AppBar(title:Text(isService?'Request service':'Book a ride'),backgroundColor:gfBg,elevation:0),body:ListView(padding:const EdgeInsets.all(14),children:[
+ @override Widget build(BuildContext c)=>Scaffold(backgroundColor:gfBg,appBar:AppBar(title:Text(isService?'Request service':'Book a ride'),backgroundColor:gfBg,elevation:0),body:SafeArea(child:ListView(padding:EdgeInsets.fromLTRB(14,0,14,24+MediaQuery.viewPaddingOf(c).bottom),children:[
   if(!isService)Row(children:[Expanded(child:_Choice('Bike','bike',Icons.two_wheeler,type,(v)=>setState(()=>type=v))),const SizedBox(width:7),Expanded(child:_Choice('Auto','auto',Icons.electric_rickshaw,type,(v)=>setState(()=>type=v))),const SizedBox(width:7),Expanded(child:_Choice('Car','car',Icons.directions_car,type,(v)=>setState(()=>type=v)))]) else Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(18)),child:Text(type=='skilled_worker'?'Skilled Expert Service':'Home Help Service',style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy))),const SizedBox(height:12),
   _Location(pickup:pickup,onTap:busy?null:locate),
   const SizedBox(height:8),
   ClipRRect(
     borderRadius:BorderRadius.circular(22),
     child:SizedBox(
-      height:360,
-      child:GoogleMap(
-        initialCameraPosition:CameraPosition(target:pos!=null?LatLng(pos!.latitude,pos!.longitude):const LatLng(28.6139,77.2090),zoom:15),
-        onMapCreated:(m){mapController=m;if(destinationPoint!=null){_fitMapToPoints();}else if(pos!=null){_centerMap(LatLng(pos!.latitude,pos!.longitude),16);}},
-        onCameraMoveStarted:(){},
-        myLocationEnabled:true,
-        myLocationButtonEnabled:false,
-        zoomControlsEnabled:false,
-        compassEnabled:true,
-        rotateGesturesEnabled:true,
-        tiltGesturesEnabled:true,
-        scrollGesturesEnabled:true,
-        zoomGesturesEnabled:true,
-        markers:{
-          if(pos!=null)Marker(markerId:const MarkerId('pickup'),position:LatLng(pos!.latitude,pos!.longitude),infoWindow:const InfoWindow(title:'Your location')),
-          if(destinationPoint!=null)Marker(markerId:const MarkerId('drop'),position:destinationPoint!,infoWindow:const InfoWindow(title:'Destination'))
-        },
-        polylines:routePolylines,
+      height:390,
+      child:Stack(
+        children:[
+          GoogleMap(
+            initialCameraPosition:CameraPosition(target:pos!=null?LatLng(pos!.latitude,pos!.longitude):const LatLng(28.6139,77.2090),zoom:15),
+            onMapCreated:(m){mapController=m;if(destinationPoint!=null){_fitMapToPoints();}else if(pos!=null){_centerMap(LatLng(pos!.latitude,pos!.longitude),16);}},
+            myLocationEnabled:true,
+            myLocationButtonEnabled:false,
+            zoomControlsEnabled:false,
+            compassEnabled:true,
+            rotateGesturesEnabled:true,
+            tiltGesturesEnabled:true,
+            scrollGesturesEnabled:true,
+            zoomGesturesEnabled:true,
+            markers:{
+              if(pos!=null)Marker(markerId:const MarkerId('pickup'),position:LatLng(pos!.latitude,pos!.longitude),infoWindow:const InfoWindow(title:'Your location')),
+              if(destinationPoint!=null)Marker(markerId:const MarkerId('drop'),position:destinationPoint!,infoWindow:const InfoWindow(title:'Destination'))
+            },
+            polylines:routePolylines,
+          ),
+          Positioned(
+            top:12,
+            right:12,
+            child:Column(
+              mainAxisSize:MainAxisSize.min,
+              children:[
+                _MapControl(icon:Icons.add,onTap:_zoomIn),
+                const SizedBox(height:6),
+                _MapControl(icon:Icons.remove,onTap:_zoomOut),
+                if(destinationPoint!=null||routePolylines.isNotEmpty)...[
+                  const SizedBox(height:6),
+                  _MapControl(icon:Icons.fit_screen,onTap:_fitMapToPoints),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     ),
   ),
@@ -231,6 +272,11 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
   if(isService&&place!=null)Padding(padding:const EdgeInsets.only(top:12),child:_Box(child:Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('SERVICE REQUEST',style:TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),Text(type=='skilled_worker'?'Skilled expert at your location':'Home help at your location',style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy)),Text(place!['address']?.toString()??dest.text,maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:10,color:gfMuted))])),FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:busy?null:book,child:const Text('Request'))]))),
   if(!isService&&fare!=null)Padding(padding:const EdgeInsets.only(top:12),child:Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:const Color(0xFFEFFFF5),borderRadius:BorderRadius.circular(20)),child:Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('ESTIMATED FARE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),Text('₹'+fare!.toStringAsFixed(0),style:const TextStyle(fontSize:28,fontWeight:FontWeight.w900,color:gfNavy)),Text(km!.toStringAsFixed(1)+' km · '+type.toUpperCase(),style:const TextStyle(fontSize:11,color:gfMuted))])),FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:busy?null:book,child:const Text('Confirm ride'))]))),
  ]));
+}
+class _MapControl extends StatelessWidget{
+ final IconData icon;final VoidCallback onTap;
+ const _MapControl({required this.icon,required this.onTap});
+ @override Widget build(BuildContext c)=>Material(color:Colors.white,borderRadius:BorderRadius.circular(12),elevation:3,child:InkWell(onTap:onTap,borderRadius:BorderRadius.circular(12),child:SizedBox(width:44,height:44,child:Icon(icon,color:gfNavy,size:22))));
 }
 class _Top extends StatelessWidget{final String role;final bool online;final VoidCallback? onOnline;final Future<void> Function() logout;const _Top({required this.role,this.online=false,this.onOnline,required this.logout});@override Widget build(BuildContext c)=>Row(children:[Container(width:38,height:42,decoration:BoxDecoration(color:gfOrange,borderRadius:BorderRadius.circular(13)),child:const Icon(Icons.location_on,color:Colors.white)),const SizedBox(width:9),const Expanded(child:Text('Gofixo',style:TextStyle(fontSize:25,fontWeight:FontWeight.w900,color:gfNavy))),if(onOnline!=null)GestureDetector(onTap:onOnline,child:Container(padding:const EdgeInsets.symmetric(horizontal:11,vertical:8),decoration:BoxDecoration(color:online?const Color(0xFFDFF9E9):const Color(0xFFEFF2F6),borderRadius:BorderRadius.circular(30)),child:Text(online?'Online':'Offline',style:TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:online?gfGreen:gfMuted))))else Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:7),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(30)),child:Text(role,style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800,color:gfMuted))),PopupMenuButton<String>(onSelected:(v){if(v=='logout')logout();},itemBuilder:(_)=>const[PopupMenuItem(value:'logout',child:Text('Log out'))])]);}
 class _Hero extends StatelessWidget{final String name;const _Hero({required this.name});@override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.fromLTRB(16,16,12,12),decoration:BoxDecoration(borderRadius:BorderRadius.circular(28),gradient:const LinearGradient(colors:[Colors.white,Color(0xFFEFFFF5)]),border:Border.all(color:gfLine)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('YOUR CITY. YOUR SERVICES.',style:TextStyle(fontSize:10,letterSpacing:1.5,fontWeight:FontWeight.w900,color:gfGreen)),const SizedBox(height:6),Text('Hello $name 👋',style:const TextStyle(fontSize:27,fontWeight:FontWeight.w900,color:gfNavy)),const SizedBox(height:4),const Text('Fast rides, trusted partners and everyday services in one place.',style:TextStyle(fontSize:12,height:1.35,color:gfMuted)),const SizedBox(height:10),SizedBox(height:126,child:Row(children:[Expanded(child:_PhotoCard('https://images.unsplash.com/photo-1679465427762-38cfdba8e2fb?auto=format&fit=crop&w=900&q=85','Bike')),Expanded(child:_PhotoCard('https://images.unsplash.com/photo-1626149637281-4e227308da18?auto=format&fit=crop&w=900&q=85','Auto')),Expanded(child:_PhotoCard('https://images.unsplash.com/photo-1685019718640-6e562edc365e?auto=format&fit=crop&w=900&q=85','Car'))]))]));}
