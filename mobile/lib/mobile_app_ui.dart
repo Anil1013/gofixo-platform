@@ -586,7 +586,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
     final points=_decodeGooglePolyline(r['encodedPolyline']?.toString()??'');
     if(points.length<2)throw Exception('No route found.');
     final googleEta=double.tryParse(r['durationSeconds']?.toString()??'');
-    final fallbackEta=d>0?(d/25*3600):0;
+    final double fallbackEta=d>0?(d/25*3600):0.0;
     if(mounted)setState((){
       place=p;
       km=d;
