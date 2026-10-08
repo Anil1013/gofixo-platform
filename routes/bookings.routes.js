@@ -713,11 +713,19 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
       return res.status(403).json({ error: 'This booking does not belong to you' });
     }
 
-    const fare = submittedFare ?? Number(existing.rows[0].fare_amount);
-    if (!Number.isFinite(fare) || fare <= 0 || fare > 1000000) {
+    // Ride pricing is locked when the booking is created. Never allow the
+    // provider/client app to rewrite the customer-facing fare at completion.
+    // A submitted value is accepted only when it exactly matches the locked fare.
+    const lockedFare = Number(existing.rows[0].fare_amount);
+    if (!Number.isFinite(lockedFare) || lockedFare <= 0 || lockedFare > 1000000) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'A valid fare is required before completing this booking' });
+      return res.status(400).json({ error: 'Booking has no valid locked fare' });
     }
+    if (submittedFare !== null && Math.abs(submittedFare - lockedFare) > 0.01) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'Fare is locked to the upfront ride estimate' });
+    }
+    const fare = lockedFare;
 
     // Complete only an ongoing booking. The status predicate makes payment
     // confirmation idempotent under concurrent requests: exactly one request
