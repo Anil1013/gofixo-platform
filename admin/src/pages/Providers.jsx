@@ -93,6 +93,7 @@ export default function Providers() {
             <th>Name</th>
             <th>Phone</th>
             <th>Type</th>
+            <th>Specialties</th>
             <th>KYC</th>
             <th>Plan</th>
             <th>Pending</th>
@@ -108,6 +109,13 @@ export default function Providers() {
               <td>{p.name}</td>
               <td>{p.phone}</td>
               <td>{p.type}</td>
+              <td>
+                {Array.isArray(p.service_categories) && p.service_categories.length > 0
+                  ? p.service_categories.map((item) => (
+                    <span key={item} className="provider-specialty-chip">{String(item).replaceAll('_', ' ')}</span>
+                  ))
+                  : <span style={{ color: '#B0A8BE' }}>—</span>}
+              </td>
               <td>
                 <span className={`badge badge-${p.kyc_status}`}>{p.kyc_status}</span>
                 {p.kyc_review_note && (
@@ -165,7 +173,7 @@ export default function Providers() {
           ))}
           {visibleProviders.length === 0 && (
             <tr>
-              <td colSpan="10">{providers.length === 0 ? 'No providers registered yet.' : 'No provider matches this search.'}</td>
+              <td colSpan="11">{providers.length === 0 ? 'No providers registered yet.' : 'No provider matches this search.'}</td>
             </tr>
           )}
         </tbody>
