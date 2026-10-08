@@ -217,6 +217,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       `SELECT 1
        FROM service_providers sp
        WHERE sp.type = $1
+         AND ($4::text IS NULL OR COALESCE(cardinality(sp.service_categories), 0) = 0 OR $4 = ANY(sp.service_categories))
          AND sp.is_available = true
          AND sp.kyc_status = 'approved'
          AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
@@ -245,14 +246,16 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
 
     const result = await client.query(
       `INSERT INTO bookings (
-         service_type, provider_type, customer_id, provider_id, pickup_location, drop_or_service_address,
-         pickup_lat, pickup_lng, route_distance_km, fare_amount, start_pin, status, offered_at, declined_providers
+         service_type, provider_type, service_category, service_description, customer_id, provider_id,
+         pickup_location, drop_or_service_address, pickup_lat, pickup_lng, route_distance_km, fare_amount,
+         start_pin, status, offered_at, declined_providers
        )
-       VALUES ($1, $2, $3, NULL, $4, $5, $6, $7, $8, $9, $10, 'requested', NOW(), '{}')
+       VALUES ($1, $2, $3, $4, $5, NULL, $6, $7, $8, $9, $10, $11, $12, 'requested', NOW(), '{}')
        RETURNING *`,
       [
-        service_type, provider_type, customer_id, pickup_location, drop_or_service_address,
-        pickupLatitude, pickupLongitude, routeDistance, estimatedFare, generatePin()
+        service_type, provider_type, serviceCategory, serviceDescription, customer_id,
+        pickup_location, drop_or_service_address, pickupLatitude, pickupLongitude,
+        routeDistance, estimatedFare, generatePin()
       ]
     );
 
