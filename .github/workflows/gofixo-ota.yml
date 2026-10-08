@@ -256,7 +256,17 @@ jobs:
             """
             if marker not in s:
                 s = s.replace("    location / {", "    " + block + "    location / {", 1)
-                p.write_text(s)
+
+            legacy_marker = "location /releases/download/"
+            legacy_block = """location ~ ^/releases/download/v[0-9]+\\.[0-9]+\\.[0-9]+/gofixo-release\\.apk$ {
+                rewrite ^/releases/download/v([0-9]+\\.[0-9]+\\.[0-9]+)/gofixo-release\\.apk$ /download/gofixo-release-v$1.apk redirect;
+            }
+
+            """
+            if legacy_marker not in s:
+                s = s.replace("    location / {", "    " + legacy_block + "    location / {", 1)
+
+            p.write_text(s)
             PY
 
             sudo nginx -t
