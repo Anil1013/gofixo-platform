@@ -153,6 +153,13 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
         {booking.drop_or_service_address && booking.service_type === 'ride' && (
           <p className="pickup-line">🏁 Drop: {booking.drop_or_service_address}</p>
         )}
+        {booking.service_type === 'services' && (
+          <>
+            <p className="pickup-line">🔧 Service: {String(booking.service_category || 'other').replaceAll('_', ' ')}</p>
+            <p className="pickup-line">📍 Service address: {booking.drop_or_service_address || booking.pickup_location}</p>
+            {booking.service_description && <p className="pickup-line">📝 {booking.service_description}</p>}
+          </>
+        )}
         {booking.service_type === 'ride' && booking.fare_amount && (
           <p className="fare-line">Estimated fare <span>₹{Number(booking.fare_amount).toLocaleString('en-IN')}</span></p>
         )}
