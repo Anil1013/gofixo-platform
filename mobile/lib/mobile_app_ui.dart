@@ -994,9 +994,8 @@ class _Active extends StatefulWidget{
  @override State<_Active> createState()=>_ActiveState();
 }
 class _ActiveState extends State<_Active>{
- final pin=TextEditingController(); final fare=TextEditingController(); bool submitting=false;
- @override void initState(){super.initState();fare.text=widget.b['fare_amount']?.toString()??'';}
- @override void dispose(){pin.dispose();fare.dispose();super.dispose();}
+ final pin=TextEditingController(); bool submitting=false;
+ @override void dispose(){pin.dispose();super.dispose();}
  @override Widget build(BuildContext c){
   final id=int.tryParse(widget.b['id']?.toString()??'')??0;final ongoing=widget.b['status']=='ongoing';
   return _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -1005,10 +1004,25 @@ class _ActiveState extends State<_Active>{
    const SizedBox(height:10),_Route('Pickup',widget.b['pickup_location']?.toString()??''),
    if(!ongoing)TextField(controller:pin,maxLength:4,keyboardType:TextInputType.number,onChanged:(_)=>setState((){}),decoration:const InputDecoration(labelText:'Customer 4-digit PIN')),
    if(!ongoing)SizedBox(width:double.infinity,child:FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:pin.text.length==4?()async{try{await ApiService.startBooking(widget.session.token,id,pin.text);await widget.changed();}catch(e){if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}}:null,child:const Text('Start trip →'))),
-   if(ongoing)TextField(controller:fare,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Final fare ₹')),
-   if(ongoing)SizedBox(width:double.infinity,child:FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:submitting?null:()async{
-      final value=double.tryParse(fare.text.trim());
-      if(value==null||value<=0){ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Enter a valid final fare.')));return;}
+   if(ongoing)...[
+     Container(
+       width:double.infinity,
+       padding:const EdgeInsets.all(13),
+       decoration:BoxDecoration(color:const Color(0xFFEFFFF5),borderRadius:BorderRadius.circular(14)),
+       child:Row(children:[
+         const Icon(Icons.lock_outline_rounded,color:gfGreen),
+         const SizedBox(width:9),
+         Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+           const Text('UPFRONT FARE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
+           Text('₹'+(widget.b['fare_amount']??0).toString(),style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:gfNavy)),
+           const Text('Fare is locked to the customer estimate',style:TextStyle(fontSize:10,color:gfMuted)),
+         ])),
+       ]),
+     ),
+     const SizedBox(height:8),
+     SizedBox(width:double.infinity,child:FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:submitting?null:()async{
+      final value=double.tryParse(widget.b['fare_amount']?.toString()??'');
+      if(value==null||value<=0){ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Locked fare is unavailable.')));return;}
       setState(()=>submitting=true);
       try{await ApiService.confirmPayment(widget.session.token,id,value);await widget.changed();}
       catch(e){if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
