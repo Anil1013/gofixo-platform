@@ -582,13 +582,16 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
       return;
     }
     final r=await ApiService.computeRoute(pos!.latitude,pos!.longitude,a,b);
-    final d=(r['distanceMeters']as num).toDouble()/1000;
+    final d=((r['distanceMeters'] as num?)?.toDouble()??0)/1000;
     final points=_decodeGooglePolyline(r['encodedPolyline']?.toString()??'');
     if(points.length<2)throw Exception('No route found.');
+    final googleEta=double.tryParse(r['durationSeconds']?.toString()??'');
+    final fallbackEta=d>0?(d/25*3600):0;
     if(mounted)setState((){
       place=p;
       km=d;
       fare=_fare(type,d);
+      routeEtaSeconds=(googleEta!=null&&googleEta>0)?googleEta:fallbackEta;
       destinationPoint=LatLng(a,b);
       routePolylines={
         Polyline(
