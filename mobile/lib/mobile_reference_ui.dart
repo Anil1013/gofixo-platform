@@ -2,6 +2,8 @@ import 'dart:math';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:geolocator/geolocator.dart';
@@ -266,6 +268,9 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                    tiltGesturesEnabled:true,
                    scrollGesturesEnabled:true,
                    zoomGesturesEnabled:true,
+                   gestureRecognizers:<Factory<OneSequenceGestureRecognizer>>{
+                     Factory<OneSequenceGestureRecognizer>(()=>EagerGestureRecognizer()),
+                   },
                    markers:{
                      if(pos!=null)
                        Marker(
