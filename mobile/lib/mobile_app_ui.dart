@@ -571,6 +571,8 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
       pickup:pickup,
       drop:address,
       lat:pos!.latitude,
+      destinationLat:isService?null:destinationPoint?.latitude,
+      destinationLng:isService?null:destinationPoint?.longitude,
       lng:pos!.longitude,
       fare:isService?null:fare,
       distanceKm:isService?null:km,
