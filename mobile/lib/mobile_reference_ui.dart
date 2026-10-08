@@ -201,23 +201,62 @@ class _RideTypeShowcase extends StatelessWidget{
  ]));
 }
 class _RideCardNew extends StatelessWidget{
- final String title,sub,url,type;final Session session;final Future<void> Function({bool silent}) onChanged;
+ final String title,sub,url,type; final Session session; final Future<void> Function({bool silent}) onChanged;
  const _RideCardNew(this.title,this.sub,this.url,this.type,this.session,this.onChanged);
- @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.only(right:10),child:SizedBox(width:145,child:InkWell(onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:type,onChanged:onChanged))),borderRadius:BorderRadius.circular(20),child:Container(decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(20),boxShadow:const[BoxShadow(color:Color(0x12000000),blurRadius:9,offset:Offset(0,4))]),child:Column(children:[
-  Expanded(child:ClipRRect(borderRadius:const BorderRadius.vertical(top:Radius.circular(20)),child:Image.network(url,fit:BoxFit.cover,width:double.infinity,errorBuilder:(_,__,___)=>const ColoredBox(color:Color(0xFFEAF1F8))))),
-  Padding(padding:const EdgeInsets.fromLTRB(6,7,6,8),child:Column(children:[Text(title,style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),const SizedBox(height:2),Text(sub,style:const TextStyle(fontSize:9,color:gfMuted))]))
- ]))));
+ @override Widget build(BuildContext c){
+  return Padding(
+   padding:const EdgeInsets.only(right:10),
+   child:SizedBox(
+    width:145,
+    child:InkWell(
+     onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:type,onChanged:onChanged))),
+     borderRadius:BorderRadius.circular(20),
+     child:Container(
+      decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(20),boxShadow:const[BoxShadow(color:Color(0x12000000),blurRadius:9,offset:Offset(0,4))]),
+      child:Column(children:[
+       Expanded(child:ClipRRect(borderRadius:const BorderRadius.vertical(top:Radius.circular(20)),child:Image.network(url,fit:BoxFit.cover,width:double.infinity,errorBuilder:(context,error,stack)=>const ColoredBox(color:Color(0xFFEAF1F8))))),
+       Padding(padding:const EdgeInsets.fromLTRB(6,7,6,8),child:Column(children:[
+        Text(title,style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
+        const SizedBox(height:2),
+        Text(sub,style:const TextStyle(fontSize:9,color:gfMuted)),
+       ])),
+      ]),
+     ),
+    ),
+   ),
+  );
  }
 }
 
 class _CustomerPromo extends StatelessWidget{
- final VoidCallback onTap;const _CustomerPromo({required this.onTap});
- @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:InkWell(onTap:onTap,borderRadius:BorderRadius.circular(22),child:Container(height:138,clipBehavior:Clip.antiAlias,decoration:BoxDecoration(color:const Color(0xFFE9FFF4),borderRadius:BorderRadius.circular(22)),child:Stack(children:[
-  Positioned(right:0,top:0,bottom:0,width:150,child:Image.network('https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=700&q=88',fit:BoxFit.cover,errorBuilder:(_,__,___)=>const ColoredBox(color:Color(0xFFD9F6E7)))),
-  Positioned(left:16,top:15,bottom:10,right:145,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-   const Text('GOFIXO HOME SERVICES',style:TextStyle(fontSize:8,letterSpacing:1.2,fontWeight:FontWeight.w900,color:gfGreen)),const SizedBox(height:4),const Text('Trusted Professionals\\nfor Your Home',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy,height:1.05)),const SizedBox(height:5),const Text('✓ Verified  ✓ Affordable  ✓ On-Time',style:TextStyle(fontSize:8,color:gfGreen)),const Spacer(),FilledButton(onPressed:onTap,style:FilledButton.styleFrom(backgroundColor:gfGreen,padding:const EdgeInsets.symmetric(horizontal:15,vertical:8),minimumSize:Size.zero),child:const Text('Book Now →',style:TextStyle(fontSize:10,fontWeight:FontWeight.w900)))
-  ]))
- ])));
+ final VoidCallback onTap;
+ const _CustomerPromo({required this.onTap});
+ @override Widget build(BuildContext c){
+  return Padding(
+   padding:const EdgeInsets.symmetric(horizontal:12),
+   child:InkWell(
+    onTap:onTap,borderRadius:BorderRadius.circular(22),
+    child:Container(
+     height:138,clipBehavior:Clip.antiAlias,
+     decoration:BoxDecoration(color:const Color(0xFFE9FFF4),borderRadius:BorderRadius.circular(22)),
+     child:Stack(children:[
+      Positioned(right:0,top:0,bottom:0,width:150,child:Image.network('https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=700&q=88',fit:BoxFit.cover,errorBuilder:(context,error,stack)=>const ColoredBox(color:Color(0xFFD9F6E7)))),
+      Positioned(
+       left:16,top:15,bottom:10,right:145,
+       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        const Text('GOFIXO HOME SERVICES',style:TextStyle(fontSize:8,letterSpacing:1.2,fontWeight:FontWeight.w900,color:gfGreen)),
+        const SizedBox(height:4),
+        const Text('Trusted Professionals\nfor Your Home',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy,height:1.05)),
+        const SizedBox(height:5),
+        const Text('✓ Verified  ✓ Affordable  ✓ On-Time',style:TextStyle(fontSize:8,color:gfGreen)),
+        const Spacer(),
+        FilledButton(onPressed:onTap,style:FilledButton.styleFrom(backgroundColor:gfGreen,padding:const EdgeInsets.symmetric(horizontal:15,vertical:8),minimumSize:Size.zero),child:const Text('Book Now →',style:TextStyle(fontSize:10,fontWeight:FontWeight.w900))),
+       ]),
+      ),
+     ]),
+    ),
+   ),
+  );
  }
 }
 
@@ -743,7 +782,6 @@ class _MapControl extends StatelessWidget{
  const _MapControl({required this.icon,required this.onTap});
  @override Widget build(BuildContext c)=>Material(color:Colors.white,borderRadius:BorderRadius.circular(12),elevation:3,child:InkWell(onTap:onTap,borderRadius:BorderRadius.circular(12),child:SizedBox(width:44,height:44,child:Icon(icon,color:gfNavy,size:22))));
 }
-class _PhotoCard extends StatelessWidget{final String url,label;const _PhotoCard(this.url,this.label);@override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.symmetric(horizontal:3),child:Column(children:[Expanded(child:ClipRRect(borderRadius:BorderRadius.circular(16),child:Image.network(url,fit:BoxFit.cover,width:double.infinity,errorBuilder:(_,__,___)=>const ColoredBox(color:Color(0xFFE8EEF5),child:Icon(Icons.image_not_supported_outlined))))),const SizedBox(height:5),Text(label,style:const TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfNavy))]));}
 class _Partner extends StatelessWidget{final Map<String,dynamic>m;const _Partner({required this.m});@override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(22)),child:Row(children:[Container(width:58,height:58,padding:const EdgeInsets.all(4),decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEFFFF5)),child:ClipOval(child:Image.network('https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=85',fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Icon(Icons.person,color:gfGreen,size:34)))),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('PARTNER PROFILE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),Text(m['name']?.toString()??'Partner',style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900,color:gfNavy)),Text((m['type']?.toString()??'partner').replaceAll('_',' ')+' · '+(m['generated_id']?.toString()??''),style:const TextStyle(fontSize:11,color:gfMuted))])),const Icon(Icons.chevron_right,color:gfMuted)]));}
 class _Services extends StatelessWidget{final ValueChanged<String> onTap;const _Services({required this.onTap});@override Widget build(BuildContext c)=>GridView.count(crossAxisCount:4,crossAxisSpacing:7,mainAxisSpacing:9,childAspectRatio:.72,shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),children:[_Service('https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=500&q=80','Electrician',()=>onTap('skilled_worker')),_Service('https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=500&q=80','Plumber',()=>onTap('skilled_worker')),_Service('https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=500&q=80','AC Service',()=>onTap('skilled_worker')),_Service('https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=500&q=80','Cleaning',()=>onTap('general_worker')),_Service('https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=500&q=80','Painter',()=>onTap('skilled_worker')),_Service('https://images.unsplash.com/photo-1601058268499-e52658a84c9d?auto=format&fit=crop&w=500&q=80','Carpenter',()=>onTap('skilled_worker')),_Service('https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=500&q=80','Appliance Repair',()=>onTap('skilled_worker')),_Service('https://images.unsplash.com/photo-1521791055366-0d553872125f?auto=format&fit=crop&w=500&q=80','More Services',()=>onTap('general_worker'))]);}
 class _Service extends StatelessWidget {
