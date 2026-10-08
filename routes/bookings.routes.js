@@ -47,8 +47,8 @@ router.get('/mine', requireAuth(['customer']), async (req, res, next) => {
               CASE WHEN b.status IN ('accepted', 'ongoing', 'completed') THEN sp.name END AS provider_name,
               CASE WHEN b.status IN ('accepted', 'ongoing', 'completed') THEN sp.generated_id END AS provider_generated_id,
               CASE WHEN b.status IN ('accepted', 'ongoing', 'completed') THEN sp.phone END AS provider_phone,
-              CASE WHEN b.status IN ('accepted', 'ongoing') THEN sp.current_lat END AS provider_lat,
-              CASE WHEN b.status IN ('accepted', 'ongoing') THEN sp.current_lng END AS provider_lng
+              CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing') THEN sp.current_lat END AS provider_lat,
+              CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing') THEN sp.current_lng END AS provider_lng
        FROM bookings b
        LEFT JOIN service_providers sp ON b.provider_id = sp.id
        WHERE b.customer_id = $1
@@ -90,7 +90,7 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
            AND NOT EXISTS (
              SELECT 1 FROM bookings active_b
              WHERE active_b.provider_id = target_sp.id
-               AND active_b.status IN ('accepted', 'ongoing')
+               AND active_b.status IN ('accepted', 'arrived', 'ongoing')
            )
            AND EXISTS (
              SELECT 1 FROM provider_subscriptions ps
@@ -214,7 +214,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
 
     const open = await client.query(
       `SELECT id FROM bookings
-       WHERE customer_id = $1 AND status IN ('requested', 'accepted', 'ongoing')
+       WHERE customer_id = $1 AND status IN ('requested', 'accepted', 'arrived', 'ongoing')
        LIMIT 1
        FOR UPDATE`,
       [customer_id]
@@ -293,7 +293,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
          AND NOT EXISTS (
            SELECT 1 FROM bookings active_b
            WHERE active_b.provider_id = p.id
-             AND active_b.status IN ('accepted', 'ongoing')
+             AND active_b.status IN ('accepted', 'arrived', 'ongoing')
          )
          AND (6371 * acos(
            LEAST(1, GREATEST(-1,
@@ -392,7 +392,7 @@ router.post('/:id/cancel', requireAuth(['customer']), async (req, res, next) => 
            AND NOT EXISTS (
              SELECT 1 FROM bookings b
              WHERE b.provider_id = sp.id
-               AND b.status IN ('requested', 'accepted', 'ongoing')
+               AND b.status IN ('requested', 'accepted', 'arrived', 'ongoing')
                AND b.id <> $2
            )
            AND EXISTS (
@@ -470,7 +470,7 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
            SELECT 1
            FROM bookings active_b
            WHERE active_b.provider_id = $2
-             AND active_b.status IN ('accepted', 'ongoing')
+             AND active_b.status IN ('accepted', 'arrived', 'ongoing')
              AND active_b.id <> b.id
          )
        RETURNING b.id, b.service_type, b.customer_id, b.provider_id, b.pickup_location,
@@ -500,6 +500,29 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
     next(err);
   } finally {
     client.release();
+  }
+});
+
+// Provider marks the customer pickup as reached. This is server-authoritative so the ride
+// can show a real "arrived" state before the one-time start PIN is entered.
+router.post('/:id/arrived', requireAuth(['provider']), async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `UPDATE bookings
+       SET status = 'arrived'
+       WHERE id = $1
+         AND provider_id = $2
+         AND status = 'accepted'
+       RETURNING id, service_type, customer_id, provider_id, pickup_location, drop_or_service_address,
+                 pickup_lat, pickup_lng, drop_lat, drop_lng, fare_amount, status, created_at`,
+      [req.params.id, req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(409).json({ error: 'Booking must be accepted before marking arrival' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
   }
 });
 
@@ -582,7 +605,7 @@ router.post('/:id/start', requireAuth(['provider']), async (req, res, next) => {
        SET status = 'ongoing', start_pin = NULL
        WHERE id = $1
          AND provider_id = $2
-         AND status = 'accepted'
+         AND status IN ('accepted', 'arrived')
          AND start_pin = $3
        RETURNING id, service_type, customer_id, provider_id, pickup_location, status, created_at`,
       [id, req.user.id, normalizedPin]
