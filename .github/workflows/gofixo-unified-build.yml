@@ -194,7 +194,14 @@ jobs:
       - name: Install backend dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
       - name: Syntax check
-        run: node --check server.js
+        run: |
+          set -euo pipefail
+          find routes services middleware config -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+          node --check server.js
+
+      - name: Domain tests
+        run: node --test tests/booking-domain.test.js
+
       - name: Workflow summary
         run: |
           echo "Gofixo unified build passed for commit $GITHUB_SHA"
