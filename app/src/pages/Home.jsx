@@ -10,11 +10,6 @@ const RIDE_TYPES = [
   { value: 'car', label: 'Car' },
 ];
 
-const HOME_SERVICE_TYPES = [
-  { value: 'general_worker', label: 'Home help (cleaning, general)' },
-  { value: 'skilled_worker', label: 'Skilled (electrician, plumber, carpenter)' },
-];
-
 const FARE_RULES = {
   // Base fare remains separate; distance is charged progressively by slab.
   bike: {
