@@ -110,7 +110,7 @@ class _CustomerHomeTab extends StatelessWidget{
  final Session session;final List<Map<String,dynamic>> bookings;final Future<void> Function({bool silent}) onChanged;final ValueChanged<int> onTab;
  const _CustomerHomeTab({required this.session,required this.bookings,required this.onChanged,required this.onTab});
  @override Widget build(BuildContext c){
-  final active=bookings.where((b){final s=b['status']?.toString();return s=='requested'||s=='accepted'||s=='ongoing';}).toList();
+  final active=bookings.where((b){final s=b['status']?.toString();return s=='requested'||s=='accepted'||s=='arrived'||s=='ongoing';}).toList();
   return RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.only(bottom:18),children:[
    _CustomerHeader(onProfile:()=>onTab(4)),const SizedBox(height:6),_CustomerHero(session:session,onChanged:onChanged),const SizedBox(height:18),
    _SectionTitle(title:'Book a Ride',onSeeAll:()=>onTab(2)),const SizedBox(height:8),_RideTypeShowcase(session:session,onChanged:onChanged),const SizedBox(height:20),
@@ -1013,13 +1013,66 @@ class _ActiveState extends State<_Active>{
  final pin=TextEditingController(); bool submitting=false;
  @override void dispose(){pin.dispose();super.dispose();}
  @override Widget build(BuildContext c){
-  final id=int.tryParse(widget.b['id']?.toString()??'')??0;final ongoing=widget.b['status']=='ongoing';
+  final id=int.tryParse(widget.b['id']?.toString()??'')??0;
+  final status=widget.b['status']?.toString()??'';
+  final accepted=status=='accepted';
+  final arrived=status=='arrived';
+  final ongoing=status=='ongoing';
+
+  Future<void>markArrived()async{
+   if(submitting)return;
+   setState(()=>submitting=true);
+   try{await ApiService.markArrived(widget.session.token,id);await widget.changed();}
+   catch(e){if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
+   finally{if(mounted)setState(()=>submitting=false);}
+  }
+
+  Future<void>startTrip()async{
+   if(pin.text.length!=4||submitting)return;
+   setState(()=>submitting=true);
+   try{await ApiService.startBooking(widget.session.token,id,pin.text);await widget.changed();}
+   catch(e){if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
+   finally{if(mounted)setState(()=>submitting=false);}
+  }
+
   return _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-   Text(ongoing?'TRIP IN PROGRESS':'ON THE WAY',style:const TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
-   const SizedBox(height:4),Text(ongoing?'Confirm payment to complete':'Start with customer PIN',style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy)),
-   const SizedBox(height:10),_Route('Pickup',widget.b['pickup_location']?.toString()??''),
-   if(!ongoing)TextField(controller:pin,maxLength:4,keyboardType:TextInputType.number,onChanged:(_)=>setState((){}),decoration:const InputDecoration(labelText:'Customer 4-digit PIN')),
-   if(!ongoing)SizedBox(width:double.infinity,child:FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:pin.text.length==4?()async{try{await ApiService.startBooking(widget.session.token,id,pin.text);await widget.changed();}catch(e){if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}}:null,child:const Text('Start trip →'))),
+   Text(ongoing?'TRIP IN PROGRESS':arrived?'ARRIVED AT PICKUP':'ON THE WAY',style:const TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
+   const SizedBox(height:4),
+   Text(ongoing?'Confirm payment to complete':arrived?'Enter customer PIN to start the trip':'Navigate to pickup',style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy)),
+   const SizedBox(height:10),
+   _Route('Pickup',widget.b['pickup_location']?.toString()??''),
+   if(widget.b['drop_or_service_address']!=null&&widget.b['drop_or_service_address'].toString().trim().isNotEmpty)
+     _Route('Drop',widget.b['drop_or_service_address']?.toString()??''),
+
+   if(accepted)...[
+    const SizedBox(height:4),
+    Container(width:double.infinity,padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:const Color(0xFFEFFFF5),borderRadius:BorderRadius.circular(14)),child:const Row(children:[
+     Icon(Icons.near_me_rounded,color:gfGreen),SizedBox(width:8),Expanded(child:Text('You are on the way. Mark arrival when you reach the pickup point.',style:TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:gfNavy)))
+    ])),
+    const SizedBox(height:8),
+    SizedBox(width:double.infinity,child:FilledButton.icon(
+      style:FilledButton.styleFrom(backgroundColor:gfGreen),
+      onPressed:submitting?null:markArrived,
+      icon:const Icon(Icons.place_rounded),
+      label:Text(submitting?'Saving…':'I have arrived at pickup →'),
+    )),
+   ],
+
+   if(arrived)...[
+    const SizedBox(height:4),
+    Container(width:double.infinity,padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:const Color(0xFFFFF7E8),borderRadius:BorderRadius.circular(14)),child:const Row(children:[
+     Icon(Icons.lock_outline_rounded,color:gfGreen),SizedBox(width:8),Expanded(child:Text('Ask the customer for the 4-digit start PIN. The trip begins only after verification.',style:TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:gfNavy)))
+    ])),
+    const SizedBox(height:8),
+    TextField(controller:pin,maxLength:4,keyboardType:TextInputType.number,onChanged:(_)=>setState((){}),decoration:const InputDecoration(labelText:'Customer 4-digit PIN')),
+    SizedBox(width:double.infinity,child:FilledButton.icon(
+      style:FilledButton.styleFrom(backgroundColor:gfGreen),
+      onPressed:pin.text.length==4&&!submitting?startTrip:null,
+      icon:const Icon(Icons.play_arrow_rounded),
+      label:Text(submitting?'Starting…':'Start trip →'),
+    )),
+   ],
+
    if(ongoing)...[
      Container(
        width:double.infinity,
@@ -1043,12 +1096,13 @@ class _ActiveState extends State<_Active>{
       try{await ApiService.confirmPayment(widget.session.token,id,value);await widget.changed();}
       catch(e){if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
       finally{if(mounted)setState(()=>submitting=false);}
-    },child:Text(submitting?'Saving…':'Confirm payment received →'))),
+     },child:Text(submitting?'Saving…':'Confirm payment received →'))),
+   ],
+
    const SizedBox(height:6),
-   OutlinedButton.icon(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>LiveTrackingPage(session:widget.session,booking:widget.b,isProvider:true))),icon:const Icon(Icons.map_outlined),label:const Text('Open live map')),
-   ]
+   if(accepted||arrived||ongoing)
+     OutlinedButton.icon(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>LiveTrackingPage(session:widget.session,booking:widget.b,isProvider:true))),icon:const Icon(Icons.map_outlined),label:const Text('Open live map')),
   ]));
- }
 }
 class _Booking extends StatelessWidget{
  final Map<String,dynamic>b; final Session session; final Future<void> Function({bool silent})onChanged;
@@ -1062,7 +1116,7 @@ class _Booking extends StatelessWidget{
    Text(b['pickup_location']?.toString()??'',maxLines:1,overflow:TextOverflow.ellipsis),
    Text((isService?'Service address: ':'→ ')+(b['drop_or_service_address']?.toString()??''),maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:gfMuted)),
    if(s=='requested'||s=='accepted')Align(alignment:Alignment.centerRight,child:TextButton(onPressed:()async{await ApiService.cancelBooking(session.token,int.tryParse(id)??0);await onChanged();},child:const Text('Cancel'))),
-   if(s=='accepted'||s=='ongoing')Align(alignment:Alignment.centerRight,child:OutlinedButton.icon(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>LiveTrackingPage(session:session,booking:b,isProvider:false))),icon:const Icon(Icons.location_searching),label:const Text('Track live')))
+   if(s=='accepted'||s=='arrived'||s=='ongoing')Align(alignment:Alignment.centerRight,child:OutlinedButton.icon(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>LiveTrackingPage(session:session,booking:b,isProvider:false))),icon:const Icon(Icons.location_searching),label:const Text('Track live')))
   ]));
  }
 }
@@ -1428,7 +1482,7 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
       if(destinationPoint!=null)Marker(markerId:const MarkerId('destination'),position:destinationPoint!,icon:BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),infoWindow:const InfoWindow(title:'Destination')),
       if(providerPoint!=null)Marker(markerId:const MarkerId('partner'),position:providerPoint!,icon:BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),infoWindow:InfoWindow(title:widget.isProvider?'You':'Gofixo Partner')),
     };
-    final title=status=='ongoing'?'Trip in progress':status=='accepted'?'Partner is on the way':'Live trip';
+    final title=status=='ongoing'?'Trip in progress':status=='arrived'?'Partner has arrived':status=='accepted'?'Partner is on the way':'Live trip';
     return Scaffold(
       appBar:AppBar(title:Text(widget.isProvider?'Trip map':title)),
       body:Stack(children:[
@@ -1458,7 +1512,7 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
             const SizedBox(width:10),
             Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
               Text(widget.isProvider?'Trip map':title,style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
-              Text(widget.isProvider?'GPS is updating live':(status=='accepted'?'Partner location is live':'Connecting to partner…'),style:const TextStyle(fontSize:11,color:gfMuted)),
+              Text(widget.isProvider?'GPS is updating live':(status=='ongoing'?'Partner location is live':status=='arrived'?'Partner has arrived at pickup':'Partner is on the way'),style:const TextStyle(fontSize:11,color:gfMuted)),
             ])),
             IconButton(onPressed:(){setState(()=>followCamera=true);_fitAllPoints();},icon:const Icon(Icons.fit_screen,color:gfGreen)),
             if(!widget.isProvider)IconButton(onPressed:(){setState(()=>followCamera=true);_followProvider();},icon:const Icon(Icons.my_location,color:gfGreen)),
@@ -1472,7 +1526,7 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
               Container(width:44,height:44,decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEFFFF5)),child:const Icon(Icons.navigation_rounded,color:gfGreen)),
               const SizedBox(width:12),
               Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                Text(status=='ongoing'?'Ride in progress':status=='accepted'?'Partner is arriving':'Live ride',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
+                Text(status=='ongoing'?'Ride in progress':status=='arrived'?'Partner has arrived':status=='accepted'?'Partner is arriving':'Live ride',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
                 Text(status=='ongoing'?'Heading to destination':'Heading to pickup',style:const TextStyle(fontSize:11,color:gfMuted)),
               ])),
             ]),
