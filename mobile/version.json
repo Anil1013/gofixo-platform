@@ -1,7 +1,7 @@
 {
-  "version": "1.0.22",
-  "buildNumber": 1000022,
-  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.22/gofixo-release.apk",
-  "notes": "Gofixo v1.0.22 adds a shared universal service catalog across customer booking and partner onboarding, expands home-service categories, and keeps the existing ride, matching, KYC, subscription, map and ETA flows intact.",
+  "version": "1.0.23",
+  "buildNumber": 1000023,
+  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.23/gofixo-release.apk",
+  "notes": "Gofixo v1.0.23 makes universal home-service bookings transaction-ready with server-locked starting fares while preserving the existing ride, matching, KYC, subscription, map and ETA flows.",
   "forceUpdate": true
 }
