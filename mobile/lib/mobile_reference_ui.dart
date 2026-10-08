@@ -104,7 +104,60 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  void _startLocationStream(){locationSub?.cancel();locationSub=Geolocator.getPositionStream(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:5)).listen((x)async{if(!mounted||x.accuracy>150)return;final point=LatLng(x.latitude,x.longitude);final old=pos;setState(()=>pos=x);if(old==null||Geolocator.distanceBetween(old.latitude,old.longitude,x.latitude,x.longitude)>=3){if(lastReversePoint==null||Geolocator.distanceBetween(lastReversePoint!.latitude,lastReversePoint!.longitude,x.latitude,x.longitude)>=50){final address=await _reverse(x.latitude,x.longitude);if(!mounted)return;setState((){pickup=address;lastReversePoint=point;});}}});}
  void search(String v){debounce?.cancel();place=null;final q=v.trim();if(q.length<2){setState(()=>suggestions=[]);return;}debounce=Timer(const Duration(milliseconds:450),()async{try{final s=await ApiService.placeAutocomplete(q);if(mounted&&dest.text.trim()==q)setState(()=>suggestions=s);}catch(_){try{final points=await locationFromAddress(q);if(points.isNotEmpty&&mounted&&dest.text.trim()==q){final p=points.first;setState(()=>suggestions=[{'type':'native','placeId':'native:${p.latitude},${p.longitude}','text':q,'mainText':q,'secondaryText':'Device address search'}]);}}catch(_){if(mounted&&dest.text.trim()==q)setState(()=>suggestions=[]);}}});}
  Future<void>select(Map<String,dynamic>s)async{final id=s['placeId']?.toString();if(id==null||id.isEmpty)return;setState(()=>busy=true);try{if(id.startsWith('native:')){final parts=id.substring(7).split(',');final lat=double.tryParse(parts.isNotEmpty?parts[0]:'');final lng=double.tryParse(parts.length>1?parts[1]:'');if(lat==null||lng==null)throw Exception('Unable to read the selected address.');final d=<String,dynamic>{'address':s['text']?.toString()??'','lat':lat,'lng':lng};if(mounted){setState((){place=d;dest.text=d['address']?.toString()??'';suggestions=[];destinationPoint=LatLng(lat,lng);});_fitMapToPoints();}return;}Map<String,dynamic> d;try{d=await ApiService.placeDetails(id);}catch(_){final points=await locationFromAddress(s['text']?.toString()??'');if(points.isEmpty)throw Exception('Address service is unavailable. Please try a landmark or PIN code.');final x=points.first;d=<String,dynamic>{'address':s['text']?.toString()??'','lat':x.latitude,'lng':x.longitude};}if(mounted){final lat=double.tryParse(d['lat']?.toString()??'');final lng=double.tryParse(d['lng']?.toString()??'');setState((){place=d;dest.text=d['address']?.toString()??s['text']?.toString()??'';suggestions=[];if(lat!=null&&lng!=null)destinationPoint=LatLng(lat,lng);});if(destinationPoint!=null)_fitMapToPoints();}}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
- Future<void>calculate()async{if(pos==null)await locate();if(pos==null||dest.text.trim().isEmpty)return;setState(()=>busy=true);try{Map<String,dynamic>p=place??{};if(p['lat']==null||p['lng']==null){try{p=await ApiService.resolvePlace(dest.text.trim());}catch(_){final points=await locationFromAddress(dest.text.trim());if(points.isEmpty)throw Exception('Destination not found. Try a nearby landmark or PIN code.');final x=points.first;p=<String,dynamic>{'address':dest.text.trim(),'lat':x.latitude,'lng':x.longitude};}}final a=double.tryParse(p['lat']?.toString()??''),b=double.tryParse(p['lng']?.toString()??'');if(a==null||b==null)throw Exception('Destination not found.');if(isService){if(mounted)setState((){place=p;routePolylines={};destinationPoint=LatLng(a,b);km=null;fare=null;});return;}final r=await ApiService.computeRoute(pos!.latitude,pos!.longitude,a,b);final d=(r['distanceMeters']as num).toDouble()/1000;final points=_decodeGooglePolyline(r['encodedPolyline']?.toString()??'');if(points.length<2)throw Exception('No route found.');if(mounted)setState((){place=p;km=d;fare=_fare(type,d);destinationPoint=LatLng(a,b);routePolylines={Polyline(polylineId:const PolylineId('gofixo-route'),points:points,color:gfOrange,width:6)});WidgetsBinding.instance.addPostFrameCallback((_)=>_fitMapToPoints());}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
+ Future<void>calculate()async{
+  if(pos==null)await locate();
+  if(pos==null||dest.text.trim().isEmpty)return;
+  setState(()=>busy=true);
+  try{
+    Map<String,dynamic>p=place??{};
+    if(p['lat']==null||p['lng']==null){
+      try{
+        p=await ApiService.resolvePlace(dest.text.trim());
+      }catch(_){
+        final points=await locationFromAddress(dest.text.trim());
+        if(points.isEmpty)throw Exception('Destination not found. Try a nearby landmark or PIN code.');
+        final x=points.first;
+        p=<String,dynamic>{'address':dest.text.trim(),'lat':x.latitude,'lng':x.longitude};
+      }
+    }
+    final a=double.tryParse(p['lat']?.toString()??''),b=double.tryParse(p['lng']?.toString()??'');
+    if(a==null||b==null)throw Exception('Destination not found.');
+    if(isService){
+      if(mounted)setState((){
+        place=p;
+        routePolylines={};
+        destinationPoint=LatLng(a,b);
+        km=null;
+        fare=null;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_)=>_fitMapToPoints());
+      return;
+    }
+    final r=await ApiService.computeRoute(pos!.latitude,pos!.longitude,a,b);
+    final d=(r['distanceMeters']as num).toDouble()/1000;
+    final points=_decodeGooglePolyline(r['encodedPolyline']?.toString()??'');
+    if(points.length<2)throw Exception('No route found.');
+    if(mounted)setState((){
+      place=p;
+      km=d;
+      fare=_fare(type,d);
+      destinationPoint=LatLng(a,b);
+      routePolylines={
+        Polyline(
+          polylineId:const PolylineId('gofixo-route'),
+          points:points,
+          color:gfOrange,
+          width:6,
+        )
+      };
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_)=>_fitMapToPoints());
+  }catch(e){
+    _snack(e.toString());
+  }finally{
+    if(mounted)setState(()=>busy=false);
+  }
+}
  Future<void>_centerMap(LatLng p,double zoom)async{try{await mapController?.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target:p,zoom:zoom)));}catch(_){} }
  Future<void>_fitMapToPoints()async{if(pos==null&&destinationPoint==null)return;try{if(pos!=null&&destinationPoint!=null){final a=pos!,b=destinationPoint!;final sw=LatLng(a.latitude<b.latitude?a.latitude:b.latitude,a.longitude<b.longitude?a.longitude:b.longitude);final ne=LatLng(a.latitude>b.latitude?a.latitude:b.latitude,a.longitude>b.longitude?a.longitude:b.longitude);await mapController?.animateCamera(CameraUpdate.newLatLngBounds(LatLngBounds(southwest:sw,northeast:ne),70));}else if(destinationPoint!=null){await _centerMap(destinationPoint!,15);}}catch(_){} }
  double _fare(String t,double d){final base=t=='bike'?30:t=='auto'?40:60;final min=base;final slabs=t=='bike'?[[10,6],[20,5.5],[30,5],[50,4.5],[double.infinity,4.5]]:t=='auto'?[[10,7.5],[20,6.5],[30,6],[50,5.5],[double.infinity,5.5]]:[[10,9.5],[20,9],[30,8],[50,6.5],[100,5],[double.infinity,2.5]];var left=d,prev=0.0,total=0.0;for(final x in slabs){final limit=x[0].toDouble(),rate=x[1].toDouble();final take=left<=0?0.0:(left<limit-prev?left:limit-prev);if(take>0)total+=take*rate;left-=take;prev=limit;if(left<=0)break;}return (base+total).clamp(min,double.infinity).roundToDouble();}
@@ -170,7 +223,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
       border:OutlineInputBorder(borderRadius:BorderRadius.circular(18)),
     ),
   ),
-onst SizedBox(height:10),
+  const SizedBox(height:10),
 
   if(suggestions.isNotEmpty)Container(color:Colors.white,child:Column(children:suggestions.take(5).map((s)=>ListTile(leading:const Icon(Icons.place,color:gfOrange),title:Text(s['mainText']?.toString()??s['text']?.toString()??''),subtitle:Text(s['secondaryText']?.toString()??''),onTap:busy?null:()=>select(s))).toList())),
   const SizedBox(height:12),FilledButton.icon(style:FilledButton.styleFrom(backgroundColor:gfOrange,minimumSize:const Size.fromHeight(52)),onPressed:busy?null:calculate,icon:Icon(isService?Icons.handyman:Icons.alt_route),label:Text(isService?'Request service':'Show route & fare')),
