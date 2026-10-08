@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { apiPost, getRole, getToken, getUser } from '../api';
 import ProfilePhoto from '../components/ProfilePhoto';
 import MapView from '../components/MapView';
-import { reverseGeocodeDetails, reverseGeocode, searchAddress, searchAddressSuggestions, getRoute, formatDistance } from '../utils/geo';
+import { reverseGeocodeDetails, reverseGeocode, searchAddress, searchAddressSuggestions, getPlaceDetails, getRoute, formatDistance } from '../utils/geo';
 
 const RIDE_TYPES = [
   { value: 'bike', label: 'Bike' },
@@ -449,21 +449,32 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
             {destinationSuggestions.map((item) => (
               <button
                 type="button"
-                key={item.lat + ':' + item.lng + ':' + item.label}
+                key={item.placeId || item.label}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  setDestination(item.label);
-                  destinationResolvedRef.current = item.label;
-                  setDestCoords({ lat: item.lat, lng: item.lng });
-                  setDestinationSuggestions([]);
-                  if (coords) {
-                    buildRoute(coords, { lat: item.lat, lng: item.lng })
-                      .then(setRoute)
-                      .catch(() => setRoute(null));
+                onClick={async () => {
+                  setFinding(true);
+                  setError('');
+                  try {
+                    const found = await getPlaceDetails(item.placeId);
+                    if (!Number.isFinite(found.lat) || !Number.isFinite(found.lng)) {
+                      throw new Error('Selected destination has no valid coordinates.');
+                    }
+                    const point = { lat: found.lat, lng: found.lng };
+                    setDestination(found.label || item.label);
+                    destinationResolvedRef.current = found.label || item.label;
+                    setDestCoords(point);
+                    setDestinationSuggestions([]);
+                    setRoute(coords ? await buildRoute(coords, point) : null);
+                  } catch (err) {
+                    setError(err?.message || 'Could not load that destination. Please try again.');
+                    setDestinationSuggestions([]);
+                  } finally {
+                    setFinding(false);
                   }
                 }}
               >
-                <strong>{item.label}</strong>
+                <strong>{item.mainText || item.label}</strong>
+                {item.secondaryText && <small>{item.secondaryText}</small>}
               </button>
             ))}
           </div>
