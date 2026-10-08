@@ -6,6 +6,7 @@ const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
 const { sendProviderPush } = require('../services/push');
 const { normalizeServiceCategory } = require('../services/catalog');
+const { calculateRideFare } = require('../services/ride-pricing');
 
 const SERVICE_TYPES = new Set(['ride', 'services']);
 const PROVIDER_TYPES = new Set(['bike', 'auto', 'car', 'general_worker', 'skilled_worker']);
@@ -174,15 +175,17 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
     }
 
     const routeDistance = route_distance_km === undefined || route_distance_km === null || route_distance_km === '' ? null : Number(route_distance_km);
-    const estimatedFare = estimated_fare === undefined || estimated_fare === null || estimated_fare === '' ? null : Number(estimated_fare);
+    const clientEstimatedFare = estimated_fare === undefined || estimated_fare === null || estimated_fare === '' ? null : Number(estimated_fare);
+    let calculatedFare = null;
 
     if (service_type === 'ride') {
       if (!Number.isFinite(routeDistance) || routeDistance <= 0 || routeDistance > 1000) {
         return res.status(400).json({ error: 'A valid route distance is required for a ride' });
       }
-      if (!Number.isFinite(estimatedFare) || estimatedFare <= 0 || estimatedFare > 1000000) {
-        return res.status(400).json({ error: 'A valid estimated fare is required for a ride' });
+      if (clientEstimatedFare !== null && (!Number.isFinite(clientEstimatedFare) || clientEstimatedFare <= 0 || clientEstimatedFare > 1000000)) {
+        return res.status(400).json({ error: 'estimated_fare must be a valid positive number when provided' });
       }
+      calculatedFare = calculateRideFare(provider_type, routeDistance);
     }
 
     await client.query('BEGIN');
@@ -254,7 +257,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       [
         service_type, provider_type, serviceCategory, serviceDescription, customer_id,
         pickup_location, drop_or_service_address, pickupLatitude, pickupLongitude,
-        routeDistance, estimatedFare, generatePin()
+        routeDistance, calculatedFare, generatePin()
       ]
     );
 
