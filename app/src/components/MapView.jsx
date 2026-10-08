@@ -112,10 +112,11 @@ export default function MapView({ markers = [], line = null, height = 200, dragg
       });
 
       // Fit only when the actual route/points change. Manual drag/zoom stays user-controlled.
-      if (signature !== lastFittedSignatureRef.current && !userInteractedRef.current) {
+      if (signature !== lastFittedSignatureRef.current) {
         if (points.length === 1) map.setView(points[0], 16);
         else if (points.length > 1) map.fitBounds(points, { padding: [36, 36], maxZoom: 16 });
         lastFittedSignatureRef.current = signature;
+        userInteractedRef.current = false;
       }
       map.invalidateSize();
     } catch {
