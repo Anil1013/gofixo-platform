@@ -295,7 +295,7 @@ class _CustomerServicesTab extends StatelessWidget{
   const _PageHeading(title:'Services',subtitle:'Everything Gofixo can do for you.'),
   const _Title(kicker:'RIDES',title:'Choose your ride'),const SizedBox(height:8),_RideTypeShowcase(session:session,onChanged:onChanged),
   const SizedBox(height:16),const _Title(kicker:'HOME SERVICES',title:'Book a professional'),const SizedBox(height:8),
-  _Services(onTap:(t)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:t,onChanged:onChanged)))),
+  _Services(onTap:(type,category,label)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:type,serviceCategory:category,serviceDescription:label,onChanged:onChanged)))),
  ]);
 }
 
