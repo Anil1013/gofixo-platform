@@ -720,8 +720,15 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
   const client = await pool.connect();
   try {
     const { id } = req.params;
+    const paymentMethod = String(req.body?.payment_method || 'cash').trim().toLowerCase();
     const { fare_amount, rating, comment } = req.body;
     const submittedFare = fare_amount === undefined || fare_amount === null || fare_amount === '' ? null : Number(fare_amount);
+
+    if (paymentMethod !== 'cash') {
+      return res.status(400).json({
+        error: 'Online payment is not enabled yet. Use cash payment for now.'
+      });
+    }
     if (submittedFare !== null && (!Number.isFinite(submittedFare) || submittedFare <= 0 || submittedFare > 1000000)) {
       return res.status(400).json({ error: 'fare_amount must be a positive amount up to 1000000' });
     }
@@ -732,9 +739,17 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
       return res.status(400).json({ error: 'comment must be a string up to 500 characters' });
     }
 
+    const configuredCommission = Number(process.env.GOFIXO_COMMISSION_PERCENT || 20);
+    const commissionPercent = Number.isFinite(configuredCommission)
+      ? Math.min(50, Math.max(0, configuredCommission))
+      : 20;
+
     await client.query('BEGIN');
 
-    const existing = await client.query('SELECT provider_id, status, fare_amount FROM bookings WHERE id = $1', [id]);
+    const existing = await client.query(
+      'SELECT provider_id, customer_id, status, fare_amount, payment_status FROM bookings WHERE id = $1 FOR UPDATE',
+      [id]
+    );
     if (existing.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Booking not found' });
@@ -743,10 +758,17 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
       await client.query('ROLLBACK');
       return res.status(403).json({ error: 'This booking does not belong to you' });
     }
+    if (existing.rows[0].status !== 'ongoing') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: existing.rows[0].status === 'completed'
+          ? 'Payment is already confirmed'
+          : 'Start the ride/job with the customer PIN before confirming payment'
+      });
+    }
 
-    // Ride pricing is locked when the booking is created. Never allow the
-    // provider/client app to rewrite the customer-facing fare at completion.
-    // A submitted value is accepted only when it exactly matches the locked fare.
+    // Fare is locked when the booking is created. Never allow the provider/client
+    // app to rewrite the customer-facing amount at completion.
     const lockedFare = Number(existing.rows[0].fare_amount);
     if (!Number.isFinite(lockedFare) || lockedFare <= 0 || lockedFare > 1000000) {
       await client.query('ROLLBACK');
@@ -754,43 +776,62 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
     }
     if (submittedFare !== null && Math.abs(submittedFare - lockedFare) > 0.01) {
       await client.query('ROLLBACK');
-      return res.status(409).json({ error: 'Fare is locked to the upfront ride estimate' });
+      return res.status(409).json({ error: 'Fare is locked to the upfront booking price' });
     }
-    const fare = lockedFare;
 
-    // Complete only an ongoing booking. The status predicate makes payment
-    // confirmation idempotent under concurrent requests: exactly one request
-    // can transition ongoing -> completed and create the earning.
+    const fare = Number(lockedFare.toFixed(2));
+    const commission = Number((fare * commissionPercent / 100).toFixed(2));
+    const providerAmount = Number((fare - commission).toFixed(2));
+
     const booking = await client.query(
-      `UPDATE bookings SET status = 'completed', payment_confirmed_by_provider = true,
-       fare_amount = $1, completed_at = NOW() WHERE id = $2
-       AND provider_id = $3 AND status = 'ongoing'
-       RETURNING id, service_type, customer_id, provider_id, pickup_location, fare_amount, status, completed_at`,
-      [fare, id, req.user.id]
+      `UPDATE bookings
+       SET status = 'completed',
+           payment_confirmed_by_provider = true,
+           payment_method = $1,
+           payment_status = 'paid',
+           commission_amount = $2,
+           provider_earning_amount = $3,
+           fare_amount = $4,
+           completed_at = NOW()
+       WHERE id = $5
+         AND provider_id = $6
+         AND status = 'ongoing'
+       RETURNING id, service_type, customer_id, provider_id, pickup_location, fare_amount,
+                 payment_method, payment_status, commission_amount, provider_earning_amount,
+                 status, completed_at`,
+      [paymentMethod, commission, providerAmount, fare, id, req.user.id]
     );
+
     if (booking.rows.length === 0) {
       await client.query('ROLLBACK');
-      return res.status(409).json({
-        error: existing.rows[0].status === 'ongoing'
-          ? 'Payment is already being confirmed'
-          : 'Start the ride/job with the customer\'s PIN before confirming payment'
-      });
+      return res.status(409).json({ error: 'Payment confirmation could not be completed' });
     }
-    const providerId = booking.rows[0].provider_id;
 
-    // Log the earning
+    // Exactly one transaction row per completed booking. The unique booking_id
+    // constraint prevents duplicate financial records under retries.
     await client.query(
-      `INSERT INTO earnings_log (booking_id, provider_id, amount) VALUES ($1, $2, $3)`,
-      [id, providerId, fare]
+      `INSERT INTO booking_transactions
+        (booking_id, customer_id, provider_id, gross_amount, commission_amount, provider_amount, payment_method, status, paid_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'paid', NOW())
+       ON CONFLICT (booking_id) DO NOTHING`,
+      [id, booking.rows[0].customer_id, req.user.id, fare, commission, providerAmount, paymentMethod]
+    );
+
+    // Earnings log records the partner's net earning, not the customer's gross
+    // fare. This keeps subscription earning caps aligned with actual partner pay.
+    await client.query(
+      `INSERT INTO earnings_log (booking_id, provider_id, amount)
+       VALUES ($1, $2, $3)
+       ON CONFLICT DO NOTHING`,
+      [id, req.user.id, providerAmount]
     );
 
     // Close expired cycles first, then lock exactly one valid active cycle.
-    // The row lock serializes concurrent booking completions for the same provider.
     await client.query(
       `UPDATE provider_subscriptions
        SET status = 'expired'
        WHERE provider_id = $1 AND status = 'active' AND expiry_date <= NOW()`,
-      [providerId]
+      [req.user.id]
     );
 
     const sub = await client.query(
@@ -803,7 +844,7 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
        ORDER BY ps.start_date DESC, ps.id DESC
        LIMIT 1
        FOR UPDATE`,
-      [providerId]
+      [req.user.id]
     );
 
     let providerAvailable = false;
@@ -812,8 +853,7 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
       const earningCap = Number(sub.rows[0].cap);
 
       if (Number.isFinite(earningCap) && earningCap > 0) {
-        const newTotal = currentEarned + fare;
-
+        const newTotal = Number((currentEarned + providerAmount).toFixed(2));
         await client.query(
           `UPDATE provider_subscriptions
            SET total_earned_this_cycle = $1::numeric,
@@ -821,22 +861,18 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
            WHERE id = $3`,
           [newTotal, earningCap, sub.rows[0].id]
         );
-
         providerAvailable = newTotal < earningCap;
       } else {
-        // A malformed plan must never keep a provider available.
         await client.query(
-          `UPDATE provider_subscriptions SET status = 'exhausted' WHERE id = $1`,
+          'UPDATE provider_subscriptions SET status = \'exhausted\' WHERE id = $1',
           [sub.rows[0].id]
         );
       }
     }
 
-    // No valid subscription or an exhausted/invalid one means the provider must renew
-    // before becoming available for another booking.
     await client.query(
       'UPDATE service_providers SET is_available = $1 WHERE id = $2',
-      [providerAvailable, providerId]
+      [providerAvailable, req.user.id]
     );
 
     if (rating) {
@@ -849,9 +885,20 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
     }
 
     await client.query('COMMIT');
-    res.json({ booking: booking.rows[0], provider_available: providerAvailable });
+    res.json({
+      booking: booking.rows[0],
+      transaction: {
+        gross_amount: fare,
+        commission_percent: commissionPercent,
+        commission_amount: commission,
+        provider_earning_amount: providerAmount,
+        payment_method: paymentMethod,
+        payment_status: 'paid'
+      },
+      provider_available: providerAvailable
+    });
   } catch (err) {
-    await client.query('ROLLBACK');
+    await client.query('ROLLBACK').catch(() => {});
     next(err);
   } finally {
     client.release();
