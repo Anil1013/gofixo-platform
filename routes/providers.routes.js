@@ -227,6 +227,13 @@ router.post('/:id/documents', requireAuth(['provider']), requireOwnProvider, upl
     if (!ALLOWED_DOCUMENT_TYPES.has(docType)) {
       return res.status(400).json({ error: 'Invalid document type' });
     }
+    if (docType === 'profile_photo') {
+      const extension = path.extname(req.file.originalname || '').toLowerCase();
+      if (!['.jpg', '.jpeg', '.png', '.webp'].includes(extension) ||
+          !['image/jpeg', 'image/png', 'image/webp', 'application/octet-stream', ''].includes(req.file.mimetype || '')) {
+        return res.status(400).json({ error: 'Profile photo must be a JPG, PNG, or WEBP image' });
+      }
+    }
 
     const dir = path.join(__dirname, '..', 'uploads', 'providers', String(req.params.id));
     await fsp.mkdir(dir, { recursive: true });
