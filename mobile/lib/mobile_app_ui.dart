@@ -626,49 +626,284 @@ class _JobSummary extends StatelessWidget{
  @override Widget build(BuildContext c)=>_Box(child:Row(children:[const Icon(Icons.check_circle_outline,color:gfGreen),const SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text((b['status']?.toString()??'').toUpperCase(),style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),Text(b['drop_or_service_address']?.toString()??'',maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:11,color:gfMuted))])),Text('₹'+(b['fare_amount']??b['final_fare']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy))]));
 }
 
-class _ProviderEarningsTab extends StatefulWidget{
- final Session session; final Map<String,dynamic> me; final List<Map<String,dynamic>> jobs;
- const _ProviderEarningsTab({required this.session,required this.me,required this.jobs});
- @override State<_ProviderEarningsTab> createState()=>_ProviderEarningsTabState();
-}
-class _ProviderEarningsTabState extends State<_ProviderEarningsTab>{
- late Future<List<Map<String,dynamic>>> payoutsFuture;
- late Future<Map<String,dynamic>> summaryFuture;
- @override void initState(){super.initState();_reload();}
- void _reload(){payoutsFuture=ApiService.providerPayouts(widget.session.token);summaryFuture=ApiService.providerPayoutSummary(widget.session.token);}
- String _money(dynamic v)=>'₹'+(double.tryParse(v?.toString()??'0')??0).toStringAsFixed(0);
- Color _statusColor(String s)=>s=='paid'?gfGreen:s=='failed'?gfOrange:gfNavy;
- @override Widget build(BuildContext c){
-  final earned=double.tryParse(widget.me['total_earned_this_cycle']?.toString()??'0')??0;
-  final rides=int.tryParse(widget.me['today_rides']?.toString()??'')??0;
-  final completed=widget.jobs.where((j){final s=j['status']?.toString().toLowerCase();return s=='completed'||s=='paid'||s=='finished';}).length;
-  return RefreshIndicator(onRefresh:()async{setState(_reload);await Future.wait([payoutsFuture,summaryFuture]);},child:ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
-   const _PageHeading(title:'Earnings',subtitle:'Your completed work and payout status.'),
-   Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:gfNavy,borderRadius:BorderRadius.circular(24)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    const Text('CURRENT CYCLE',style:TextStyle(color:Colors.white70,fontSize:9,fontWeight:FontWeight.w800)),const SizedBox(height:5),Text(_money(earned),style:const TextStyle(color:Colors.white,fontSize:31,fontWeight:FontWeight.w900)),
-    const SizedBox(height:14),Row(children:[Expanded(child:_DarkStat('Today',rides.toString())),Expanded(child:_DarkStat('Completed',completed.toString()))])
-   ])),const SizedBox(height:14),
-   FutureBuilder<Map<String,dynamic>>(future:summaryFuture,builder:(context,s){final d=s.data??const{};return Row(children:[Expanded(child:_EarningStat(title:'Pending payout',value:_money(d['pending_amount']))),const SizedBox(width:8),Expanded(child:_EarningStat(title:'Paid out',value:_money(d['paid_amount'])))]);}),
-   const SizedBox(height:14),const Text('PAYOUT HISTORY',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),const SizedBox(height:7),
-   FutureBuilder<List<Map<String,dynamic>>>(future:payoutsFuture,builder:(context,s){
-    if(s.connectionState==ConnectionState.waiting)return const _Box(child:Center(child:Padding(padding:EdgeInsets.all(12),child:CircularProgressIndicator(strokeWidth:2))));
-    if(s.hasError)return _Box(child:Row(children:[const Icon(Icons.info_outline,color:gfMuted),const SizedBox(width:8),const Expanded(child:Text('Payout history is temporarily unavailable. Your completed-job ledger is still safe.',style:TextStyle(fontSize:11,color:gfMuted))),IconButton(onPressed:(){setState(_reload);},icon:const Icon(Icons.refresh,color:gfGreen))]));
-    final rows=s.data??const[];
-    if(rows.isEmpty)return const _Box(child:Text('No service payouts yet. Completed home-service earnings will appear here.',style:TextStyle(fontSize:11,color:gfMuted)));
-    return Column(children:rows.take(30).map((p){final status=(p['payout_status']?.toString()??'pending').toLowerCase();final booking=p['booking_id']?.toString()??'';final date=p['paid_at']??p['created_at'];return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(13),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(17)),child:Row(children:[
-     Container(width:40,height:40,decoration:const BoxDecoration(color:Color(0xFFEFFFF5),shape:BoxShape.circle),child:Icon(status=='paid'?Icons.account_balance_rounded:status=='failed'?Icons.error_outline_rounded:Icons.schedule_rounded,color:_statusColor(status))),
-     const SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(booking.isEmpty?'Service payout':'Booking #$booking',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),Text(status.toUpperCase(),style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:_statusColor(status))),if(date!=null)Text(date.toString().replaceFirst('T',' · '),style:const TextStyle(fontSize:9,color:gfMuted))])),Text(_money(p['payout_amount']),style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy)),
-    ]));}).toList());
-   }),
-   const SizedBox(height:8),const _Box(child:Text('Payout status is controlled by Gofixo’s server-side settlement ledger. Bank/UPI details are never shown in the app.',style:TextStyle(fontSize:10,color:gfMuted))),
-  ]));
- }
-}
-class _EarningStat extends StatelessWidget{
- final String title,value; const _EarningStat({required this.title,required this.value});
- @override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.all(13),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(17)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(value,style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy)),const SizedBox(height:2),Text(title,style:const TextStyle(fontSize:10,color:gfMuted))]);
+class _ProviderEarningsTab extends StatefulWidget {
+  final Session session;
+  final Map<String, dynamic> me;
+  final List<Map<String, dynamic>> jobs;
+
+  const _ProviderEarningsTab({
+    required this.session,
+    required this.me,
+    required this.jobs,
+  });
+
+  @override
+  State<_ProviderEarningsTab> createState() => _ProviderEarningsTabState();
 }
 
+class _ProviderEarningsTabState extends State<_ProviderEarningsTab> {
+  late Future<List<Map<String, dynamic>>> payoutsFuture;
+  late Future<Map<String, dynamic>> summaryFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    payoutsFuture = ApiService.providerPayouts(widget.session.token);
+    summaryFuture = ApiService.providerPayoutSummary(widget.session.token);
+  }
+
+  String _money(dynamic value) {
+    final amount = double.tryParse(value?.toString() ?? '0') ?? 0;
+    return '₹' + amount.toStringAsFixed(0);
+  }
+
+  Color _statusColor(String status) {
+    if (status == 'paid') return gfGreen;
+    if (status == 'failed') return gfOrange;
+    return gfNavy;
+  }
+
+  Widget _payoutRow(Map<String, dynamic> payout) {
+    final status =
+        (payout['payout_status']?.toString() ?? 'pending').toLowerCase();
+    final booking = payout['booking_id']?.toString() ?? '';
+    final date = payout['paid_at'] ?? payout['created_at'];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: gfLine),
+        borderRadius: BorderRadius.circular(17),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: Color(0xFFEFFFF5),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              status == 'paid'
+                  ? Icons.account_balance_rounded
+                  : status == 'failed'
+                      ? Icons.error_outline_rounded
+                      : Icons.schedule_rounded,
+              color: _statusColor(status),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  booking.isEmpty ? 'Service payout' : 'Booking #' + booking,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: gfNavy,
+                  ),
+                ),
+                Text(
+                  status.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                    color: _statusColor(status),
+                  ),
+                ),
+                if (date != null)
+                  Text(
+                    date.toString().replaceFirst('T', ' · '),
+                    style: const TextStyle(fontSize: 9, color: gfMuted),
+                  ),
+              ],
+            ),
+          ),
+          Text(
+            _money(payout['payout_amount']),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: gfNavy,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final earned =
+        double.tryParse(widget.me['total_earned_this_cycle']?.toString() ?? '0') ??
+            0;
+    final rides =
+        int.tryParse(widget.me['today_rides']?.toString() ?? '') ?? 0;
+    final completed = widget.jobs.where((job) {
+      final status = job['status']?.toString().toLowerCase();
+      return status == 'completed' ||
+          status == 'paid' ||
+          status == 'finished';
+    }).length;
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        setState(_reload);
+        await Future.wait([payoutsFuture, summaryFuture]);
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+        children: [
+          const _PageHeading(
+            title: 'Earnings',
+            subtitle: 'Your completed work and payout status.',
+          ),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: gfNavy,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'CURRENT CYCLE',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  _money(earned),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 31,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _DarkStat('Today', rides.toString()),
+                    ),
+                    Expanded(
+                      child: _DarkStat('Completed', completed.toString()),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          FutureBuilder<Map<String, dynamic>>(
+            future: summaryFuture,
+            builder: (context, snapshot) {
+              final data = snapshot.data ?? const <String, dynamic>{};
+              return Row(
+                children: [
+                  Expanded(
+                    child: _EarningStat(
+                      title: 'Pending payout',
+                      value: _money(data['pending_amount']),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _EarningStat(
+                      title: 'Paid out',
+                      value: _money(data['paid_amount']),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'PAYOUT HISTORY',
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+              color: gfGreen,
+            ),
+          ),
+          const SizedBox(height: 7),
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: payoutsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const _Box(
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                );
+              }
+
+              if (snapshot.hasError) {
+                return _Box(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline, color: gfMuted),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Payout history is temporarily unavailable. Your completed-job ledger is still safe.',
+                          style: TextStyle(fontSize: 11, color: gfMuted),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => setState(_reload),
+                        icon: const Icon(Icons.refresh, color: gfGreen),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              final rows =
+                  snapshot.data ?? const <Map<String, dynamic>>[];
+
+              if (rows.isEmpty) {
+                return const _Box(
+                  child: Text(
+                    'No service payouts yet. Completed home-service earnings will appear here.',
+                    style: TextStyle(fontSize: 11, color: gfMuted),
+                  ),
+                );
+              }
+
+              return Column(
+                children: rows.take(30).map(_payoutRow).toList(),
+              );
+            },
+          ),
+          const SizedBox(height: 8),
+          const _Box(
+            child: Text(
+              'Payout status is controlled by Gofixo’s server-side settlement ledger. Bank/UPI details are never shown in the app.',
+              style: TextStyle(fontSize: 10, color: gfMuted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _ProviderServicesTab extends StatefulWidget{
   final Session session;
