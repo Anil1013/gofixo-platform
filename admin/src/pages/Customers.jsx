@@ -1,5 +1,21 @@
 import { useEffect, useState } from 'react';
-import { apiGet, apiPost } from '../api';
+import { apiGet, apiGetBlob, apiPost } from '../api';
+
+
+function CustomerPhoto({ id, size = 42 }) {
+  const [src, setSrc] = useState('');
+  useEffect(() => {
+    let active = true;
+    let url = '';
+    apiGetBlob(`/admin/customers/${id}/profile-photo`)
+      .then((blob) => { if (active) { url = URL.createObjectURL(blob); setSrc(url); } })
+      .catch(() => {});
+    return () => { active = false; if (url) URL.revokeObjectURL(url); };
+  }, [id]);
+  return src
+    ? <img src={src} alt="Customer profile" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', display: 'block' }} />
+    : <div style={{ width: size, height: size, borderRadius: '50%', display: 'grid', placeItems: 'center', background: '#EAFBF2', color: '#16A34A', fontWeight: 800 }}>👤</div>;
+}
 
 function maskAadhaar(value) {
   if (!value) return 'Not collected';
@@ -91,7 +107,7 @@ export default function Customers() {
       {selected ? (
         <section className="customer-detail-card">
           <div className="detail-head">
-            <div>
+            <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}><CustomerPhoto id={selected.customer.id} size={64} />
               <span className="detail-kicker">CUSTOMER DETAILS</span>
               <h3>{selected.customer.name || 'Unnamed customer'}</h3>
               <p>Customer ID #{selected.customer.id}</p>
@@ -142,11 +158,12 @@ export default function Customers() {
       ) : (
         <table className="data-table">
           <thead>
-            <tr><th>ID</th><th>Name</th><th>Phone</th><th>Password</th><th>Reset request</th><th>Action</th></tr>
+            <tr><th>Photo</th><th>ID</th><th>Name</th><th>Phone</th><th>Password</th><th>Reset request</th><th>Action</th></tr>
           </thead>
           <tbody>
             {visible.map((c) => (
               <tr key={c.id}>
+                <td><CustomerPhoto id={c.id} /></td>
                 <td>#{c.id}</td>
                 <td>{c.name || '—'}</td>
                 <td>{c.phone}</td>
@@ -155,7 +172,7 @@ export default function Customers() {
                 <td><button className="btn btn-view" onClick={() => openCustomer(c.id)}>View details</button></td>
               </tr>
             ))}
-            {visible.length === 0 && <tr><td colSpan="6">No customers found.</td></tr>}
+            {visible.length === 0 && <tr><td colSpan="7">No customers found.</td></tr>}
           </tbody>
         </table>
       )}
