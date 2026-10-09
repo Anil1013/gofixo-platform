@@ -658,7 +658,7 @@ class _ProviderEarningsTabState extends State<_ProviderEarningsTab>{
     return Column(children:rows.take(30).map((p){final status=(p['payout_status']?.toString()??'pending').toLowerCase();final booking=p['booking_id']?.toString()??'';final date=p['paid_at']??p['created_at'];return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(13),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(17)),child:Row(children:[
      Container(width:40,height:40,decoration:const BoxDecoration(color:Color(0xFFEFFFF5),shape:BoxShape.circle),child:Icon(status=='paid'?Icons.account_balance_rounded:status=='failed'?Icons.error_outline_rounded:Icons.schedule_rounded,color:_statusColor(status))),
      const SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(booking.isEmpty?'Service payout':'Booking #$booking',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),Text(status.toUpperCase(),style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:_statusColor(status))),if(date!=null)Text(date.toString().replaceFirst('T',' · '),style:const TextStyle(fontSize:9,color:gfMuted))])),Text(_money(p['payout_amount']),style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy)),
-    ]);}).toList());
+    ]));}).toList());
    }),
    const SizedBox(height:8),const _Box(child:Text('Payout status is controlled by Gofixo’s server-side settlement ledger. Bank/UPI details are never shown in the app.',style:TextStyle(fontSize:10,color:gfMuted))),
   ]));
