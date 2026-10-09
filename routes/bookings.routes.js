@@ -464,7 +464,7 @@ router.post('/:id/cancel', requireAuth(['customer']), async (req, res, next) => 
     );
 
     const booking = await client.query(
-      `SELECT id, customer_id, provider_id, status
+      `SELECT id, customer_id, provider_id, service_type, fare_amount, status
        FROM bookings
        WHERE id = $1
        FOR UPDATE`,
@@ -494,6 +494,10 @@ router.post('/:id/cancel', requireAuth(['customer']), async (req, res, next) => 
        WHERE id = $1`,
       [id]
     );
+
+    if (current.service_type === 'services') {
+      await releaseServiceWallet(client, id, req.user.id, Number(current.fare_amount), 'customer_cancelled');
+    }
 
     if (current.provider_id) {
       const eligibility = await client.query(
