@@ -1,6 +1,23 @@
 import { useEffect, useState } from 'react';
 import { apiGet, apiGetBlob, apiPatch } from '../api';
 
+
+function ProviderPhoto({ providerId, documentId, size = 44 }) {
+  const [src, setSrc] = useState('');
+  useEffect(() => {
+    if (!documentId) return undefined;
+    let active = true;
+    let url = '';
+    apiGetBlob(`/providers/admin/${providerId}/documents/${documentId}`)
+      .then((blob) => { if (active) { url = URL.createObjectURL(blob); setSrc(url); } })
+      .catch(() => {});
+    return () => { active = false; if (url) URL.revokeObjectURL(url); };
+  }, [providerId, documentId]);
+  return src
+    ? <img src={src} alt="Provider profile" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', display: 'block' }} />
+    : <div style={{ width: size, height: size, borderRadius: '50%', display: 'grid', placeItems: 'center', background: '#EAFBF2', color: '#16A34A', fontWeight: 800 }}>👤</div>;
+}
+
 const DOC_LABELS = {
   aadhar_front: 'Aadhar front',
   aadhar_back: 'Aadhar back',
@@ -89,6 +106,7 @@ export default function Providers() {
       <table className="data-table">
         <thead>
           <tr>
+            <th>Photo</th>
             <th>ID</th>
             <th>Name</th>
             <th>Phone</th>
@@ -105,6 +123,7 @@ export default function Providers() {
         <tbody>
           {visibleProviders.map((p) => (
             <tr key={p.id}>
+              <td><ProviderPhoto providerId={p.id} documentId={p.documents?.find((d) => d.doc_type === 'profile_photo')?.id} /></td>
               <td>{p.generated_id}</td>
               <td>{p.name}</td>
               <td>{p.phone}</td>
@@ -173,7 +192,7 @@ export default function Providers() {
           ))}
           {visibleProviders.length === 0 && (
             <tr>
-              <td colSpan="11">{providers.length === 0 ? 'No providers registered yet.' : 'No provider matches this search.'}</td>
+              <td colSpan="12">{providers.length === 0 ? 'No providers registered yet.' : 'No provider matches this search.'}</td>
             </tr>
           )}
         </tbody>

@@ -356,7 +356,7 @@ export default function ProviderHome({ onLogout }) {
 
       <section className="partner-profile-card">
         <div className="partner-avatar">
-          <ProfilePhoto role="provider" userId={profile.id} size="compact" fallbackImage="https://images.unsplash.com/photo-1669773793594-e8d4615deb7c?auto=format&fit=crop&w=240&q=80" />
+          <ProfilePhoto role="provider" userId={profile.id} size="compact" />
           <b />
         </div>
         <div className="partner-profile-copy">
@@ -448,7 +448,7 @@ export default function ProviderHome({ onLogout }) {
           <MapView markers={navigationMarkers} line={pickupRoute ? pickupRoute.line : null} height={200} />
           <div className="job-location-row"><span>📍</span><div><small>PICKUP</small><strong>{activeBooking.pickup_location}</strong></div></div>
           {pickupRoute && <div className="route-highlight"><strong>{pickupRoute.distanceKm.toFixed(1)} km</strong><span>about {pickupRoute.durationMin} min</span></div>}
-          <div className="customer-card"><span className="customer-avatar">👤</span><div><small>CUSTOMER</small><strong>{activeBooking.customer_name || 'Customer'}</strong><span>{activeBooking.customer_phone}</span></div></div>
+          <div className="customer-card"><ProfilePhoto role="customer" userId={activeBooking.customer_id} size="compact" editable={false} /><div><small>CUSTOMER</small><strong>{activeBooking.customer_name || 'Customer'}</strong><span>{activeBooking.customer_phone}</span></div></div>
           <p className="route-info">🧭 Navigation is running inside Gofixo. Keep this screen open while travelling.</p>
           <label>Customer start PIN</label>
           <input className="provider-input" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0,4))} placeholder="Enter 4-digit PIN" inputMode="numeric" />

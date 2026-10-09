@@ -29,7 +29,7 @@ Protected requests use:
 
 `requested -> accepted -> ongoing -> completed`
 
-Customers can cancel before the booking starts. Providers accept or decline requests from the provider dashboard. The current implementation broadcasts an eligible request to providers within 3 km; the first eligible provider to atomically accept wins. A request that remains unclaimed for 60 seconds becomes `no_provider`.
+Customers can cancel before the booking starts. Providers accept or decline requests from the provider dashboard. The current implementation broadcasts an eligible request to providers within 10 km; the first eligible provider to atomically accept wins. A request that remains unclaimed for 60 seconds becomes `no_provider`.
 
 For ride bookings, the customer app calculates the route and estimated fare before calling `POST /api/bookings`. The server validates the supplied distance and estimated fare bounds.
 

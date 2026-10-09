@@ -68,6 +68,37 @@ router.post('/customer/profile-photo', requireAuth(['customer']), profileUpload.
   } catch (err) { next(err); }
 });
 
+router.get('/customer/:id/profile-photo', requireAuth(['provider', 'customer']), async (req, res, next) => {
+  try {
+    const customerId = Number.parseInt(req.params.id, 10);
+    if (!Number.isInteger(customerId) || customerId <= 0) return res.status(400).json({ error: 'Invalid customer id' });
+
+    if (req.user.role === 'customer' && req.user.id !== customerId) {
+      return res.status(403).json({ error: 'You can only access your own customer photo' });
+    }
+
+    if (req.user.role === 'provider') {
+      const access = await pool.query(
+        `SELECT 1 FROM bookings
+         WHERE customer_id = $1 AND provider_id = $2
+           AND status IN ('accepted', 'arrived', 'ongoing', 'completed')
+         LIMIT 1`,
+        [customerId, req.user.id]
+      );
+      if (access.rows.length === 0) return res.status(403).json({ error: 'Customer photo is available only for your bookings' });
+    }
+
+    const result = await pool.query('SELECT profile_photo_url FROM customers WHERE id = $1', [customerId]);
+    if (result.rows.length === 0 || !result.rows[0].profile_photo_url) return res.status(404).json({ error: 'Profile photo not set' });
+    const relativePath = result.rows[0].profile_photo_url.replace(/^\/uploads\//, '');
+    const filePath = path.resolve(__dirname, '..', 'uploads', relativePath);
+    const uploadsRoot = path.resolve(__dirname, '..', 'uploads') + path.sep;
+    if (!filePath.startsWith(uploadsRoot)) return res.status(400).json({ error: 'Invalid photo path' });
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Profile photo file not found' });
+    res.sendFile(filePath);
+  } catch (err) { next(err); }
+});
+
 router.get('/customer/profile-photo', requireAuth(['customer']), async (req, res, next) => {
   try {
     const result = await pool.query('SELECT profile_photo_url FROM customers WHERE id = $1', [req.user.id]);

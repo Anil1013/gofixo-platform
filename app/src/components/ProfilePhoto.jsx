@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { API_BASE, apiUpload, getToken } from '../api';
 
-export default function ProfilePhoto({ role, userId, size = 'large', onChanged, fallbackImage = '' }) {
+export default function ProfilePhoto({ role, userId, size = 'large', onChanged, fallbackImage = '', editable = true }) {
   const [src, setSrc] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -88,16 +88,16 @@ export default function ProfilePhoto({ role, userId, size = 'large', onChanged, 
         ) : (
           <span>{role === 'provider' ? 'P' : 'C'}</span>
         )}
-        <label className="profile-photo-camera" title="Change profile photo">
+        {editable && <label className="profile-photo-camera" title="Change profile photo">
           <input type="file" accept="image/jpeg,image/png,image/webp" onChange={changePhoto} disabled={busy} />
           {busy ? '…' : '✎'}
-        </label>
+        </label>}
       </div>
-      <label className="profile-photo-change">
+      {editable && <label className="profile-photo-change">
         <input type="file" accept="image/jpeg,image/png,image/webp" onChange={changePhoto} disabled={busy} />
         {busy ? 'Uploading…' : 'Change photo'}
-      </label>
-      {error && <small className="profile-photo-error">{error}</small>}
+      </label>}
+      {editable && error && <small className="profile-photo-error">{error}</small>}
     </div>
   );
 }
