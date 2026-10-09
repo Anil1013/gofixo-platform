@@ -125,6 +125,7 @@ router.get('/', requireAdmin, async (req, res, next) => {
       `SELECT b.*, sp.name AS provider_name, sp.generated_id AS provider_generated_id, sp.phone AS provider_phone,
               c.name AS customer_name, c.phone AS customer_phone,
               c.profile_photo_url AS customer_profile_photo_url,
+              (SELECT pd.id FROM provider_documents pd WHERE pd.provider_id = sp.id AND pd.doc_type = 'profile_photo' ORDER BY pd.uploaded_at DESC, pd.id DESC LIMIT 1) AS provider_profile_photo_document_id,
               (SELECT pd.file_url FROM provider_documents pd WHERE pd.provider_id = sp.id AND pd.doc_type = 'profile_photo' ORDER BY pd.uploaded_at DESC, pd.id DESC LIMIT 1) AS provider_profile_photo_url
        FROM bookings b
        LEFT JOIN service_providers sp ON b.provider_id = sp.id
