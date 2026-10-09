@@ -19,6 +19,7 @@ dependencies:
   flutter_ota_kit: ^0.2.5
   google_maps_flutter: ^2.18.2
   web_socket_channel: ^3.0.3
+  flutter_cashfree_pg_sdk: ^2.4.0+52
 
 dev_dependencies:
   flutter_test:
