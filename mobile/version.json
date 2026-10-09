@@ -1,7 +1,7 @@
 {
-  "version": "1.0.28",
-  "buildNumber": 1000028,
-  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.28/gofixo-release.apk",
-  "notes": "Gofixo v1.0.28 adds partner payout status/history visibility and payout reconciliation while keeping settlement state server-authoritative.",
+  "version": "1.0.29",
+  "buildNumber": 1000029,
+  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.29.apk",
+  "notes": "Gofixo v1.0.29 includes the latest 10 km matching, customer and partner profile photos, booking photo visibility, admin photo management, and OTA update fixes.",
   "forceUpdate": true
 }
