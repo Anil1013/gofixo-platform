@@ -200,7 +200,7 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
                cos(radians(target_sp.current_lng) - radians(b.pickup_lng)) +
                sin(radians(b.pickup_lat)) * sin(radians(target_sp.current_lat))
              ))
-           )) <= 3
+           )) <= 10
          )
        )
        ORDER BY b.created_at DESC`,
@@ -354,14 +354,14 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
              cos(radians(sp.current_lng) - radians($3)) +
              sin(radians($2)) * sin(radians(sp.current_lat))
            ))
-         )) <= 3
+         )) <= 10
        LIMIT 1`,
       [provider_type, pickupLatitude, pickupLongitude, serviceCategory]
     );
     if (nearby.rows.length === 0) {
       await client.query('ROLLBACK');
       inTransaction = false;
-      return res.status(404).json({ error: 'No available provider found within 3 km. Try again shortly.' });
+      return res.status(404).json({ error: 'No available provider found within 10 km. Try again shortly.' });
     }
 
     const result = await client.query(
@@ -416,7 +416,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
              cos(radians(p.current_lng) - radians($3)) +
              sin(radians($2)) * sin(radians(p.current_lat))
            ))
-         )) <= 3)`,
+         )) <= 10)`,
       [provider_type, pickupLatitude, pickupLongitude, serviceCategory]
     ).then(async (pushRows) => {
       for (const row of pushRows.rows) {
@@ -582,7 +582,7 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
                  cos(radians(sp.current_lng) - radians(b.pickup_lng)) +
                  sin(radians(b.pickup_lat)) * sin(radians(sp.current_lat))
                ))
-             )) <= 3
+             )) <= 10
          )
          AND (b.service_type <> 'services' OR COALESCE(cardinality(sp.service_categories), 0) = 0 OR b.service_category = ANY(sp.service_categories))
          AND NOT EXISTS (
@@ -662,7 +662,7 @@ router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) =>
       return res.status(409).json({ error: 'This request is no longer available' });
     }
 
-    // Keep everyone else online. If nobody eligible within 3 km remains,
+    // Keep everyone else online. If nobody eligible within 10 km remains,
     // the request is closed instead of taking providers offline.
     const remaining = await pool.query(
       `SELECT 1
@@ -689,7 +689,7 @@ router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) =>
              cos(radians(sp.current_lng) - radians(b.pickup_lng)) +
              sin(radians(b.pickup_lat)) * sin(radians(sp.current_lat))
            ))
-         )) <= 3
+         )) <= 10
        LIMIT 1`,
       [req.params.id]
     );
