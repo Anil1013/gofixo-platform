@@ -1076,15 +1076,17 @@ class _ServicesState extends State<_Services>{
       final key=item['key']?.toString()??'other';
       final label=item['label']?.toString()??key;
       final url=item['imageUrl']?.toString()??'';
-      return _Service(url,label,()=>widget.onTap(type,key,label));
+      final baseFare=double.tryParse(item['baseFare']?.toString()??'')?.round();
+      return _Service(url,label,baseFare,()=>widget.onTap(type,key,label));
     }).toList(),
   );
 }
 class _Service extends StatelessWidget {
   final String url;
   final String label;
+  final int? baseFare;
   final VoidCallback tap;
-  const _Service(this.url, this.label, this.tap);
+  const _Service(this.url, this.label, this.baseFare, this.tap);
   @override
   Widget build(BuildContext c) {
     return InkWell(
@@ -1122,6 +1124,11 @@ class _Service extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: gfNavy),
             ),
+            if(baseFare!=null)
+              Text(
+                'From ₹$baseFare',
+                style: const TextStyle(fontSize: 7, fontWeight: FontWeight.w800, color: gfGreen),
+              ),
           ],
         ),
       ),
