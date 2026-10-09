@@ -108,4 +108,27 @@ router.post('/customers/:id/reset-password', async (req, res, next) => {
   }
 });
 
+router.get('/payouts', async (req, res, next) => {
+  try {
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit || '100', 10) || 100, 1), 250);
+    const status = typeof req.query.status === 'string' ? req.query.status.trim().toLowerCase() : '';
+    const params = [], where = [];
+    if (status) {
+      if (!['pending', 'paid', 'failed', 'processing'].includes(status)) return res.status(400).json({ error: 'Invalid payout status' });
+      params.push(status); where.push(`pp.payout_status = ${params.length}`);
+    }
+    params.push(limit);
+    const result = await pool.query(
+      `SELECT pp.id, pp.booking_id, pp.provider_id, sp.generated_id, sp.name AS provider_name,
+              pp.gross_amount, pp.platform_fee, pp.payout_amount, pp.payout_method,
+              pp.payout_status, pp.provider_reference, pp.failure_reason, pp.created_at, pp.paid_at
+       FROM partner_payouts pp JOIN service_providers sp ON sp.id = pp.provider_id
+       ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+       ORDER BY pp.created_at DESC, pp.id DESC LIMIT ${params.length}`,
+      params
+    );
+    res.json(result.rows);
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
