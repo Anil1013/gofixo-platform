@@ -1799,7 +1799,10 @@ class _Booking extends StatelessWidget{
  @override Widget build(BuildContext c){
   final s=b['status']?.toString()??'';final id=b['id']?.toString()??'';final isService=b['service_type']=='services';
   return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(13),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(18)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-   Row(children:[Expanded(child:Text('#'+id+' · '+s.toUpperCase(),style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy))),Text('₹'+(b['fare_amount']??b['estimated_fare']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w900))]),
+   Row(children:[if(b['provider_id']!=null&&['accepted','arrived','ongoing','completed'].contains(s))...[
+      Container(width:42,height:42,decoration:const BoxDecoration(color:Color(0xFFEFFFF5),shape:BoxShape.circle),child:ClipOval(child:Image.network(apiBase+'/providers/'+b['provider_id'].toString()+'/profile-photo',headers:{'Authorization':'Bearer '+session.token},width:42,height:42,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Icon(Icons.person_rounded,color:gfGreen,size:25)))),
+      const SizedBox(width:9),
+    ],Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('#'+id+' · '+s.toUpperCase(),style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy)),if(b['provider_name']!=null)Text(b['provider_name'].toString(),style:const TextStyle(fontSize:11,color:gfMuted))])),Text('₹'+(b['fare_amount']??b['estimated_fare']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w900))]),
    if(isService)Text((b['service_category']?.toString()??'other').replaceAll('_',' ').toUpperCase(),style:const TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
    if(isService)Text(b['service_description']?.toString()??'',maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:gfMuted)),
    Text(b['pickup_location']?.toString()??'',maxLines:1,overflow:TextOverflow.ellipsis),
