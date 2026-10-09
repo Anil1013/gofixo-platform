@@ -554,6 +554,34 @@ router.get('/me', requireAuth(['provider']), async (req, res, next) => {
   }
 });
 
+router.get('/me/payouts', requireAuth(['provider']), async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT pp.id, pp.booking_id, pp.gross_amount, pp.platform_fee, pp.payout_amount,
+              pp.payout_method, pp.payout_status, pp.provider_reference, pp.failure_reason,
+              pp.created_at, pp.paid_at
+       FROM partner_payouts pp WHERE pp.provider_id = $1
+       ORDER BY pp.created_at DESC, pp.id DESC LIMIT 100`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) { next(err); }
+});
+router.get('/me/payout-summary', requireAuth(['provider']), async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT
+         COALESCE(SUM(CASE WHEN payout_status = 'pending' THEN payout_amount ELSE 0 END), 0) AS pending_amount,
+         COALESCE(SUM(CASE WHEN payout_status = 'paid' THEN payout_amount ELSE 0 END), 0) AS paid_amount,
+         COALESCE(SUM(CASE WHEN payout_status = 'failed' THEN payout_amount ELSE 0 END), 0) AS failed_amount,
+         COUNT(*)::int AS total_payouts
+       FROM partner_payouts WHERE provider_id = $1`,
+      [req.user.id]
+    );
+    res.json(result.rows[0] || { pending_amount: 0, paid_amount: 0, failed_amount: 0, total_payouts: 0 });
+  } catch (err) { next(err); }
+});
+
 // Authenticated provider profile-photo access.
 router.get('/:id/profile-photo', requireAuth(['provider']), async (req, res, next) => {
   try {
