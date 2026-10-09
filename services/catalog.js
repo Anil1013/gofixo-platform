@@ -107,7 +107,10 @@ function normalizeServiceCategories(values) {
 }
 
 function getServiceCatalog() {
-  return HOME_SERVICE_CATALOG.map((item) => ({ ...item }));
+  return HOME_SERVICE_CATALOG.map((item) => ({
+    ...item,
+    baseFare: getServiceBaseFare(item.key),
+  }));
 }
 
 module.exports = {
