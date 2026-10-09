@@ -5,7 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 const _navy = Color(0xFF172B4D);
 const _muted = Color(0xFF64748B);
-const _orange = Color(0xFFFF6B00);
+const _orange = Color(0xFF12B85F);
 
 class AppInfoPage extends StatefulWidget {
   const AppInfoPage({super.key});
