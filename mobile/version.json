@@ -2,6 +2,6 @@
   "version": "1.0.26",
   "buildNumber": 1000026,
   "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.26/gofixo-release.apk",
-  "notes": "Gofixo v1.0.26 adds server-side commission and transaction settlement for cash bookings, explicit partner cash confirmation, and permanent booking financial records.",
+  "notes": "Gofixo v1.0.26 adds Cashfree wallet checkout, verified wallet credits, home-service wallet reserve/capture/release, and partner payout ledger foundation.",
   "forceUpdate": true
 }
