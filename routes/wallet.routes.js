@@ -123,6 +123,19 @@ router.post('/topup-intent', requireAuth(['customer']), async (req, res, next) =
     }
 
     const wallet = await ensureWallet(client, req.user.id);
+
+    // Cashfree requires a real 10-digit Indian customer phone. Normalize
+    // common formats such as +91 9876543210 / 919876543210 before creating
+    // the pending transaction, so an invalid profile never leaves a dangling
+    // TOPUP row.
+    const phone = String(customer.rows[0].phone || '').replace(/\D/g, '').slice(-10);
+    if (!/^\d{10}$/.test(phone)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: 'Your customer profile needs a valid 10-digit phone number before adding money'
+      });
+    }
+
     const referenceId = 'WALLET_TOPUP_' + req.user.id + '_' + Date.now() + '_' + crypto.randomBytes(5).toString('hex');
 
     const tx = await client.query(
@@ -141,12 +154,6 @@ router.post('/topup-intent', requireAuth(['customer']), async (req, res, next) =
         JSON.stringify({ provider: 'cashfree', stage: 'intent' })
       ]
     );
-
-    const phone = String(customer.rows[0].phone || '').replace(/\\D/g, '').slice(-10);
-    if (!/^\\d{10}$/.test(phone)) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'A valid 10-digit customer phone number is required for payment' });
-    }
 
     const order = await cashfreeRequest('/orders', 'POST', {
       order_id: referenceId,
