@@ -1,5 +1,22 @@
 import { useEffect, useState } from 'react';
-import { apiGet } from '../api';
+import { useEffect, useState } from 'react';
+import { apiGet, apiGetBlob } from '../api';
+
+
+function AdminPhoto({ kind, id, documentId }) {
+  const [src, setSrc] = useState('');
+  useEffect(() => {
+    if (!id && !documentId) return undefined;
+    let active = true; let url = '';
+    const path = kind === 'customer'
+      ? `/admin/customers/${id}/profile-photo`
+      : `/providers/admin/${id}/documents/${documentId}`;
+    if (kind === 'provider' && !documentId) return undefined;
+    apiGetBlob(path).then((blob) => { if (active) { url = URL.createObjectURL(blob); setSrc(url); } }).catch(() => {});
+    return () => { active = false; if (url) URL.revokeObjectURL(url); };
+  }, [kind, id, documentId]);
+  return src ? <img src={src} alt="" style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }} /> : <div style={{ width: 38, height: 38, borderRadius: '50%', display: 'grid', placeItems: 'center', background: '#EAFBF2' }}>👤</div>;
+}
 
 export default function Bookings() {
   const [bookings, setBookings] = useState([]);
@@ -22,7 +39,7 @@ export default function Bookings() {
       <div style={{ overflowX: 'auto' }}>
         <table className="data-table">
           <thead><tr>
-            <th>#</th><th>Service</th><th>Provider</th><th>Customer</th>
+            <th>#</th><th>Service</th><th>Provider</th><th>Provider photo</th><th>Customer</th><th>Customer photo</th>
             <th>Pickup</th><th>Destination / Service</th><th>Distance</th>
             <th>Fare</th><th>Status</th><th>Created</th><th>Completed</th>
           </tr></thead>
@@ -32,7 +49,9 @@ export default function Bookings() {
                 <td>{b.id}</td>
                 <td><div>{b.service_type}</div>{b.service_category && <div className="sub-line">{String(b.service_category).replaceAll('_', ' ')}</div>}</td>
                 <td>{b.provider_generated_id ? <><div>{b.provider_generated_id}</div><div className="sub-line">{b.provider_name} · {b.provider_phone}</div></> : '—'}</td>
+                <td><AdminPhoto kind="provider" id={b.provider_id} documentId={b.provider_profile_photo_document_id} /></td>
                 <td>{b.customer_id ? <><div>Cust #{b.customer_id}</div><div className="sub-line">{b.customer_name || '—'} · {b.customer_phone}</div></> : '—'}</td>
+                <td><AdminPhoto kind="customer" id={b.customer_id} /></td>
                 <td style={{ minWidth: 220 }}>{b.pickup_location || '—'}</td>
                 <td style={{ minWidth: 220 }}>
                   {b.drop_or_service_address || '—'}
@@ -45,7 +64,7 @@ export default function Bookings() {
                 <td>{b.completed_at ? new Date(b.completed_at).toLocaleString() : '—'}</td>
               </tr>
             ))}
-            {bookings.length === 0 && <tr><td colSpan="11">No bookings yet.</td></tr>}
+            {bookings.length === 0 && <tr><td colSpan="13">No bookings yet.</td></tr>}
           </tbody>
         </table>
       </div>
