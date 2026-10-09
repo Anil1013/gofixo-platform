@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiPost, API_BASE, getToken } from '../api';
 import MapView from '../components/MapView';
+import ProfilePhoto from '../components/ProfilePhoto';
 import { navigateToCoords } from '../utils/geo';
 
 const STEPS = [
@@ -163,10 +164,13 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
         {booking.service_type === 'ride' && booking.fare_amount && (
           <p className="fare-line">Estimated fare <span>₹{Number(booking.fare_amount).toLocaleString('en-IN')}</span></p>
         )}
-        {booking.provider_name ? (
-          <p className="provider-line">
-            {booking.provider_name} · <span className="id-chip">{booking.provider_generated_id}</span>
-          </p>
+        {booking.provider_name && booking.provider_id ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+            <ProfilePhoto role="provider" userId={booking.provider_id} size="compact" editable={false} />
+            <p className="provider-line">
+              {booking.provider_name} · <span className="id-chip">{booking.provider_generated_id}</span>
+            </p>
+          </div>
         ) : (
           <p className="provider-line">Looking for the nearest provider...</p>
         )}
