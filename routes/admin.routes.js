@@ -12,7 +12,7 @@ router.use(requireAdmin);
 router.get('/customers', async (req, res, next) => {
   try {
     const result = await pool.query(
-      `SELECT c.id, c.name, c.phone, c.created_at,
+      `SELECT c.id, c.name, c.phone, c.profile_photo_url, c.created_at,
               CASE WHEN c.password_hash IS NULL THEN false ELSE true END AS has_password,
               EXISTS (
                 SELECT 1 FROM password_reset_requests pr
@@ -29,13 +29,31 @@ router.get('/customers', async (req, res, next) => {
 
 // Customer details. Password is intentionally not exposed because the database stores
 // only a bcrypt hash, not the original password.
+router.get('/customers/:id/profile-photo', async (req, res, next) => {
+  try {
+    const id = Number.parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid customer ID' });
+    const result = await pool.query('SELECT profile_photo_url FROM customers WHERE id = $1', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Customer not found' });
+    if (!result.rows[0].profile_photo_url) return res.status(404).json({ error: 'Profile photo not set' });
+    const relativePath = result.rows[0].profile_photo_url.replace(/^\/uploads\//, '');
+    const path = require('path');
+    const fs = require('fs');
+    const filePath = path.resolve(__dirname, '..', 'uploads', relativePath);
+    const uploadsRoot = path.resolve(__dirname, '..', 'uploads') + path.sep;
+    if (!filePath.startsWith(uploadsRoot)) return res.status(400).json({ error: 'Invalid photo path' });
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Profile photo file not found' });
+    res.sendFile(filePath);
+  } catch (err) { next(err); }
+});
+
 router.get('/customers/:id', async (req, res, next) => {
   try {
     const id = Number.parseInt(req.params.id, 10);
     if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid customer ID' });
 
     const result = await pool.query(
-      `SELECT c.id, c.name, c.phone, c.created_at,
+      `SELECT c.id, c.name, c.phone, c.profile_photo_url, c.created_at,
               CASE WHEN c.password_hash IS NULL THEN false ELSE true END AS has_password,
               NULL::text AS aadhaar_number
        FROM customers c
