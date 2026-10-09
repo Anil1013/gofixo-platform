@@ -905,6 +905,49 @@ class _ProviderEarningsTabState extends State<_ProviderEarningsTab> {
   }
 }
 
+class _EarningStat extends StatelessWidget {
+  final String title;
+  final String value;
+
+  const _EarningStat({
+    required this.title,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: gfLine),
+        borderRadius: BorderRadius.circular(17),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: gfNavy,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 10,
+              color: gfMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ProviderServicesTab extends StatefulWidget{
   final Session session;
   final Map<String,dynamic> me;
