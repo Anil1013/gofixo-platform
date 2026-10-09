@@ -1,7 +1,7 @@
 {
   "version": "1.0.25",
-  "buildNumber": 1000025",
+  "buildNumber": 1000025,
   "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.25/gofixo-release.apk",
-  "notes": "Gofixo v1.0.25 shows server-authoritative starting prices for universal home services while preserving the existing ride, matching, KYC, subscription, map, ETA and booking-payment lifecycle.",
+  "notes": "Gofixo v1.0.25 adds server-side commission and transaction settlement for cash bookings, explicit partner cash confirmation, and permanent booking financial records.",
   "forceUpdate": true
 }
