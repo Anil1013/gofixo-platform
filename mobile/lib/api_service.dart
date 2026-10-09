@@ -74,6 +74,15 @@ class ApiService {
   static Future<List<Map<String,dynamic>>> providerPayouts(String token)async{final d=await _request('GET','/providers/me/payouts',token:token);return d is List?d.map((e)=>Map<String,dynamic>.from(e as Map)).toList():[];}
   static Future<Map<String,dynamic>> providerPayoutSummary(String token)async=>Map<String,dynamic>.from(await _request('GET','/providers/me/payout-summary',token:token) as Map);
   static Future<Map<String,dynamic>> confirmPayment(String token,int id,double fare,{String paymentMethod='cash'})async=>Map<String,dynamic>.from(await _request('POST','/bookings/'+id.toString()+'/confirm-payment',token:token,body:{'fare_amount':fare,'payment_method':paymentMethod}) as Map);
+  static Future<void> uploadCustomerProfilePhoto(String token,String path)async{
+    final q=http.MultipartRequest('POST',Uri.parse(apiBase+'/auth/customer/profile-photo'));
+    q.headers['Authorization']='Bearer '+token;
+    q.files.add(await http.MultipartFile.fromPath('file',path));
+    final r=await q.send().timeout(const Duration(seconds:60));
+    final body=await r.stream.bytesToString();
+    dynamic d;try{d=jsonDecode(body);}catch(_){d={};}
+    if(r.statusCode<200||r.statusCode>=300){if(r.statusCode==401)await clearSession();throw Exception(d is Map?(d['error']??d['message'])?.toString()??'Upload failed':'Upload failed');}
+  }
   static Future<Map<String,dynamic>> uploadProviderDocument(String token,int id,String docType,String path)async{
     final q=http.MultipartRequest('POST',Uri.parse(apiBase+'/providers/'+id.toString()+'/documents'));q.headers['Authorization']='Bearer '+token;q.fields['doc_type']=docType;q.files.add(await http.MultipartFile.fromPath('file',path));final r=await q.send().timeout(const Duration(seconds:60));final body=await r.stream.bytesToString();dynamic d;try{d=jsonDecode(body);}catch(_){d={};}if(r.statusCode<200||r.statusCode>=300){if(r.statusCode==401)await clearSession();throw Exception(d is Map?(d['error']??d['message'])?.toString()??'Upload failed':'Upload failed');}if(d is! Map)throw Exception('Invalid upload response from server');return Map<String,dynamic>.from(d);
   }
