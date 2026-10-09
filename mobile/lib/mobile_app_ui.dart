@@ -492,7 +492,7 @@ class _CustomerProfileTabState extends State<_CustomerProfileTab>{
  bool uploading=false;int photoVersion=0;
  Future<void>changePhoto()async{
   if(uploading)return;
-  final picked=await FilePicker.platform.pickFiles(type:FileType.image,withData:false);
+  final picked=await FilePicker.pickFiles(type:FileType.image,withData:false);
   final path=picked?.files.single.path;
   if(path==null||path.isEmpty)return;
   setState(()=>uploading=true);
