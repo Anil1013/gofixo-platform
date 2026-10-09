@@ -484,14 +484,39 @@ class _CustomerWalletTabState extends State<_CustomerWalletTab>{
     ]));
   }
 }
-class _CustomerProfileTab extends StatelessWidget{
+class _CustomerProfileTab extends StatefulWidget{
  final Session session;final Future<void> Function() onLogout;const _CustomerProfileTab({required this.session,required this.onLogout});
+ @override State<_CustomerProfileTab> createState()=>_CustomerProfileTabState();
+}
+class _CustomerProfileTabState extends State<_CustomerProfileTab>{
+ bool uploading=false;int photoVersion=0;
+ Future<void>changePhoto()async{
+  if(uploading)return;
+  final picked=await FilePicker.platform.pickFiles(type:FileType.image,withData:false);
+  final path=picked?.files.single.path;
+  if(path==null||path.isEmpty)return;
+  setState(()=>uploading=true);
+  try{
+   await ApiService.uploadCustomerProfilePhoto(widget.session.token,path);
+   if(mounted)setState(()=>photoVersion=DateTime.now().millisecondsSinceEpoch);
+  }catch(e){
+   if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));
+  }finally{if(mounted)setState(()=>uploading=false);}
+ }
  @override Widget build(BuildContext c)=>ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
-  const _PageHeading(title:'Profile',subtitle:'Manage your Gofixo account.'),_ProfileCard(name:session.userName??'Customer',role:'Customer',icon:Icons.person_rounded),const SizedBox(height:12),
+  const _PageHeading(title:'Profile',subtitle:'Manage your Gofixo account.'),
+  Container(padding:const EdgeInsets.all(18),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(22)),child:Row(children:[
+   Container(width:68,height:68,decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEFFFF5)),child:ClipOval(child:Image.network(apiBase+'/auth/customer/profile-photo?v='+photoVersion.toString(),headers:{'Authorization':'Bearer '+widget.session.token},fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Icon(Icons.person_rounded,color:gfGreen,size:34)))),
+   const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+    Text(widget.session.userName??'Customer',style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900,color:gfNavy)),
+    const Text('Customer',style:TextStyle(fontSize:11,color:gfMuted)),
+    const SizedBox(height:7),OutlinedButton.icon(onPressed:uploading?null:changePhoto,icon:const Icon(Icons.camera_alt_outlined,size:16),label:Text(uploading?'Uploading…':'Change photo')),
+   ])),
+  ])),const SizedBox(height:12),
   const _ProfileAction(icon:Icons.security_rounded,title:'Safety & support',subtitle:'Verified partners and live trip tracking.'),
   const _ProfileAction(icon:Icons.location_on_outlined,title:'Location',subtitle:'Used for booking and live trip features.'),
   const _ProfileAction(icon:Icons.info_outline,title:'About Gofixo',subtitle:'Ride · Delivery · Home Services'),const SizedBox(height:12),
-  SizedBox(width:double.infinity,child:OutlinedButton.icon(onPressed:onLogout,icon:const Icon(Icons.logout_rounded),label:const Text('Log out')))
+  SizedBox(width:double.infinity,child:OutlinedButton.icon(onPressed:widget.onLogout,icon:const Icon(Icons.logout_rounded),label:const Text('Log out')))
  ]);
 }
 
@@ -1717,6 +1742,15 @@ class _ActiveState extends State<_Active>{
   }
 
   return _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+   if(widget.b['customer_id']!=null) Row(children:[
+     Container(width:48,height:48,decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEFFFF5)),child:ClipOval(child:Image.network(apiBase+'/auth/customer/'+widget.b['customer_id'].toString()+'/profile-photo',headers:{'Authorization':'Bearer '+widget.session.token},fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Icon(Icons.person_rounded,color:gfGreen,size:28)))),
+     const SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+       const Text('CUSTOMER',style:TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
+       Text(widget.b['customer_name']?.toString()??'Customer',style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy)),
+       Text(widget.b['customer_phone']?.toString()??'',style:const TextStyle(fontSize:10,color:gfMuted)),
+     ])),
+   ]),
+   if(widget.b['customer_id']!=null) const SizedBox(height:10),
    Text(ongoing?'TRIP IN PROGRESS':arrived?'ARRIVED AT PICKUP':'ON THE WAY',style:const TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
    const SizedBox(height:4),
    Text(ongoing?'Confirm payment to complete':arrived?'Enter customer PIN to start the trip':'Navigate to pickup',style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy)),
