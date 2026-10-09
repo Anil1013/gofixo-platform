@@ -1,4 +1,5 @@
 name: Gofixo Android Release
+# Re-run publication when the version manifest exists but its GitHub release is missing.
 
 on:
   push:
