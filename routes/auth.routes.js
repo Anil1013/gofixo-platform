@@ -90,7 +90,7 @@ router.get('/customer/:id/profile-photo', requireAuth(['provider', 'customer']),
 
     const result = await pool.query('SELECT profile_photo_url FROM customers WHERE id = $1', [customerId]);
     if (result.rows.length === 0 || !result.rows[0].profile_photo_url) return res.status(404).json({ error: 'Profile photo not set' });
-    const relativePath = result.rows[0].profile_photo_url.replace(/^\\/uploads\\//, '');
+    const relativePath = result.rows[0].profile_photo_url.replace(/^\/uploads\//, '');
     const filePath = path.resolve(__dirname, '..', 'uploads', relativePath);
     const uploadsRoot = path.resolve(__dirname, '..', 'uploads') + path.sep;
     if (!filePath.startsWith(uploadsRoot)) return res.status(400).json({ error: 'Invalid photo path' });
