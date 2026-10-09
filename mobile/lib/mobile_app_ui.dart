@@ -9,6 +9,12 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter_cashfree_pg_sdk/api/cfpayment/cfwebcheckoutpayment.dart';
+import 'package:flutter_cashfree_pg_sdk/api/cfpaymentgateway/cfpaymentgatewayservice.dart';
+import 'package:flutter_cashfree_pg_sdk/api/cfsession/cfsession.dart';
+import 'package:flutter_cashfree_pg_sdk/utils/cfenums.dart';
+import 'package:flutter_cashfree_pg_sdk/utils/cfexceptions.dart';
+import 'package:flutter_cashfree_pg_sdk/api/cferrorresponse/cferrorresponse.dart';
 import 'api_service.dart';
 
 const gfOrange=Color(0xFF12B85F),gfNavy=Color(0xFF10213F),gfMuted=Color(0xFF728097),gfBg=Color(0xFFF4F7FB),gfLine=Color(0xFFE4E9F1),gfGreen=Color(0xFF12B85F);
@@ -330,20 +336,106 @@ class _CustomerWalletTab extends StatefulWidget{
   const _CustomerWalletTab({required this.session});
   @override State<_CustomerWalletTab> createState()=>_CustomerWalletTabState();
 }
+
 class _CustomerWalletTabState extends State<_CustomerWalletTab>{
+  final CFPaymentGatewayService _cashfree=CFPaymentGatewayService();
   Map<String,dynamic> walletData={};
   List<Map<String,dynamic>> transactions=[];
-  bool loading=true;
-  @override void initState(){super.initState();_load();}
-  Future<void>_load()async{
+  bool loading=true,paying=false;
+
+  @override void initState(){
+    super.initState();
+    _cashfree.setCallback(_verifyPayment,_paymentError);
+    _load();
+  }
+
+  Future<void> _load()async{
     try{
       final w=await ApiService.wallet(widget.session.token);
       final tx=await ApiService.walletTransactions(widget.session.token);
       if(mounted)setState((){walletData=w;transactions=tx;loading=false;});
     }catch(e){
-      if(mounted){setState(()=>loading=false);ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
+      if(mounted){setState(()=>loading=false);_snack(e.toString());}
     }
   }
+
+  void _paymentError(CFErrorResponse error,String orderId){
+    if(mounted)setState(()=>paying=false);
+    _snack(error.getMessage());
+  }
+
+  void _verifyPayment(String orderId) async{
+    for(var i=0;i<12;i++){
+      try{
+        final status=await ApiService.walletTopupStatus(widget.session.token,orderId);
+        final s=status['status']?.toString().toLowerCase()??'';
+        if(s=='success'){
+          if(mounted){setState(()=>paying=false);_snack('Payment successful. Wallet balance updated.');await _load();}
+          return;
+        }
+        if(s=='failed'){
+          if(mounted){setState(()=>paying=false);_snack('Payment failed. No money was added to your wallet.');}
+          return;
+        }
+      }catch(_){}
+      await Future.delayed(const Duration(seconds:1));
+    }
+    if(mounted){setState(()=>paying=false);_snack('Payment is being verified. Refresh your wallet in a moment.');await _load();}
+  }
+
+  Future<void> _addMoney()async{
+    if(paying)return;
+    final amount=await showDialog<double>(
+      context:context,
+      builder:(c){
+        final controller=TextEditingController(text:'500');
+        return AlertDialog(
+          title:const Text('Add money to wallet'),
+          content:TextField(
+            controller:controller,
+            keyboardType:const TextInputType.numberWithOptions(decimal:true),
+            decoration:const InputDecoration(prefixText:'₹ ',labelText:'Amount',hintText:'100–1000000'),
+          ),
+          actions:[
+            TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cancel')),
+            FilledButton(onPressed:(){
+              final n=double.tryParse(controller.text.trim());
+              if(n!=null)Navigator.pop(c,n);
+            },child:const Text('Continue')),
+          ],
+        );
+      },
+    );
+    if(amount==null||amount<=0)return;
+    setState(()=>paying=true);
+    try{
+      final order=await ApiService.walletTopupIntent(widget.session.token,amount);
+      final orderId=order['order_id']?.toString()??'';
+      final sessionId=order['payment_session_id']?.toString()??'';
+      final env=(order['environment']?.toString().toLowerCase()=='production')
+          ?CFEnvironment.PRODUCTION:CFEnvironment.SANDBOX;
+      if(orderId.isEmpty||sessionId.isEmpty)throw Exception('Payment session could not be created.');
+      final session=CFSessionBuilder()
+          .setEnvironment(env)
+          .setOrderId(orderId)
+          .setPaymentSessionId(sessionId)
+          .build();
+      final payment=CFWebCheckoutPaymentBuilder().setSession(session).build();
+      _cashfree.doPayment(payment);
+    }on CFException catch(e){
+      if(mounted)setState(()=>paying=false);
+      _snack(e.message);
+    }catch(e){
+      if(mounted)setState(()=>paying=false);
+      _snack(e.toString());
+    }
+  }
+
+  void _snack(String s){
+    if(!mounted)return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.replaceFirst('Exception: ',''))));
+  }
+
   @override Widget build(BuildContext c){
     final available=double.tryParse(walletData['available_balance']?.toString()??'0')??0;
     final reserved=double.tryParse(walletData['reserved_balance']?.toString()??'0')??0;
@@ -358,15 +450,16 @@ class _CustomerWalletTabState extends State<_CustomerWalletTab>{
         Text('Reserved ₹'+reserved.toStringAsFixed(2)+' · INR',style:const TextStyle(color:Colors.white70,fontSize:11)),
       ])),
       const SizedBox(height:14),
-      _Box(child:Row(children:[
-        Container(width:42,height:42,decoration:BoxDecoration(color:gfGreen.withOpacity(.10),borderRadius:BorderRadius.circular(13)),child:const Icon(Icons.add_card_rounded,color:gfGreen)),
-        const SizedBox(width:12),
-        const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          Text('Add money',style:TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
-          SizedBox(height:3),
-          Text('Secure payment gateway will be connected next. Wallet is never credited from the app itself.',style:TextStyle(fontSize:10,color:gfMuted)),
-        ])),
-        const Icon(Icons.lock_outline_rounded,color:gfMuted,size:18),
+      SizedBox(width:double.infinity,child:FilledButton.icon(
+        onPressed:paying?null:_addMoney,
+        style:FilledButton.styleFrom(backgroundColor:gfGreen,padding:const EdgeInsets.symmetric(vertical:14)),
+        icon:paying?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2,color:Colors.white)):const Icon(Icons.add_card_rounded),
+        label:Text(paying?'Processing payment…':'Add money securely'),
+      )),
+      const SizedBox(height:8),
+      const _Box(child:Row(children:[
+        Icon(Icons.verified_user_outlined,color:gfGreen,size:18),SizedBox(width:9),
+        Expanded(child:Text('Payments are processed by Cashfree. Gofixo credits your wallet only after verified payment confirmation.',style:TextStyle(fontSize:10,color:gfMuted)))
       ])),
       const SizedBox(height:18),
       const Text('Recent transactions',style:TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy)),
