@@ -1135,16 +1135,20 @@ class ReferenceBookingPage extends StatefulWidget{
 class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  GoogleMapController? mapController;
  StreamSubscription<Position>? locationSub;
- final dest=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your location…';String serviceCategory='other',serviceDescription='';Position? pos;Map<String,dynamic>? place;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[];Set<Polyline> routePolylines={};LatLng? destinationPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce;LatLng? lastReversePoint;
+ final dest=TextEditingController();final pickupController=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your current location…';String serviceCategory='other',serviceDescription='';Position? pos;Map<String,dynamic>? place,pickupPlace;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[],pickupSuggestions=[];Set<Polyline> routePolylines={};LatLng? destinationPoint,pickupPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce,pickupDebounce;LatLng? lastReversePoint;
  @override void initState(){super.initState();type=widget.type;serviceCategory=widget.serviceCategory??'other';serviceDescription=widget.serviceDescription??'';serviceDesc.text=serviceDescription;WidgetsBinding.instance.addPostFrameCallback((_)=>locate());}
- @override void dispose(){debounce?.cancel();locationSub?.cancel();dest.dispose();serviceDesc.dispose();super.dispose();}
- Future<void>locate()async{if(busy)return;setState(()=>busy=true);try{if(!await Geolocator.isLocationServiceEnabled())throw Exception('Please turn on Location Services.');var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)throw Exception('Location permission is required.');Position?best;for(var i=0;i<3;i++){final x=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:0,timeLimit:Duration(seconds:12)));if(best==null||x.accuracy<best.accuracy)best=x;if(x.accuracy<=30)break;}final x=best!;if(x.accuracy>150)throw Exception('GPS accuracy is too weak. Please move outdoors and try again.');final a=await _reverse(x.latitude,x.longitude);if(mounted){setState((){pos=x;pickup=a;lastReversePoint=LatLng(x.latitude,x.longitude);});await _centerMap(LatLng(x.latitude,x.longitude),17);}_startLocationStream();}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
- void _startLocationStream(){locationSub?.cancel();locationSub=Geolocator.getPositionStream(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:5)).listen((x)async{if(!mounted||x.accuracy>150)return;final point=LatLng(x.latitude,x.longitude);final old=pos;setState(()=>pos=x);if(old==null||Geolocator.distanceBetween(old.latitude,old.longitude,x.latitude,x.longitude)>=3){if(lastReversePoint==null||Geolocator.distanceBetween(lastReversePoint!.latitude,lastReversePoint!.longitude,x.latitude,x.longitude)>=50){final address=await _reverse(x.latitude,x.longitude);if(!mounted)return;setState((){pickup=address;lastReversePoint=point;});}}});}
+ @override void dispose(){debounce?.cancel();pickupDebounce?.cancel();locationSub?.cancel();dest.dispose();pickupController.dispose();serviceDesc.dispose();super.dispose();}
+ Future<void>locate()async{if(busy)return;setState(()=>busy=true);try{if(!await Geolocator.isLocationServiceEnabled())throw Exception('Please turn on Location Services.');var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)throw Exception('Location permission is required.');Position?best;for(var i=0;i<3;i++){final x=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:0,timeLimit:Duration(seconds:12)));if(best==null||x.accuracy<best.accuracy)best=x;if(x.accuracy<=30)break;}final x=best!;if(x.accuracy>150)throw Exception('GPS accuracy is too weak. Please move outdoors and try again.');final a=await _reverse(x.latitude,x.longitude);if(mounted){setState((){pos=x;pickup=a;pickupController.text=a;pickupPlace={'address':a,'lat':x.latitude,'lng':x.longitude};pickupPoint=LatLng(x.latitude,x.longitude);lastReversePoint=LatLng(x.latitude,x.longitude);});await _centerMap(LatLng(x.latitude,x.longitude),17);}_startLocationStream();}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
+ void _startLocationStream(){locationSub?.cancel();locationSub=Geolocator.getPositionStream(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:5)).listen((x)async{if(!mounted||x.accuracy>150)return;final point=LatLng(x.latitude,x.longitude);final old=pos;setState(()=>pos=x);if(old==null||Geolocator.distanceBetween(old.latitude,old.longitude,x.latitude,x.longitude)>=3){if(lastReversePoint==null||Geolocator.distanceBetween(lastReversePoint!.latitude,lastReversePoint!.longitude,x.latitude,x.longitude)>=50){final address=await _reverse(x.latitude,x.longitude);if(!mounted)return;setState((){if(pickupPoint==null||_samePoint(pickupPoint!,old==null?point:LatLng(old.latitude,old.longitude))){pickup=address;pickupController.text=address;pickupPlace={'address':address,'lat':x.latitude,'lng':x.longitude};pickupPoint=point;}lastReversePoint=point;});}}});}
+ void searchPickup(String v){pickupDebounce?.cancel();pickupPlace=null;final q=v.trim();if(q.length<2){setState(()=>pickupSuggestions=[]);return;}pickupDebounce=Timer(const Duration(milliseconds:450),()async{try{final s=await ApiService.placeAutocomplete(q);if(mounted&&pickupController.text.trim()==q)setState(()=>pickupSuggestions=s);}catch(_){try{final points=await locationFromAddress(q);if(points.isNotEmpty&&mounted&&pickupController.text.trim()==q){final p=points.first;setState(()=>pickupSuggestions=[{'type':'native','placeId':'native:'+p.latitude.toString()+','+p.longitude.toString(),'text':q,'mainText':q,'secondaryText':'Device address search'}]);}}catch(_){if(mounted&&pickupController.text.trim()==q)setState(()=>pickupSuggestions=[]);}}});}
+ Future<void>selectPickup(Map<String,dynamic>s)async{final id=s['placeId']?.toString();if(id==null||id.isEmpty)return;setState(()=>busy=true);try{Map<String,dynamic> d;if(id.startsWith('native:')){final parts=id.substring(7).split(',');final lat=double.tryParse(parts.isNotEmpty?parts[0]:'');final lng=double.tryParse(parts.length>1?parts[1]:'');if(lat==null||lng==null)throw Exception('Unable to read the selected pickup address.');d={'address':s['text']?.toString()??'','lat':lat,'lng':lng};}else{try{d=await ApiService.placeDetails(id);}catch(_){final points=await locationFromAddress(s['text']?.toString()??'');if(points.isEmpty)throw Exception('Pickup address service is unavailable. Please try a landmark or PIN code.');final x=points.first;d={'address':s['text']?.toString()??'','lat':x.latitude,'lng':x.longitude};}}final lat=double.tryParse(d['lat']?.toString()??''),lng=double.tryParse(d['lng']?.toString()??'');if(lat==null||lng==null)throw Exception('Unable to locate the selected pickup address.');if(mounted){setState((){pickupPlace=d;pickup=d['address']?.toString()??s['text']?.toString()??'';pickupController.text=pickup;pickupSuggestions=[];pickupPoint=LatLng(lat,lng);routePolylines={};km=null;fare=null;routeEtaSeconds=null;});_fitMapToPoints();}}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
+ void useCurrentPickup(){if(pos==null){locate();return;}setState((){pickupPoint=LatLng(pos!.latitude,pos!.longitude);pickupPlace={'address':pickup,'lat':pos!.latitude,'lng':pos!.longitude};routePolylines={};km=null;fare=null;routeEtaSeconds=null;});_fitMapToPoints();}
+ bool _samePoint(LatLng a,LatLng b)=>Geolocator.distanceBetween(a.latitude,a.longitude,b.latitude,b.longitude)<20;
  void search(String v){debounce?.cancel();place=null;final q=v.trim();if(q.length<2){setState(()=>suggestions=[]);return;}debounce=Timer(const Duration(milliseconds:450),()async{try{final s=await ApiService.placeAutocomplete(q);if(mounted&&dest.text.trim()==q)setState(()=>suggestions=s);}catch(_){try{final points=await locationFromAddress(q);if(points.isNotEmpty&&mounted&&dest.text.trim()==q){final p=points.first;setState(()=>suggestions=[{'type':'native','placeId':'native:${p.latitude},${p.longitude}','text':q,'mainText':q,'secondaryText':'Device address search'}]);}}catch(_){if(mounted&&dest.text.trim()==q)setState(()=>suggestions=[]);}}});}
  Future<void>select(Map<String,dynamic>s)async{final id=s['placeId']?.toString();if(id==null||id.isEmpty)return;setState(()=>busy=true);try{if(id.startsWith('native:')){final parts=id.substring(7).split(',');final lat=double.tryParse(parts.isNotEmpty?parts[0]:'');final lng=double.tryParse(parts.length>1?parts[1]:'');if(lat==null||lng==null)throw Exception('Unable to read the selected address.');final d=<String,dynamic>{'address':s['text']?.toString()??'','lat':lat,'lng':lng};if(mounted){setState((){place=d;dest.text=d['address']?.toString()??'';suggestions=[];destinationPoint=LatLng(lat,lng);});_fitMapToPoints();}return;}Map<String,dynamic> d;try{d=await ApiService.placeDetails(id);}catch(_){final points=await locationFromAddress(s['text']?.toString()??'');if(points.isEmpty)throw Exception('Address service is unavailable. Please try a landmark or PIN code.');final x=points.first;d=<String,dynamic>{'address':s['text']?.toString()??'','lat':x.latitude,'lng':x.longitude};}if(mounted){final lat=double.tryParse(d['lat']?.toString()??'');final lng=double.tryParse(d['lng']?.toString()??'');setState((){place=d;dest.text=d['address']?.toString()??s['text']?.toString()??'';suggestions=[];if(lat!=null&&lng!=null)destinationPoint=LatLng(lat,lng);});if(destinationPoint!=null)_fitMapToPoints();}}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
  Future<void>calculate()async{
   if(pos==null)await locate();
-  if(pos==null||dest.text.trim().isEmpty)return;
+  if(pos==null||pickupPoint==null||dest.text.trim().isEmpty)return;
   setState(()=>busy=true);
   try{
     Map<String,dynamic>p=place??{};
@@ -1171,7 +1175,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
       WidgetsBinding.instance.addPostFrameCallback((_)=>_fitMapToPoints());
       return;
     }
-    final r=await ApiService.computeRoute(pos!.latitude,pos!.longitude,a,b);
+    final r=await ApiService.computeRoute(pickupPoint!.latitude,pickupPoint!.longitude,a,b);
     final d=((r['distanceMeters'] as num?)?.toDouble()??0)/1000;
     final points=_decodeGooglePolyline(r['encodedPolyline']?.toString()??'');
     if(points.length<2)throw Exception('No route found.');
@@ -1204,10 +1208,11 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  Future<void>_zoomOut()async{try{await mapController?.animateCamera(CameraUpdate.zoomOut());}catch(_){}}
  Future<void>_fitMapToPoints()async{
   final map=mapController;
-  if(map==null|| (pos==null&&destinationPoint==null))return;
+  if(map==null|| (pos==null&&pickupPoint==null&&destinationPoint==null))return;
   try{
    final points=<LatLng>[];
    if(pos!=null)points.add(LatLng(pos!.latitude,pos!.longitude));
+   if(pickupPoint!=null)points.add(pickupPoint!);
    if(destinationPoint!=null)points.add(destinationPoint!);
    for(final polyline in routePolylines)points.addAll(polyline.points);
    if(points.length<2){
@@ -1225,7 +1230,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
   }catch(_){} }
  double _fare(String t,double d){final base=t=='bike'?30:t=='auto'?40:60;final min=base;final slabs=t=='bike'?[[10,6],[20,5.5],[30,5],[50,4.5],[double.infinity,4.5]]:t=='auto'?[[10,7.5],[20,6.5],[30,6],[50,5.5],[double.infinity,5.5]]:[[10,9.5],[20,9],[30,8],[50,6.5],[100,5],[double.infinity,2.5]];var left=d,prev=0.0,total=0.0;for(final x in slabs){final limit=x[0].toDouble(),rate=x[1].toDouble();final take=left<=0?0.0:(left<limit-prev?left:limit-prev);if(take>0)total+=take*rate;left-=take;prev=limit;if(left<=0)break;}return (base+total).clamp(min,double.infinity).roundToDouble();}
  Future<void>book()async{
-  if(pos==null)return;
+  if(pickupPoint==null)return;
   if(!isService&&(km==null||fare==null))return;
   final address=place?['address']?.toString()??dest.text.trim();
   if(address.trim().isEmpty){_snack('Please enter the destination or service address.');return;}
@@ -1236,10 +1241,10 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
       providerType:type,
       pickup:pickup,
       drop:address,
-      lat:pos!.latitude,
+      lat:pickupPoint!.latitude,
       destinationLat:isService?null:destinationPoint?.latitude,
       destinationLng:isService?null:destinationPoint?.longitude,
-      lng:pos!.longitude,
+      lng:pickupPoint!.longitude,
       fare:isService?null:fare,
       distanceKm:isService?null:km,
       serviceType:isService?'services':'ride',
@@ -1283,6 +1288,32 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
          const SizedBox(height:12),
          _Location(pickup:pickup,onTap:busy?null:locate),
          const SizedBox(height:8),
+         TextField(
+           controller:pickupController,
+           onChanged:searchPickup,
+           decoration:InputDecoration(
+             filled:true,fillColor:Colors.white,
+             prefixIcon:const Icon(Icons.location_on,color:gfOrange),
+             suffixIcon:IconButton(onPressed:busy?null:useCurrentPickup,icon:const Icon(Icons.my_location,color:gfGreen)),
+             labelText:'PICKUP ADDRESS',
+             hintText:'Search pickup address, landmark or PIN code',
+             border:OutlineInputBorder(borderRadius:BorderRadius.circular(18)),
+           ),
+         ),
+         const SizedBox(height:8),
+         if(pickupSuggestions.isNotEmpty)
+           Container(
+             color:Colors.white,
+             child:Column(
+               children:pickupSuggestions.take(5).map((s)=>ListTile(
+                 leading:const Icon(Icons.location_on,color:gfOrange),
+                 title:Text(s['mainText']?.toString()??s['text']?.toString()??''),
+                 subtitle:Text(s['secondaryText']?.toString()??''),
+                 onTap:busy?null:()=>selectPickup(s),
+               )).toList(),
+             ),
+           ),
+         const SizedBox(height:8),
          ClipRRect(
            borderRadius:BorderRadius.circular(22),
            child:SizedBox(
@@ -1316,9 +1347,16 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                    markers:{
                      if(pos!=null)
                        Marker(
-                         markerId:const MarkerId('pickup'),
+                         markerId:const MarkerId('current-location'),
                          position:LatLng(pos!.latitude,pos!.longitude),
-                         infoWindow:const InfoWindow(title:'Your location'),
+                         icon:BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+                         infoWindow:const InfoWindow(title:'Your current location'),
+                       ),
+                     if(pickupPoint!=null)
+                       Marker(
+                         markerId:const MarkerId('pickup'),
+                         position:pickupPoint!,
+                         infoWindow:const InfoWindow(title:'Pickup address'),
                        ),
                      if(destinationPoint!=null)
                        Marker(
@@ -1358,7 +1396,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
              fillColor:Colors.white,
              prefixIcon:const Icon(Icons.search,color:gfGreen),
              labelText:isService?'SERVICE ADDRESS':'WHERE TO?',
-             hintText:'Search destination, landmark or PIN code',
+             hintText:isService?'Search service address, landmark or PIN code':'Search destination, landmark or PIN code',
              border:OutlineInputBorder(borderRadius:BorderRadius.circular(18)),
            ),
          ),
