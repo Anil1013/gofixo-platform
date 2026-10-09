@@ -519,7 +519,7 @@ async function ensureRuntimeSchema() {
       ON booking_transactions (customer_id, created_at DESC)
   `);
 
-  await pool.query(`
+  // Partner payout ledger. Service completion creates a pending payout record;\n  // actual bank/UPI transfer is performed only after regulated payout-provider\n  // onboarding/KYC is configured, so the app never pretends a payout happened.\n  await pool.query(`\n    CREATE TABLE IF NOT EXISTS partner_payouts (\n      id SERIAL PRIMARY KEY,\n      booking_id INT NOT NULL UNIQUE REFERENCES bookings(id) ON DELETE CASCADE,\n      provider_id INT NOT NULL REFERENCES service_providers(id),\n      gross_amount NUMERIC(10,2) NOT NULL,\n      platform_fee NUMERIC(10,2) NOT NULL DEFAULT 0,\n      payout_amount NUMERIC(10,2) NOT NULL,\n      payout_method VARCHAR(20),\n      payout_status VARCHAR(20) NOT NULL DEFAULT 'pending',\n      provider_reference VARCHAR(120),\n      failure_reason TEXT,\n      created_at TIMESTAMP DEFAULT NOW(),\n      paid_at TIMESTAMP\n    )\n  `);\n\n  await pool.query(`\n    CREATE INDEX IF NOT EXISTS partner_payouts_provider_idx\n      ON partner_payouts (provider_id, created_at DESC)\n  `);\n\n  await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS booking_ratings_one_per_side
       ON booking_ratings (booking_id, rated_by)
   `);
