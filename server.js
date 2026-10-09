@@ -434,6 +434,43 @@ async function ensureRuntimeSchema() {
     )
   `);
 
+  // Financial transaction ledger. A booking can have exactly one successful
+  // settlement, which keeps completion idempotent and gives admin a permanent
+  // audit trail for gross fare, Gofixo commission and partner earning.
+  await pool.query(`
+    ALTER TABLE bookings
+      ADD COLUMN IF NOT EXISTS payment_method VARCHAR(20),
+      ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      ADD COLUMN IF NOT EXISTS commission_amount NUMERIC(10,2),
+      ADD COLUMN IF NOT EXISTS provider_earning_amount NUMERIC(10,2)
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS booking_transactions (
+      id SERIAL PRIMARY KEY,
+      booking_id INT NOT NULL UNIQUE REFERENCES bookings(id) ON DELETE CASCADE,
+      customer_id INT NOT NULL REFERENCES customers(id),
+      provider_id INT NOT NULL REFERENCES service_providers(id),
+      gross_amount NUMERIC(10,2) NOT NULL,
+      commission_amount NUMERIC(10,2) NOT NULL,
+      provider_amount NUMERIC(10,2) NOT NULL,
+      payment_method VARCHAR(20) NOT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'paid',
+      created_at TIMESTAMP DEFAULT NOW(),
+      paid_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS booking_transactions_provider_idx
+      ON booking_transactions (provider_id, created_at DESC)
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS booking_transactions_customer_idx
+      ON booking_transactions (customer_id, created_at DESC)
+  `);
+
   await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS booking_ratings_one_per_side
       ON booking_ratings (booking_id, rated_by)
