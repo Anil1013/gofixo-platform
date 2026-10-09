@@ -56,7 +56,7 @@ class _ReferenceCustomerHomeState extends State<ReferenceCustomerHome>{
    _CustomerHomeTab(session:widget.session,bookings:bookings,onChanged:load,onTab:(i)=>setState(()=>tab=i)),
    _CustomerBookingsTab(session:widget.session,bookings:bookings,onChanged:load),
    _CustomerServicesTab(session:widget.session,onChanged:load),
-   _CustomerWalletTab(bookings:bookings),
+   _CustomerWalletTab(session:widget.session),
    _CustomerProfileTab(session:widget.session,onLogout:widget.onLogout),
   ];
   return Scaffold(backgroundColor:gfBg,body:SafeArea(child:IndexedStack(index:tab,children:pages)),bottomNavigationBar:NavigationBar(
@@ -325,344 +325,71 @@ class _CustomerServicesTab extends StatelessWidget{
  ]);
 }
 
-class _CustomerWalletTab extends StatelessWidget{
- final List<Map<String,dynamic>> bookings;const _CustomerWalletTab({required this.bookings});
- @override Widget build(BuildContext c){
-  double total=0;int completed=0;
-  for(final b in bookings){final s=b['status']?.toString().toLowerCase();if(s=='completed'||s=='paid'||s=='finished'){completed++;total+=double.tryParse((b['fare_amount']??b['final_fare']??b['estimated_fare']??0).toString())??0;}}
-  return ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
-   const _PageHeading(title:'Wallet',subtitle:'Your real booking payment summary.'),
-   Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:gfNavy,borderRadius:BorderRadius.circular(24)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    const Text('TOTAL SPEND',style:TextStyle(color:Colors.white70,fontSize:9,fontWeight:FontWeight.w800)),const SizedBox(height:5),Text('₹'+total.toStringAsFixed(0),style:const TextStyle(color:Colors.white,fontSize:30,fontWeight:FontWeight.w900)),
-    const SizedBox(height:12),Row(children:[Expanded(child:_DarkStat('Completed',completed.toString())),const Expanded(child:_DarkStat('Status','Ready'))])
-   ])),const SizedBox(height:14),const _Box(child:Text('Summary is calculated from completed booking records.',style:TextStyle(fontSize:11,color:gfMuted)))
-  ]);
- }
-}
-
-class _DarkStat extends StatelessWidget{final String label,value;const _DarkStat(this.label,this.value);@override Widget build(BuildContext c)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(value,style:const TextStyle(color:Colors.white,fontWeight:FontWeight.w900,fontSize:17)),Text(label,style:const TextStyle(color:Colors.white70,fontSize:10))]);}
-
-class _CustomerProfileTab extends StatelessWidget{
- final Session session;final Future<void> Function() onLogout;const _CustomerProfileTab({required this.session,required this.onLogout});
- @override Widget build(BuildContext c)=>ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
-  const _PageHeading(title:'Profile',subtitle:'Manage your Gofixo account.'),_ProfileCard(name:session.userName??'Customer',role:'Customer',icon:Icons.person_rounded),const SizedBox(height:12),
-  const _ProfileAction(icon:Icons.security_rounded,title:'Safety & support',subtitle:'Verified partners and live trip tracking.'),
-  const _ProfileAction(icon:Icons.location_on_outlined,title:'Location',subtitle:'Used for booking and live trip features.'),
-  const _ProfileAction(icon:Icons.info_outline,title:'About Gofixo',subtitle:'Ride · Delivery · Home Services'),const SizedBox(height:12),
-  SizedBox(width:double.infinity,child:OutlinedButton.icon(onPressed:onLogout,icon:const Icon(Icons.logout_rounded),label:const Text('Log out')))
- ]);
-}
-
-class _ProviderHomeTab extends StatelessWidget{
- final Session session;final Map<String,dynamic> me;final List<Map<String,dynamic>> jobs;final Future<void> Function({bool silent}) onChanged;final VoidCallback? onOnline;
- const _ProviderHomeTab({required this.session,required this.me,required this.jobs,required this.onChanged,required this.onOnline});
- @override Widget build(BuildContext c){
-  final requested=jobs.where((j)=>j['status']=='requested').toList();final active=jobs.where((j)=>j['status']=='accepted'||j['status']=='ongoing').toList();
-  final rides=int.tryParse(me['today_rides']?.toString()??'')??0;final earned=double.tryParse(me['total_earned_this_cycle']?.toString()??'0')??0;final rating=double.tryParse(me['avg_rating']?.toString()??'0')??0;
-  final first=requested.isNotEmpty?requested.first:(active.isNotEmpty?active.first:null);
-  return RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.only(bottom:18),children:[
-   _ProviderHeader(online:me['is_available']==true,onOnline:onOnline),const SizedBox(height:10),
-   Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_Partner(m:me)),const SizedBox(height:10),
-   Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Row(children:[
-    Expanded(child:_Stat('Today Rides',rides.toString(),Icons.route_rounded)),const SizedBox(width:8),Expanded(child:_Stat('Earnings','₹'+earned.toStringAsFixed(0),Icons.currency_rupee_rounded)),const SizedBox(width:8),Expanded(child:_Stat('Rating',rating==0?'—':rating.toStringAsFixed(1),Icons.star_rounded))
-   ])),const SizedBox(height:12),
-   const Padding(padding:EdgeInsets.symmetric(horizontal:12),child:_Keep()),const SizedBox(height:16),
-   const Padding(padding:EdgeInsets.symmetric(horizontal:12),child:Text('Incoming Bookings',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900,color:gfNavy))),
-   const SizedBox(height:8),
-   if(requested.isNotEmpty) ...requested.take(2).map((j)=>Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_Incoming(session:session,b:j,changed:onChanged)))
-   else if(active.isNotEmpty)...[Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_ProviderMiniMap(b:active.first)),const SizedBox(height:8),Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_Active(session:session,b:active.first,changed:onChanged))]
-   else const Padding(padding:EdgeInsets.symmetric(horizontal:12),child:_Waiting()),
-   if(first!=null&&requested.isNotEmpty)...[const SizedBox(height:10),Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_ProviderMiniMap(b:first))],
-   const SizedBox(height:10),Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_ProviderOnlineBanner(online:me['is_available']==true,onTap:onOnline)),
-  ]));
- }
-}
-class _ProviderHeader extends StatelessWidget{
- final bool online; final VoidCallback? onOnline;
- const _ProviderHeader({required this.online,required this.onOnline});
- @override Widget build(BuildContext c){
-  return Container(
-   color:Colors.white,padding:const EdgeInsets.fromLTRB(16,10,14,8),
-   child:Row(children:[
-    Container(width:43,height:43,decoration:BoxDecoration(color:gfGreen,borderRadius:BorderRadius.circular(14)),child:const Icon(Icons.location_on_rounded,color:Colors.white,size:28)),
-    const SizedBox(width:9),
-    const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-     Text('Gofixo',style:TextStyle(fontSize:25,fontWeight:FontWeight.w900,color:gfNavy)),
-     Text('Partner · Earn with Gofixo',style:TextStyle(fontSize:9,color:gfMuted,fontWeight:FontWeight.w700))
-    ])),
-    GestureDetector(onTap:onOnline,child:Container(
-     padding:const EdgeInsets.symmetric(horizontal:10,vertical:8),
-     decoration:BoxDecoration(color:online?const Color(0xFFE0FAEA):const Color(0xFFF0F3F7),borderRadius:BorderRadius.circular(24)),
-     child:Row(children:[
-      Text(online?'Online':'Offline',style:TextStyle(fontSize:11,fontWeight:FontWeight.w900,color:online?gfGreen:gfMuted)),
-      const SizedBox(width:6),
-      Container(width:18,height:18,decoration:BoxDecoration(color:online?gfGreen:Colors.white,shape:BoxShape.circle)),
-     ]),
-    )),
-   ]),
-  );
- }
-}
-
-class _ProviderMiniMap extends StatefulWidget{
- final Map<String,dynamic>b;const _ProviderMiniMap({required this.b});
- @override State<_ProviderMiniMap> createState()=>_ProviderMiniMapState();
-}
-class _ProviderMiniMapState extends State<_ProviderMiniMap>{
- GoogleMapController? controller;
- bool touched=false;
- LatLng? pickup;
- LatLng? destination;
-
- @override Widget build(BuildContext c){
-  final pLat=double.tryParse((widget.b['pickup_lat']??widget.b['pickup_latitude'])?.toString()??'');
-  final pLng=double.tryParse((widget.b['pickup_lng']??widget.b['pickup_longitude'])?.toString()??'');
-  final dLat=double.tryParse((widget.b['drop_lat']??widget.b['drop_latitude'])?.toString()??'');
-  final dLng=double.tryParse((widget.b['drop_lng']??widget.b['drop_longitude'])?.toString()??'');
-  pickup=(pLat!=null&&pLng!=null)?LatLng(pLat,pLng):null;
-  destination=(dLat!=null&&dLng!=null)?LatLng(dLat,dLng):null;
-  final center=pickup??destination??const LatLng(28.6139,77.2090);
-  final points=<LatLng>[if(pickup!=null)pickup!,if(destination!=null)destination!];
-
-  Future<void> fit() async {
-   if(controller==null||points.isEmpty)return;
-   try{
-    if(points.length==1){
-     await controller!.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target:points.first,zoom:16)));
-    }else{
-     var minLat=points.first.latitude,maxLat=points.first.latitude,minLng=points.first.longitude,maxLng=points.first.longitude;
-     for(final p in points.skip(1)){minLat=min(minLat,p.latitude);maxLat=max(maxLat,p.latitude);minLng=min(minLng,p.longitude);maxLng=max(maxLng,p.longitude);}
-     final latPad=(maxLat-minLat).abs()*0.12,lngPad=(maxLng-minLng).abs()*0.12;
-     await controller!.animateCamera(CameraUpdate.newLatLngBounds(LatLngBounds(
-       southwest:LatLng(minLat-latPad,minLng-lngPad),northeast:LatLng(maxLat+latPad,maxLng+lngPad)),70));
-    }
-   }catch(_){}
-  }
-
-  return ClipRRect(borderRadius:BorderRadius.circular(22),child:SizedBox(height:245,child:Stack(children:[
-   GoogleMap(
-    initialCameraPosition:CameraPosition(target:center,zoom:13.8),
-    onMapCreated:(m){controller=m;WidgetsBinding.instance.addPostFrameCallback((_)=>fit());},
-    onCameraMoveStarted:(){touched=true;},
-    gestureRecognizers:<Factory<OneSequenceGestureRecognizer>>{
-      Factory<OneSequenceGestureRecognizer>(()=>EagerGestureRecognizer()),
-    },
-    rotateGesturesEnabled:true,tiltGesturesEnabled:true,scrollGesturesEnabled:true,zoomGesturesEnabled:true,
-    markers:{
-      if(pickup!=null)Marker(markerId:const MarkerId('pickup'),position:pickup!,infoWindow:const InfoWindow(title:'Customer Pickup')),
-      if(destination!=null)Marker(markerId:const MarkerId('destination'),position:destination!,infoWindow:const InfoWindow(title:'Destination')),
-    },
-    polylines:{
-      if(pickup!=null&&destination!=null)Polyline(polylineId:const PolylineId('preview'),points:[pickup!,destination!],width:5,color:gfGreen),
-    },
-    zoomControlsEnabled:false,myLocationButtonEnabled:false,compassEnabled:true,
-   ),
-   Positioned(left:12,right:12,top:12,child:Container(padding:const EdgeInsets.all(11),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(15),boxShadow:const[BoxShadow(color:Color(0x22000000),blurRadius:10)]),child:Row(children:[
-    const Icon(Icons.navigation_rounded,color:gfGreen,size:20),const SizedBox(width:8),
-    Expanded(child:Text(widget.b['pickup_location']?.toString()??'Customer pickup',maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy))),
-    Text((widget.b['distance_km']??'').toString()+' km',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy))
-   ]))),
-   Positioned(right:12,bottom:12,child:GestureDetector(onTap:()=>fit(),child:Container(width:40,height:40,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(13),boxShadow:const[BoxShadow(color:Color(0x22000000),blurRadius:8)]),child:const Icon(Icons.fit_screen,color:gfGreen,size:20)))),
-  ])));
- }
-}
-class _ProviderOnlineBanner extends StatelessWidget{
- final bool online;final VoidCallback? onTap;const _ProviderOnlineBanner({required this.online,required this.onTap});
- @override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.fromLTRB(14,12,10,12),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(18),border:Border.all(color:gfLine)),child:Row(children:[Container(width:10,height:10,decoration:BoxDecoration(color:online?gfGreen:Colors.redAccent,shape:BoxShape.circle)),const SizedBox(width:9),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(online?'You are Online':'You are Offline',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),Text(online?'Getting ride requests nearby':'Go online to receive nearby jobs',style:const TextStyle(fontSize:9,color:gfMuted))])),FilledButton(onPressed:onTap,style:FilledButton.styleFrom(backgroundColor:online?Colors.redAccent:gfGreen),child:Text(online?'Go Offline':'Go Online'))]));
-}
-
-class _ProviderJobsTab extends StatelessWidget{
- final Session session;final List<Map<String,dynamic>> jobs;final Future<void> Function({bool silent}) onChanged;const _ProviderJobsTab({required this.session,required this.jobs,required this.onChanged});
- @override Widget build(BuildContext c)=>RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
-  const _PageHeading(title:'Jobs',subtitle:'Incoming, accepted and completed work.'),
-  if(jobs.isEmpty)const _Waiting() else ...jobs.map((j){final s=j['status']?.toString()??'';if(s=='requested')return _Incoming(session:session,b:j,changed:onChanged);if(s=='accepted'||s=='ongoing')return _Active(session:session,b:j,changed:onChanged);return _JobSummary(b:j);}),
- ]));
-}
-
-class _JobSummary extends StatelessWidget{
- final Map<String,dynamic>b;const _JobSummary({required this.b});
- @override Widget build(BuildContext c)=>_Box(child:Row(children:[const Icon(Icons.check_circle_outline,color:gfGreen),const SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text((b['status']?.toString()??'').toUpperCase(),style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),Text(b['drop_or_service_address']?.toString()??'',maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:11,color:gfMuted))])),Text('₹'+(b['fare_amount']??b['final_fare']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy))]));
-}
-
-class _ProviderEarningsTab extends StatelessWidget{
- final Map<String,dynamic> me;final List<Map<String,dynamic>> jobs;const _ProviderEarningsTab({required this.me,required this.jobs});
- @override Widget build(BuildContext c){
-  final earned=double.tryParse(me['total_earned_this_cycle']?.toString()??'0')??0;final rides=int.tryParse(me['today_rides']?.toString()??'')??0;final completed=jobs.where((j){final s=j['status']?.toString().toLowerCase();return s=='completed'||s=='paid'||s=='finished';}).length;
-  return ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
-   const _PageHeading(title:'Earnings',subtitle:'Your provider earnings and completed work.'),
-   Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:gfNavy,borderRadius:BorderRadius.circular(24)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    const Text('CURRENT CYCLE',style:TextStyle(color:Colors.white70,fontSize:9,fontWeight:FontWeight.w800)),const SizedBox(height:5),Text('₹'+earned.toStringAsFixed(0),style:const TextStyle(color:Colors.white,fontSize:31,fontWeight:FontWeight.w900)),
-    const SizedBox(height:14),Row(children:[Expanded(child:_DarkStat('Today',rides.toString())),Expanded(child:_DarkStat('Completed',completed.toString()))])
-   ])),const SizedBox(height:14),const _Box(child:Text('Earnings are read from the provider account data returned by Gofixo.',style:TextStyle(fontSize:11,color:gfMuted)))
-  ]);
- }
-}
-
-class _ProviderServicesTab extends StatefulWidget{
+class _CustomerWalletTab extends StatefulWidget{
   final Session session;
-  final Map<String,dynamic> me;
-  const _ProviderServicesTab({required this.session,required this.me});
-  @override State<_ProviderServicesTab> createState()=>_ProviderServicesTabState();
+  const _CustomerWalletTab({required this.session});
+  @override State<_CustomerWalletTab> createState()=>_CustomerWalletTabState();
 }
-class _ProviderServicesTabState extends State<_ProviderServicesTab>{
-  List<Map<String,dynamic>> plans=[];
-  Map<String,dynamic>? subscription;
-  bool loading=true,working=false;
+class _CustomerWalletTabState extends State<_CustomerWalletTab>{
+  Map<String,dynamic> walletData={};
+  List<Map<String,dynamic>> transactions=[];
+  bool loading=true;
   @override void initState(){super.initState();_load();}
-  Future<void> _load()async{
+  Future<void>_load()async{
     try{
-      final all=await ApiService.plans();
-      final type=widget.me['type']?.toString()??'';
-      final id=int.tryParse(widget.me['id']?.toString()??'')??0;
-      final current=await ApiService.subscription(widget.session.token,id);
-      if(mounted)setState((){
-        plans=all.where((p)=>p['provider_type']?.toString()==type).toList();
-        subscription=current;
-        loading=false;
-      });
-    }catch(_){if(mounted)setState(()=>loading=false);}
-  }
-  Future<void> _subscribe(Map<String,dynamic> plan)async{
-    final id=int.tryParse(plan['id']?.toString()??'');
-    if(id==null||working)return;
-    setState(()=>working=true);
-    try{
-      await ApiService.subscribe(widget.session.token,id);
-      await _load();
-      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Plan activated. You can now go online.')));
+      final w=await ApiService.wallet(widget.session.token);
+      final tx=await ApiService.walletTransactions(widget.session.token);
+      if(mounted)setState((){walletData=w;transactions=tx;loading=false;});
     }catch(e){
-      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception:','').trim())));
-    }finally{if(mounted)setState(()=>working=false);}
+      if(mounted){setState(()=>loading=false);ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
+    }
   }
-  Future<void> _upload(String docType)async{
-    final providerId=int.tryParse(widget.me['id']?.toString()??'');
-    if(providerId==null||working)return;
-    final picked=await FilePicker.pickFile(type:FileType.custom,allowedExtensions:const['jpg','jpeg','png','webp','pdf']);
-    if(picked==null||picked.path==null)return;
-    setState(()=>working=true);
-    try{
-      await ApiService.uploadProviderDocument(widget.session.token,providerId,docType,picked.path!);
-      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('${docType.replaceAll('_',' ')} uploaded.')));
-      await _load();
-    }catch(e){
-      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception:','').trim())));
-    }finally{if(mounted)setState(()=>working=false);}
-  }
-  Widget _docButton(String type,String label,Set<String>uploaded)=>Expanded(
-    child:OutlinedButton.icon(
-      onPressed:working?null:()=>_upload(type),
-      icon:Icon(uploaded.contains(type)?Icons.check_circle:Icons.upload_file_rounded,size:17),
-      label:Text(uploaded.contains(type)?'$label ✓':label,maxLines:1,overflow:TextOverflow.ellipsis),
-    ),
-  );
   @override Widget build(BuildContext c){
-    final type=widget.me['type']?.toString()??'partner';
-    final approved=widget.me['kyc_status']?.toString()=='approved';
-    final uploaded=((widget.me['documents'] as List?)??const[]).whereType<Map>().map((x)=>x['doc_type']?.toString()).whereType<String>().toSet();
-    final worker=type=='general_worker'||type=='skilled_worker';
-    final driver=type=='bike'||type=='auto'||type=='car';
-    return ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
-      const _PageHeading(title:'Services',subtitle:'Manage your Gofixo work, verification and earning plan.'),
-      _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        const Text('YOUR SERVICES',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
-        const SizedBox(height:5),
-        Text(type.replaceAll('_',' ').toUpperCase(),style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:gfNavy)),
-        const SizedBox(height:8),
-        if(worker&&widget.me['service_categories'] is List)
-          Text((widget.me['service_categories'] as List).map((x)=>x.toString().replaceAll('_',' ')).join(' · ').toUpperCase(),style:const TextStyle(fontSize:10,color:gfMuted,fontWeight:FontWeight.w700)),
-        const SizedBox(height:8),
-        Text(approved?'KYC approved — eligible for matching.':'KYC pending — upload documents and wait for approval.',style:TextStyle(fontSize:11,color:approved?gfGreen:gfMuted,fontWeight:FontWeight.w700)),
-      ])),
-      const SizedBox(height:12),
-      _ServiceInfo(title:'Rides',icon:Icons.local_taxi_rounded,enabled:driver),
-      _ServiceInfo(title:'Home services',icon:Icons.handyman_rounded,enabled:worker),
-      _ServiceInfo(title:'Nearby matching',icon:Icons.radar_rounded,enabled:approved),
-      const SizedBox(height:12),
-      _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        const Text('KYC DOCUMENTS',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
-        const SizedBox(height:6),
-        Text(uploaded.isEmpty?'Upload the documents requested by Gofixo.':'Uploaded: '+uploaded.map((x)=>x.replaceAll('_',' ')).join(', '),style:const TextStyle(fontSize:11,color:gfMuted)),
-        const SizedBox(height:10),
-        Row(children:[
-          _docButton('aadhar_front','Aadhaar front',uploaded),
-          const SizedBox(width:7),
-          _docButton('aadhar_back','Aadhaar back',uploaded),
-        ]),
-        const SizedBox(height:7),
-        Row(children:[
-          if(driver)...[
-            _docButton('driving_license','Driving licence',uploaded),
-            const SizedBox(width:7),
-            _docButton('vehicle_rc','Vehicle RC',uploaded),
-          ]else...[
-            _docButton('police_verification','Police verification',uploaded),
-            const SizedBox(width:7),
-            _docButton('profile_photo','Profile photo',uploaded),
-          ],
-        ]),
-        if(driver)...[
-          const SizedBox(height:7),
-          Row(children:[
-            _docButton('vehicle_photo_front','Vehicle front',uploaded),
-            const SizedBox(width:7),
-            _docButton('vehicle_photo_back','Vehicle back',uploaded),
-          ]),
-        ],
-      ])),
-      const SizedBox(height:12),
-      _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        const Text('EARNING PLAN',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
-        const SizedBox(height:6),
-        if(loading)const LinearProgressIndicator(minHeight:2),
-        if(!loading&&subscription!=null)...[
-          Text(subscription!['plan_name']?.toString()??'Active plan',style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy)),
-          const SizedBox(height:4),
-          Text('Earned ₹'+(subscription!['total_earned_this_cycle']??0).toString()+' · Cap ₹'+(subscription!['earning_cap']??'—').toString(),style:const TextStyle(fontSize:11,color:gfMuted)),
-          Text('Expires '+(subscription!['expiry_date']?.toString().split('T').first??'—'),style:const TextStyle(fontSize:10,color:gfMuted)),
-        ] else if(!loading)...[
-          const Text('Choose a plan to start receiving jobs.',style:TextStyle(fontSize:11,color:gfMuted)),
-          const SizedBox(height:8),
-          ...plans.map((p)=>Container(
-            margin:const EdgeInsets.only(bottom:7),
-            padding:const EdgeInsets.all(11),
-            decoration:BoxDecoration(color:gfBg,borderRadius:BorderRadius.circular(15)),
-            child:Row(children:[
-              Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                Text(p['plan_name']?.toString()??'Plan',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
-                Text('₹'+(p['fee']??0).toString()+' · '+(p['validity_days']??0).toString()+' days · earning cap ₹'+(p['earning_cap']??'—').toString(),style:const TextStyle(fontSize:10,color:gfMuted)),
-              ])),
-              FilledButton(onPressed:working?null:()=>_subscribe(p),style:FilledButton.styleFrom(backgroundColor:gfGreen),child:const Text('Activate')),
-            ]),
-          )),
-        ],
-      ])),
+    final available=double.tryParse(walletData['available_balance']?.toString()??'0')??0;
+    final reserved=double.tryParse(walletData['reserved_balance']?.toString()??'0')??0;
+    return RefreshIndicator(onRefresh:_load,child:ListView(padding:const EdgeInsets.fromLTRB(14,10,14,28),children:[
+      const _PageHeading(title:'Gofixo Wallet',subtitle:'Secure balance for home-service payments.'),
       const SizedBox(height:10),
-      const _Box(child:Text('KYC approval + an active earning plan + fresh location are required before Gofixo can match nearby jobs.',style:TextStyle(fontSize:11,color:gfMuted))),
-    ]);
+      Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:gfNavy,borderRadius:BorderRadius.circular(24)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        const Text('AVAILABLE BALANCE',style:TextStyle(color:Colors.white70,fontSize:9,fontWeight:FontWeight.w800)),
+        const SizedBox(height:6),
+        Text('₹'+available.toStringAsFixed(2),style:const TextStyle(color:Colors.white,fontSize:30,fontWeight:FontWeight.w900)),
+        const SizedBox(height:8),
+        Text('Reserved ₹'+reserved.toStringAsFixed(2)+' · INR',style:const TextStyle(color:Colors.white70,fontSize:11)),
+      ])),
+      const SizedBox(height:14),
+      _Box(child:Row(children:[
+        Container(width:42,height:42,decoration:BoxDecoration(color:gfGreen.withOpacity(.10),borderRadius:BorderRadius.circular(13)),child:const Icon(Icons.add_card_rounded,color:gfGreen)),
+        const SizedBox(width:12),
+        const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text('Add money',style:TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
+          SizedBox(height:3),
+          Text('Secure payment gateway will be connected next. Wallet is never credited from the app itself.',style:TextStyle(fontSize:10,color:gfMuted)),
+        ])),
+        const Icon(Icons.lock_outline_rounded,color:gfMuted,size:18),
+      ])),
+      const SizedBox(height:18),
+      const Text('Recent transactions',style:TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy)),
+      const SizedBox(height:8),
+      if(loading) const _Box(child:Center(child:Padding(padding:EdgeInsets.all(18),child:CircularProgressIndicator(color:gfGreen))))
+      else if(transactions.isEmpty) const _Box(child:Text('No wallet transactions yet.',style:TextStyle(fontSize:11,color:gfMuted)))
+      else ...transactions.take(20).map((tx){
+        final amount=double.tryParse(tx['amount']?.toString()??'0')??0;
+        final type=tx['type']?.toString()??'TRANSACTION';
+        final status=tx['status']?.toString()??'';
+        final credit=type=='TOPUP'||type=='BOOKING_RELEASE'||type=='REFUND';
+        return Padding(padding:const EdgeInsets.only(bottom:8),child:_Box(child:Row(children:[
+          Icon(credit?Icons.south_west_rounded:Icons.north_east_rounded,color:credit?gfGreen:gfOrange,size:20),
+          const SizedBox(width:10),
+          Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Text(type.replaceAll('_',' '),style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy,fontSize:12)),
+            Text(status.toUpperCase(),style:const TextStyle(color:gfMuted,fontSize:9)),
+          ])),
+          Text((credit?'+':'-')+'₹'+amount.toStringAsFixed(2),style:TextStyle(fontWeight:FontWeight.w900,color:credit?gfGreen:gfNavy)),
+        ])));
+      }),
+    ]));
   }
-}
-
-class _ServiceInfo extends StatelessWidget{
- final String title;final IconData icon;final bool enabled;const _ServiceInfo({required this.title,required this.icon,required this.enabled});
- @override Widget build(BuildContext c)=>Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(18)),child:Row(children:[Icon(icon,color:enabled?gfGreen:gfMuted),const SizedBox(width:10),Expanded(child:Text(title,style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy))),Text(enabled?'Active':'Not active',style:TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:enabled?gfGreen:gfMuted))]));
-}
-
-class _ProviderProfileTab extends StatelessWidget{
- final Session session;final Map<String,dynamic> me;final Future<void> Function() onLogout;const _ProviderProfileTab({required this.session,required this.me,required this.onLogout});
- @override Widget build(BuildContext c){final kyc=me['kyc_status']?.toString()??'pending';return ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
-  const _PageHeading(title:'Profile',subtitle:'Manage your partner account and compliance.'),_ProfileCard(name:me['name']?.toString()??session.userName??'Partner',role:'Gofixo Partner',icon:Icons.handyman_rounded),const SizedBox(height:12),
-  _ProfileAction(icon:Icons.verified_user_rounded,title:'KYC status',subtitle:kyc.toUpperCase()),_ProfileAction(icon:Icons.badge_outlined,title:'Partner ID',subtitle:me['generated_id']?.toString()??'Not assigned'),_ProfileAction(icon:Icons.location_on_outlined,title:'Live location',subtitle:me['is_available']==true?'Updating while online':'Offline'),_ProfileAction(icon:Icons.support_agent,title:'Partner support',subtitle:'Get help with jobs, documents and account access.'),const SizedBox(height:12),
-  SizedBox(width:double.infinity,child:OutlinedButton.icon(onPressed:onLogout,icon:const Icon(Icons.logout_rounded),label:const Text('Log out')))
- ]);}
-}
-
-class _PageHeading extends StatelessWidget{
- final String title,subtitle;const _PageHeading({required this.title,required this.subtitle});
- @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.only(bottom:14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(title,style:const TextStyle(fontSize:27,fontWeight:FontWeight.w900,color:gfNavy)),const SizedBox(height:3),Text(subtitle,style:const TextStyle(fontSize:11,color:gfMuted))]));
-}
-class _ProfileCard extends StatelessWidget{
- final String name,role;final IconData icon;const _ProfileCard({required this.name,required this.role,required this.icon});
- @override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.all(18),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(22)),child:Row(children:[Container(width:58,height:58,decoration:const BoxDecoration(color:Color(0xFFEFFFF5),shape:BoxShape.circle),child:Icon(icon,color:gfGreen,size:30)),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(name,style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900,color:gfNavy)),Text(role,style:const TextStyle(fontSize:11,color:gfMuted))]))]));
 }
 class _ProfileAction extends StatelessWidget{
  final IconData icon;final String title,subtitle;const _ProfileAction({required this.icon,required this.title,required this.subtitle});

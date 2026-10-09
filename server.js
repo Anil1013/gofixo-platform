@@ -14,6 +14,7 @@ const subscriptionsRoutes = require('./routes/subscriptions.routes');
 const bookingsRoutes = require('./routes/bookings.routes');
 const authRoutes = require('./routes/auth.routes');
 const adminRoutes = require('./routes/admin.routes');
+const walletRoutes = require('./routes/wallet.routes');
 const pool = require('./config/db');
 const { attachRealtime } = require('./services/realtime');
 const { getServiceCatalog } = require('./services/catalog');
@@ -332,6 +333,7 @@ app.use('/api/subscriptions', subscriptionsRoutes);
 app.use('/api/bookings', bookingsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/wallet', walletRoutes);
 
 // Generic error handler — never leak raw error details in production
 app.use((err, req, res, next) => {
@@ -396,6 +398,51 @@ async function ensureRuntimeSchema() {
     )
   `);
 
+  // Customer wallet ledger foundation. Real-money credits will only be created
+  // by a verified payment-provider webhook; the app never writes wallet balances directly.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS wallets (
+      id SERIAL PRIMARY KEY,
+      customer_id INT NOT NULL UNIQUE REFERENCES customers(id) ON DELETE CASCADE,
+      available_balance NUMERIC(12,2) NOT NULL DEFAULT 0,
+      reserved_balance NUMERIC(12,2) NOT NULL DEFAULT 0,
+      currency VARCHAR(3) NOT NULL DEFAULT 'INR',
+      status VARCHAR(20) NOT NULL DEFAULT 'active',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW(),
+      CHECK (available_balance >= 0),
+      CHECK (reserved_balance >= 0)
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS wallet_transactions (
+      id SERIAL PRIMARY KEY,
+      wallet_id INT NOT NULL REFERENCES wallets(id) ON DELETE CASCADE,
+      customer_id INT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      booking_id INT REFERENCES bookings(id) ON DELETE SET NULL,
+      type VARCHAR(30) NOT NULL,
+      amount NUMERIC(12,2) NOT NULL CHECK (amount > 0),
+      balance_before NUMERIC(12,2) NOT NULL DEFAULT 0,
+      balance_after NUMERIC(12,2) NOT NULL DEFAULT 0,
+      reserved_before NUMERIC(12,2) NOT NULL DEFAULT 0,
+      reserved_after NUMERIC(12,2) NOT NULL DEFAULT 0,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      reference_id VARCHAR(120),
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE (type, reference_id)
+    )
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS wallet_transactions_customer_idx
+      ON wallet_transactions (customer_id, created_at DESC)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS wallet_transactions_booking_idx
+      ON wallet_transactions (booking_id, created_at DESC)
+  `);
   // Keep additive booking/payment fields present on older production databases.
   // These are safe no-op changes when the columns/table already exist.
   await pool.query(`
