@@ -582,15 +582,35 @@ router.get('/me/payout-summary', requireAuth(['provider']), async (req, res, nex
   } catch (err) { next(err); }
 });
 
-// Authenticated provider profile-photo access.
-router.get('/:id/profile-photo', requireAuth(['provider']), async (req, res, next) => {
+// Authenticated profile-photo access. Providers may view their own photo.
+ // Customers may view a provider photo only when they have a booking with that provider.
+router.get('/:id/profile-photo', requireAuth(['provider', 'customer']), async (req, res, next) => {
   try {
-    if (req.user.id !== parseInt(req.params.id, 10)) return res.status(403).json({ error: 'You can only access your own profile photo' });
+    const providerId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(providerId) || providerId <= 0) {
+      return res.status(400).json({ error: 'Invalid provider id' });
+    }
+    if (req.user.role === 'provider') {
+      if (req.user.id !== providerId) {
+        return res.status(403).json({ error: 'You can only access your own provider photo' });
+      }
+    } else {
+      const bookingAccess = await pool.query(
+        `SELECT 1 FROM bookings
+         WHERE customer_id = $1 AND provider_id = $2
+           AND status IN ('accepted', 'arrived', 'ongoing', 'completed')
+         LIMIT 1`,
+        [req.user.id, providerId]
+      );
+      if (bookingAccess.rows.length === 0) {
+        return res.status(403).json({ error: 'Provider photo is available only for your bookings' });
+      }
+    }
     const result = await pool.query(
       `SELECT file_url FROM provider_documents
        WHERE provider_id = $1 AND doc_type = 'profile_photo'
        ORDER BY uploaded_at DESC, id DESC LIMIT 1`,
-      [req.params.id]
+      [providerId]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Profile photo not set' });
     const relativePath = result.rows[0].file_url.replace(/^\/uploads\//, '');
