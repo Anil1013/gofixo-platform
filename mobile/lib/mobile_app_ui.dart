@@ -56,7 +56,7 @@ class _ReferenceCustomerHomeState extends State<ReferenceCustomerHome>{
    _CustomerHomeTab(session:widget.session,bookings:bookings,onChanged:load,onTab:(i)=>setState(()=>tab=i)),
    _CustomerBookingsTab(session:widget.session,bookings:bookings,onChanged:load),
    _CustomerServicesTab(session:widget.session,onChanged:load),
-   _CustomerWalletTab(session:widget.session),
+   _CustomerWalletTab(bookings:bookings),
    _CustomerProfileTab(session:widget.session,onLogout:widget.onLogout),
   ];
   return Scaffold(backgroundColor:gfBg,body:SafeArea(child:IndexedStack(index:tab,children:pages)),bottomNavigationBar:NavigationBar(
