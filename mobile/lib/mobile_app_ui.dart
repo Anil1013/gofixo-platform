@@ -504,7 +504,7 @@ class _ProviderHomeTab extends StatelessWidget{
   final first=requested.isNotEmpty?requested.first:(active.isNotEmpty?active.first:null);
   return RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.only(bottom:18),children:[
    _ProviderHeader(online:me['is_available']==true,onOnline:onOnline),const SizedBox(height:10),
-   Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_Partner(m:me)),const SizedBox(height:10),
+   Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:_Partner(m:me,token:session.token)),const SizedBox(height:10),
    Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Row(children:[
     Expanded(child:_Stat('Today Rides',rides.toString(),Icons.route_rounded)),const SizedBox(width:8),Expanded(child:_Stat('Earnings','₹'+earned.toStringAsFixed(0),Icons.currency_rupee_rounded)),const SizedBox(width:8),Expanded(child:_Stat('Rating',rating==0?'—':rating.toStringAsFixed(1),Icons.star_rounded))
    ])),const SizedBox(height:12),
@@ -1044,11 +1044,10 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
             _docButton('driving_license','Driving licence',uploaded),
             const SizedBox(width:7),
             _docButton('vehicle_rc','Vehicle RC',uploaded),
-          ]else...[
+          ]else
             _docButton('police_verification','Police verification',uploaded),
-            const SizedBox(width:7),
-            _docButton('profile_photo','Profile photo',uploaded),
-          ],
+          const SizedBox(width:7),
+          _docButton('profile_photo','Profile photo',uploaded),
         ]),
         if(driver)...[
           const SizedBox(height:7),
@@ -1100,7 +1099,7 @@ class _ServiceInfo extends StatelessWidget{
 class _ProviderProfileTab extends StatelessWidget{
  final Session session;final Map<String,dynamic> me;final Future<void> Function() onLogout;const _ProviderProfileTab({required this.session,required this.me,required this.onLogout});
  @override Widget build(BuildContext c){final kyc=me['kyc_status']?.toString()??'pending';return ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
-  const _PageHeading(title:'Profile',subtitle:'Manage your partner account and compliance.'),_ProfileCard(name:me['name']?.toString()??session.userName??'Partner',role:'Gofixo Partner',icon:Icons.handyman_rounded),const SizedBox(height:12),
+  const _PageHeading(title:'Profile',subtitle:'Manage your partner account and compliance.'),_ProfileCard(name:me['name']?.toString()??session.userName??'Partner',role:'Gofixo Partner',icon:Icons.handyman_rounded,imageUrl:apiBase+'/providers/'+(me['id']?.toString()??'')+'/profile-photo',token:session.token),const SizedBox(height:12),
   _ProfileAction(icon:Icons.verified_user_rounded,title:'KYC status',subtitle:kyc.toUpperCase()),_ProfileAction(icon:Icons.badge_outlined,title:'Partner ID',subtitle:me['generated_id']?.toString()??'Not assigned'),_ProfileAction(icon:Icons.location_on_outlined,title:'Live location',subtitle:me['is_available']==true?'Updating while online':'Offline'),_ProfileAction(icon:Icons.support_agent,title:'Partner support',subtitle:'Get help with jobs, documents and account access.'),const SizedBox(height:12),
   SizedBox(width:double.infinity,child:OutlinedButton.icon(onPressed:onLogout,icon:const Icon(Icons.logout_rounded),label:const Text('Log out')))
  ]);}
@@ -1119,8 +1118,8 @@ class _PageHeading extends StatelessWidget{
  @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.only(bottom:14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(title,style:const TextStyle(fontSize:27,fontWeight:FontWeight.w900,color:gfNavy)),const SizedBox(height:3),Text(subtitle,style:const TextStyle(fontSize:11,color:gfMuted))]));
 }
 class _ProfileCard extends StatelessWidget{
- final String name,role;final IconData icon;const _ProfileCard({required this.name,required this.role,required this.icon});
- @override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.all(18),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(22)),child:Row(children:[Container(width:58,height:58,decoration:const BoxDecoration(color:Color(0xFFEFFFF5),shape:BoxShape.circle),child:Icon(icon,color:gfGreen,size:30)),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(name,style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900,color:gfNavy)),Text(role,style:const TextStyle(fontSize:11,color:gfMuted))]))]));
+ final String name,role;final IconData icon;final String? imageUrl,token;const _ProfileCard({required this.name,required this.role,required this.icon,this.imageUrl,this.token});
+ @override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.all(18),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(22)),child:Row(children:[Container(width:58,height:58,decoration:const BoxDecoration(color:Color(0xFFEFFFF5),shape:BoxShape.circle),child:ClipOval(child:imageUrl!=null&&token!=null?Image.network(imageUrl!,headers:{'Authorization':'Bearer '+token!},fit:BoxFit.cover,width:58,height:58,errorBuilder:(_,__,___)=>Icon(icon,color:gfGreen,size:30)):Icon(icon,color:gfGreen,size:30))),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(name,style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900,color:gfNavy)),Text(role,style:const TextStyle(fontSize:11,color:gfMuted))]))]));
 }
 class _ProfileAction extends StatelessWidget{
  final IconData icon;final String title,subtitle;const _ProfileAction({required this.icon,required this.title,required this.subtitle});
@@ -1522,7 +1521,7 @@ class _MapControl extends StatelessWidget{
  const _MapControl({required this.icon,required this.onTap});
  @override Widget build(BuildContext c)=>Material(color:Colors.white,borderRadius:BorderRadius.circular(12),elevation:3,child:InkWell(onTap:onTap,borderRadius:BorderRadius.circular(12),child:SizedBox(width:44,height:44,child:Icon(icon,color:gfNavy,size:22))));
 }
-class _Partner extends StatelessWidget{final Map<String,dynamic>m;const _Partner({required this.m});@override Widget build(BuildContext c)=>Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(22)),child:Row(children:[Container(width:58,height:58,padding:const EdgeInsets.all(4),decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEFFFF5)),child:ClipOval(child:Image.network('https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=85',fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Icon(Icons.person,color:gfGreen,size:34)))),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('PARTNER PROFILE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),Text(m['name']?.toString()??'Partner',style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900,color:gfNavy)),Text((m['type']?.toString()??'partner').replaceAll('_',' ')+' · '+(m['generated_id']?.toString()??''),style:const TextStyle(fontSize:11,color:gfMuted))])),const Icon(Icons.chevron_right,color:gfMuted)]));}
+class _Partner extends StatelessWidget{final Map<String,dynamic>m;final String token;const _Partner({required this.m,required this.token});@override Widget build(BuildContext c){final id=m['id']?.toString();return Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(22)),child:Row(children:[Container(width:58,height:58,padding:const EdgeInsets.all(3),decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEFFFF5)),child:ClipOval(child:id==null?const Icon(Icons.person,color:gfGreen,size:34):Image.network(apiBase+'/providers/'+id+'/profile-photo',headers:{'Authorization':'Bearer '+token},fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Icon(Icons.person,color:gfGreen,size:34)))),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('PARTNER PROFILE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),Text(m['name']?.toString()??'Partner',style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900,color:gfNavy)),Text((m['type']?.toString()??'partner').replaceAll('_',' ')+' · '+(m['generated_id']?.toString()??''),style:const TextStyle(fontSize:11,color:gfMuted))])),const Icon(Icons.chevron_right,color:gfMuted)]));}}
 class _Services extends StatefulWidget{
   final void Function(String type,String category,String label) onTap;
   const _Services({required this.onTap});
