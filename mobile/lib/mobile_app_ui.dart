@@ -62,7 +62,7 @@ class _ReferenceCustomerHomeState extends State<ReferenceCustomerHome>{
    _CustomerHomeTab(session:widget.session,bookings:bookings,onChanged:load,onTab:(i)=>setState(()=>tab=i)),
    _CustomerBookingsTab(session:widget.session,bookings:bookings,onChanged:load),
    _CustomerServicesTab(session:widget.session,onChanged:load),
-   _CustomerWalletTab(bookings:bookings),
+   _CustomerWalletTab(session:widget.session),
    _CustomerProfileTab(session:widget.session,onLogout:widget.onLogout),
   ];
   return Scaffold(backgroundColor:gfBg,body:SafeArea(child:IndexedStack(index:tab,children:pages)),bottomNavigationBar:NavigationBar(
@@ -361,7 +361,7 @@ class _CustomerWalletTabState extends State<_CustomerWalletTab>{
 
   void _paymentError(CFErrorResponse error,String orderId){
     if(mounted)setState(()=>paying=false);
-    _snack(error.getMessage());
+    _snack(error.getMessage() ?? 'Payment failed.');
   }
 
   void _verifyPayment(String orderId) async{
@@ -798,6 +798,14 @@ class _ProviderProfileTab extends StatelessWidget{
  ]);}
 }
 
+class _DarkStat extends StatelessWidget{
+ final String label,value;
+ const _DarkStat(this.label,this.value);
+ @override Widget build(BuildContext c)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+   Text(value,style:const TextStyle(color:Colors.white,fontWeight:FontWeight.w900,fontSize:17)),
+   Text(label,style:const TextStyle(color:Colors.white70,fontSize:10))
+ ]);
+}
 class _PageHeading extends StatelessWidget{
  final String title,subtitle;const _PageHeading({required this.title,required this.subtitle});
  @override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.only(bottom:14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(title,style:const TextStyle(fontSize:27,fontWeight:FontWeight.w900,color:gfNavy)),const SizedBox(height:3),Text(subtitle,style:const TextStyle(fontSize:11,color:gfMuted))]));
