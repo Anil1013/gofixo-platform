@@ -11,6 +11,102 @@ const { calculateRideFare } = require('../services/ride-pricing');
 const SERVICE_TYPES = new Set(['ride', 'services']);
 const PROVIDER_TYPES = new Set(['bike', 'auto', 'car', 'general_worker', 'skilled_worker']);
 
+function money(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? Number(n.toFixed(2)) : 0;
+}
+
+async function reserveServiceWallet(client, customerId, bookingId, amount) {
+  const wallet = await client.query(
+    'SELECT * FROM wallets WHERE customer_id = $1 FOR UPDATE',
+    [customerId]
+  );
+  if (wallet.rows.length === 0 || Number(wallet.rows[0].available_balance) < amount) {
+    return false;
+  }
+  const w = wallet.rows[0];
+  const before = Number(w.available_balance);
+  const reservedBefore = Number(w.reserved_balance);
+  const after = money(before - amount);
+  const reservedAfter = money(reservedBefore + amount);
+  await client.query(
+    `UPDATE wallets SET available_balance = $1, reserved_balance = $2, updated_at = NOW() WHERE id = $3`,
+    [after, reservedAfter, w.id]
+  );
+  await client.query(
+    `INSERT INTO wallet_transactions
+      (wallet_id, customer_id, booking_id, type, amount, balance_before, balance_after,
+       reserved_before, reserved_after, status, reference_id, metadata)
+     VALUES ($1, $2, $3, 'BOOKING_RESERVE', $4, $5, $6, $7, $8, 'success', $9, $10)
+     ON CONFLICT (type, reference_id) DO NOTHING`,
+    [w.id, customerId, bookingId, amount, before, after, reservedBefore, reservedAfter,
+      'BOOKING_RESERVE_' + bookingId,
+      JSON.stringify({ service_type: 'services' })]
+  );
+  return true;
+}
+
+async function releaseServiceWallet(client, bookingId, customerId, amount, reason) {
+  const tx = await client.query(
+    `SELECT wt.*, w.available_balance, w.reserved_balance
+     FROM wallet_transactions wt JOIN wallets w ON w.id = wt.wallet_id
+     WHERE wt.booking_id = $1 AND wt.type = 'BOOKING_RESERVE' AND wt.status = 'success'
+     FOR UPDATE`,
+    [bookingId]
+  );
+  if (!tx.rows.length) return false;
+  const row = tx.rows[0];
+  const releaseAmount = money(amount || row.amount);
+  const before = Number(row.available_balance);
+  const reservedBefore = Number(row.reserved_balance);
+  const after = money(before + releaseAmount);
+  const reservedAfter = money(Math.max(0, reservedBefore - releaseAmount));
+  await client.query('UPDATE wallets SET available_balance=$1, reserved_balance=$2, updated_at=NOW() WHERE id=$3', [after, reservedAfter, row.wallet_id]);
+  await client.query(
+    `INSERT INTO wallet_transactions
+      (wallet_id, customer_id, booking_id, type, amount, balance_before, balance_after,
+       reserved_before, reserved_after, status, reference_id, metadata)
+     VALUES ($1,$2,$3,'BOOKING_RELEASE',$4,$5,$6,$7,$8,'success',$9,$10)
+     ON CONFLICT (type, reference_id) DO NOTHING`,
+    [row.wallet_id, customerId, bookingId, releaseAmount, before, after, reservedBefore, reservedAfter,
+      'BOOKING_RELEASE_' + bookingId,
+      JSON.stringify({ reason })]
+  );
+  await client.query("UPDATE wallet_transactions SET status='released' WHERE id=$1", [row.id]);
+  return true;
+}
+
+async function captureServiceWallet(client, bookingId, customerId, amount) {
+  const tx = await client.query(
+    `SELECT wt.*, w.available_balance, w.reserved_balance
+     FROM wallet_transactions wt JOIN wallets w ON w.id = wt.wallet_id
+     WHERE wt.booking_id = $1 AND wt.type = 'BOOKING_RESERVE' AND wt.status = 'success'
+     FOR UPDATE`,
+    [bookingId]
+  );
+  if (!tx.rows.length) return false;
+  const row = tx.rows[0];
+  const captureAmount = money(amount);
+  if (Number(row.amount) + 0.01 < captureAmount) return false;
+  const before = Number(row.available_balance);
+  const reservedBefore = Number(row.reserved_balance);
+  const after = before;
+  const reservedAfter = money(Math.max(0, reservedBefore - captureAmount));
+  await client.query('UPDATE wallets SET reserved_balance=$1, updated_at=NOW() WHERE id=$2', [reservedAfter, row.wallet_id]);
+  await client.query(
+    `INSERT INTO wallet_transactions
+      (wallet_id, customer_id, booking_id, type, amount, balance_before, balance_after,
+       reserved_before, reserved_after, status, reference_id, metadata)
+     VALUES ($1,$2,$3,'BOOKING_CAPTURE',$4,$5,$6,$7,$8,'success',$9,$10)
+     ON CONFLICT (type, reference_id) DO NOTHING`,
+    [row.wallet_id, customerId, bookingId, captureAmount, before, after, reservedBefore, reservedAfter,
+      'BOOKING_CAPTURE_' + bookingId,
+      JSON.stringify({ platform_settlement: true })]
+  );
+  await client.query("UPDATE wallet_transactions SET status='captured' WHERE id=$1", [row.id]);
+  return true;
+}
+
 function generatePin() {
   return String(crypto.randomInt(1000, 10000)); // cryptographically secure 4-digit PIN
 }
@@ -282,6 +378,17 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
         destinationLatitude, destinationLongitude, routeDistance, calculatedFare, generatePin()
       ]
     );
+
+    if (service_type === 'services') {
+      const reserved = await reserveServiceWallet(client, customer_id, result.rows[0].id, Number(calculatedFare));
+      if (!reserved) {
+        await client.query('ROLLBACK');
+        inTransaction = false;
+        return res.status(402).json({
+          error: 'Insufficient Gofixo Wallet balance. Add money to your wallet before booking a home service.'
+        });
+      }
+    }
 
     await client.query('COMMIT');
     inTransaction = false;
@@ -724,10 +831,8 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
     const { fare_amount, rating, comment } = req.body;
     const submittedFare = fare_amount === undefined || fare_amount === null || fare_amount === '' ? null : Number(fare_amount);
 
-    if (paymentMethod !== 'cash') {
-      return res.status(400).json({
-        error: 'Online payment is not enabled yet. Use cash payment for now.'
-      });
+    if (!['cash', 'wallet'].includes(paymentMethod)) {
+      return res.status(400).json({ error: 'Unsupported payment method' });
     }
     if (submittedFare !== null && (!Number.isFinite(submittedFare) || submittedFare <= 0 || submittedFare > 1000000)) {
       return res.status(400).json({ error: 'fare_amount must be a positive amount up to 1000000' });
@@ -780,8 +885,26 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
     }
 
     const fare = Number(lockedFare.toFixed(2));
-    const commission = Number((fare * commissionPercent / 100).toFixed(2));
+    const isService = existing.rows[0].service_type === 'services';
+    if (isService && paymentMethod !== 'wallet') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Home-service bookings must be settled from the Gofixo Wallet' });
+    }
+    if (!isService && paymentMethod !== 'cash') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Ride bookings currently use cash settlement' });
+    }
+    const effectiveCommissionPercent = isService ? commissionPercent : 0;
+    const commission = Number((fare * effectiveCommissionPercent / 100).toFixed(2));
     const providerAmount = Number((fare - commission).toFixed(2));
+
+    if (isService) {
+      const captured = await captureServiceWallet(client, Number(id), existing.rows[0].customer_id, fare);
+      if (!captured) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'Wallet reservation is missing or does not cover this service amount' });
+      }
+    }
 
     const booking = await client.query(
       `UPDATE bookings
@@ -825,6 +948,16 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
        ON CONFLICT DO NOTHING`,
       [id, req.user.id, providerAmount]
     );
+
+    if (isService) {
+      await client.query(
+        `INSERT INTO partner_payouts
+          (booking_id, provider_id, gross_amount, platform_fee, payout_amount, payout_method, payout_status)
+         VALUES ($1,$2,$3,$4,$5,'bank_or_upi','pending')
+         ON CONFLICT (booking_id) DO NOTHING`,
+        [id, req.user.id, fare, commission, providerAmount]
+      );
+    }
 
     // Close expired cycles first, then lock exactly one valid active cycle.
     await client.query(
