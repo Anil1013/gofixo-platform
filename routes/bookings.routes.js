@@ -181,7 +181,7 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
            b.status = 'requested'
            AND b.provider_id IS NULL
            AND b.provider_type = target_sp.type
-           AND (b.service_type <> 'services' OR COALESCE(cardinality(target_sp.service_categories), 0) = 0 OR b.service_category = ANY(target_sp.service_categories))
+           AND (b.service_type <> 'services' OR b.service_category = ANY(target_sp.service_categories))
            AND target_sp.is_available = true
            AND target_sp.kyc_status = 'approved'
            AND target_sp.current_lat IS NOT NULL
@@ -342,7 +342,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       `SELECT 1
        FROM service_providers sp
        WHERE sp.type = $1
-         AND ($4::text IS NULL OR COALESCE(cardinality(sp.service_categories), 0) = 0 OR $4 = ANY(sp.service_categories))
+         AND ($4::text IS NULL OR $4 = ANY(sp.service_categories))
          AND sp.is_available = true
          AND sp.kyc_status = 'approved'
          AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
@@ -580,7 +580,7 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
            WHERE sp.id = $2
              AND sp.type = b.provider_type
              AND sp.is_available = true
-             AND (b.service_type <> 'services' OR COALESCE(cardinality(sp.service_categories), 0) = 0 OR b.service_category = ANY(sp.service_categories))
+             AND (b.service_type <> 'services' OR b.service_category = ANY(sp.service_categories))
              AND sp.kyc_status = 'approved'
              AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
              AND sp.location_updated_at > NOW() - INTERVAL '5 minutes'
@@ -599,7 +599,7 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
                ))
              )) <= 10
          )
-         AND (b.service_type <> 'services' OR COALESCE(cardinality(sp.service_categories), 0) = 0 OR b.service_category = ANY(sp.service_categories))
+         AND (b.service_type <> 'services' OR b.service_category = ANY(sp.service_categories))
          AND NOT EXISTS (
            SELECT 1
            FROM bookings active_b
@@ -731,7 +731,7 @@ router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) =>
        WHERE b.id = $1
          AND b.status = 'requested'
          AND b.provider_id IS NULL
-         AND (b.service_type <> 'services' OR COALESCE(cardinality(sp.service_categories), 0) = 0 OR b.service_category = ANY(sp.service_categories))
+         AND (b.service_type <> 'services' OR b.service_category = ANY(sp.service_categories))
          AND sp.is_available = true
          AND sp.kyc_status = 'approved'
          AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
