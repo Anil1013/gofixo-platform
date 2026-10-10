@@ -405,6 +405,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       `SELECT p.id AS provider_id, pps.endpoint, pps.p256dh, pps.auth
        FROM service_providers p
        JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
+       JOIN bookings alert_b ON alert_b.id = $5
        WHERE p.type = $1
          AND ($4::text IS NULL OR $4 = ANY(p.service_categories))
          AND p.is_available = true
@@ -412,7 +413,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
          AND p.current_lat IS NOT NULL
          AND p.current_lng IS NOT NULL
          AND p.location_updated_at > NOW() - INTERVAL '5 minutes'
-         AND NOT (p.id = ANY(COALESCE(result.rows[0].declined_providers, '{}')))
+         AND NOT (p.id = ANY(COALESCE(alert_b.declined_providers, '{}')))
          AND NOT EXISTS (
            SELECT 1 FROM bookings active_b
            WHERE active_b.provider_id = p.id
@@ -431,7 +432,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
              sin(radians($2)) * sin(radians(p.current_lat))
            ))
          )) <= 10)`,
-      [provider_type, pickupLatitude, pickupLongitude, serviceCategory]
+      [provider_type, pickupLatitude, pickupLongitude, serviceCategory, result.rows[0].id]
     ).then(async (pushRows) => {
       for (const row of pushRows.rows) {
         const resultPush = await sendProviderPush(
