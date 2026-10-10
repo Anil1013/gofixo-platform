@@ -406,14 +406,23 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
        FROM service_providers p
        JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
        WHERE p.type = $1
-         AND ($4::text IS NULL OR COALESCE(cardinality(p.service_categories), 0) = 0 OR $4 = ANY(p.service_categories))
+         AND ($4::text IS NULL OR $4 = ANY(p.service_categories))
          AND p.is_available = true
+         AND p.kyc_status = 'approved'
          AND p.current_lat IS NOT NULL
          AND p.current_lng IS NOT NULL
+         AND p.location_updated_at > NOW() - INTERVAL '5 minutes'
+         AND NOT (p.id = ANY(COALESCE(result.rows[0].declined_providers, '{}')))
          AND NOT EXISTS (
            SELECT 1 FROM bookings active_b
            WHERE active_b.provider_id = p.id
-             AND active_b.status IN ('accepted', 'arrived', 'ongoing')
+             AND active_b.status IN ('requested', 'accepted', 'arrived', 'ongoing')
+         )
+         AND EXISTS (
+           SELECT 1 FROM provider_subscriptions ps
+           WHERE ps.provider_id = p.id
+             AND ps.status = 'active'
+             AND ps.expiry_date > NOW()
          )
          AND (6371 * acos(
            LEAST(1, GREATEST(-1,
@@ -618,7 +627,52 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
 
     await client.query('COMMIT');
     inTransaction = false;
-    res.json(result.rows[0]);
+    const acceptedBooking = result.rows[0];
+
+    // Cancel the same booking alert for every other eligible provider that was
+    // broadcast the request. The service worker uses the same notification tag,
+    // so the visible alert is closed immediately instead of ringing after a winner
+    // has already accepted.
+    pool.query(
+      `SELECT p.id AS provider_id, pps.endpoint, pps.p256dh, pps.auth
+       FROM service_providers p
+       JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
+       WHERE p.id <> $2
+         AND p.is_available = true
+         AND p.kyc_status = 'approved'
+         AND p.current_lat IS NOT NULL
+         AND p.current_lng IS NOT NULL
+         AND NOT (p.id = ANY(COALESCE((SELECT declined_providers FROM bookings WHERE id = $1), '{}')))
+         AND EXISTS (
+           SELECT 1 FROM provider_subscriptions ps
+           WHERE ps.provider_id = p.id
+             AND ps.status = 'active'
+             AND ps.expiry_date > NOW()
+         )`,
+      [acceptedBooking.id, req.user.id]
+    ).then(async (pushRows) => {
+      for (const row of pushRows.rows) {
+        const resultPush = await sendProviderPush(
+          { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
+          {
+            type: 'booking_cancelled',
+            title: 'Gofixo — Request taken',
+            body: 'This request was accepted by another partner.',
+            tag: `gofixo-booking-${acceptedBooking.id}`,
+            booking_id: acceptedBooking.id,
+            url: '/?provider=request'
+          }
+        );
+        if (resultPush && resultPush.expired) {
+          await pool.query(
+            'DELETE FROM provider_push_subscriptions WHERE provider_id = $1 AND endpoint = $2',
+            [row.provider_id, row.endpoint]
+          );
+        }
+      }
+    }).catch((err) => console.error('Provider cancellation push error:', err.message));
+
+    res.json(acceptedBooking);
   } catch (err) {
     if (inTransaction) await client.query('ROLLBACK').catch(() => {});
     next(err);
