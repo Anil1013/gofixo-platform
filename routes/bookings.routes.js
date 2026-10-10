@@ -181,7 +181,7 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
            b.status = 'requested'
            AND b.provider_id IS NULL
            AND b.provider_type = target_sp.type
-           AND (b.service_type <> 'services' OR COALESCE(cardinality(target_sp.service_categories), 0) = 0 OR b.service_category = ANY(target_sp.service_categories))
+           AND (b.service_type <> 'services' OR b.service_category = ANY(target_sp.service_categories))
            AND target_sp.is_available = true
            AND target_sp.kyc_status = 'approved'
            AND target_sp.current_lat IS NOT NULL
@@ -342,7 +342,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       `SELECT 1
        FROM service_providers sp
        WHERE sp.type = $1
-         AND ($4::text IS NULL OR COALESCE(cardinality(sp.service_categories), 0) = 0 OR $4 = ANY(sp.service_categories))
+         AND ($4::text IS NULL OR $4 = ANY(sp.service_categories))
          AND sp.is_available = true
          AND sp.kyc_status = 'approved'
          AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
@@ -405,15 +405,25 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       `SELECT p.id AS provider_id, pps.endpoint, pps.p256dh, pps.auth
        FROM service_providers p
        JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
+       JOIN bookings alert_b ON alert_b.id = $5
        WHERE p.type = $1
-         AND ($4::text IS NULL OR COALESCE(cardinality(p.service_categories), 0) = 0 OR $4 = ANY(p.service_categories))
+         AND ($4::text IS NULL OR $4 = ANY(p.service_categories))
          AND p.is_available = true
+         AND p.kyc_status = 'approved'
          AND p.current_lat IS NOT NULL
          AND p.current_lng IS NOT NULL
+         AND p.location_updated_at > NOW() - INTERVAL '5 minutes'
+         AND NOT (p.id = ANY(COALESCE(alert_b.declined_providers, '{}')))
          AND NOT EXISTS (
            SELECT 1 FROM bookings active_b
            WHERE active_b.provider_id = p.id
-             AND active_b.status IN ('accepted', 'arrived', 'ongoing')
+             AND active_b.status IN ('requested', 'accepted', 'arrived', 'ongoing')
+         )
+         AND EXISTS (
+           SELECT 1 FROM provider_subscriptions ps
+           WHERE ps.provider_id = p.id
+             AND ps.status = 'active'
+             AND ps.expiry_date > NOW()
          )
          AND (6371 * acos(
            LEAST(1, GREATEST(-1,
@@ -422,7 +432,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
              sin(radians($2)) * sin(radians(p.current_lat))
            ))
          )) <= 10)`,
-      [provider_type, pickupLatitude, pickupLongitude, serviceCategory]
+      [provider_type, pickupLatitude, pickupLongitude, serviceCategory, result.rows[0].id]
     ).then(async (pushRows) => {
       for (const row of pushRows.rows) {
         const resultPush = await sendProviderPush(
@@ -570,7 +580,7 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
            WHERE sp.id = $2
              AND sp.type = b.provider_type
              AND sp.is_available = true
-             AND (b.service_type <> 'services' OR COALESCE(cardinality(sp.service_categories), 0) = 0 OR b.service_category = ANY(sp.service_categories))
+             AND (b.service_type <> 'services' OR b.service_category = ANY(sp.service_categories))
              AND sp.kyc_status = 'approved'
              AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
              AND sp.location_updated_at > NOW() - INTERVAL '5 minutes'
@@ -589,7 +599,7 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
                ))
              )) <= 10
          )
-         AND (b.service_type <> 'services' OR COALESCE(cardinality(sp.service_categories), 0) = 0 OR b.service_category = ANY(sp.service_categories))
+         AND (b.service_type <> 'services' OR b.service_category = ANY(sp.service_categories))
          AND NOT EXISTS (
            SELECT 1
            FROM bookings active_b
@@ -618,7 +628,52 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
 
     await client.query('COMMIT');
     inTransaction = false;
-    res.json(result.rows[0]);
+    const acceptedBooking = result.rows[0];
+
+    // Cancel the same booking alert for every other eligible provider that was
+    // broadcast the request. The service worker uses the same notification tag,
+    // so the visible alert is closed immediately instead of ringing after a winner
+    // has already accepted.
+    pool.query(
+      `SELECT p.id AS provider_id, pps.endpoint, pps.p256dh, pps.auth
+       FROM service_providers p
+       JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
+       WHERE p.id <> $2
+         AND p.is_available = true
+         AND p.kyc_status = 'approved'
+         AND p.current_lat IS NOT NULL
+         AND p.current_lng IS NOT NULL
+         AND NOT (p.id = ANY(COALESCE((SELECT declined_providers FROM bookings WHERE id = $1), '{}')))
+         AND EXISTS (
+           SELECT 1 FROM provider_subscriptions ps
+           WHERE ps.provider_id = p.id
+             AND ps.status = 'active'
+             AND ps.expiry_date > NOW()
+         )`,
+      [acceptedBooking.id, req.user.id]
+    ).then(async (pushRows) => {
+      for (const row of pushRows.rows) {
+        const resultPush = await sendProviderPush(
+          { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
+          {
+            type: 'booking_cancelled',
+            title: 'Gofixo — Request taken',
+            body: 'This request was accepted by another partner.',
+            tag: `gofixo-booking-${acceptedBooking.id}`,
+            booking_id: acceptedBooking.id,
+            url: '/?provider=request'
+          }
+        );
+        if (resultPush && resultPush.expired) {
+          await pool.query(
+            'DELETE FROM provider_push_subscriptions WHERE provider_id = $1 AND endpoint = $2',
+            [row.provider_id, row.endpoint]
+          );
+        }
+      }
+    }).catch((err) => console.error('Provider cancellation push error:', err.message));
+
+    res.json(acceptedBooking);
   } catch (err) {
     if (inTransaction) await client.query('ROLLBACK').catch(() => {});
     next(err);
@@ -676,7 +731,7 @@ router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) =>
        WHERE b.id = $1
          AND b.status = 'requested'
          AND b.provider_id IS NULL
-         AND (b.service_type <> 'services' OR COALESCE(cardinality(sp.service_categories), 0) = 0 OR b.service_category = ANY(sp.service_categories))
+         AND (b.service_type <> 'services' OR b.service_category = ANY(sp.service_categories))
          AND sp.is_available = true
          AND sp.kyc_status = 'approved'
          AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL

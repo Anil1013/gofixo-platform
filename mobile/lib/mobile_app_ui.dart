@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:geolocator/geolocator.dart';
@@ -84,11 +85,28 @@ class ReferenceProviderHome extends StatefulWidget{
  const ReferenceProviderHome({super.key,required this.session,required this.onLogout});
  @override State<ReferenceProviderHome> createState()=>_ReferenceProviderHomeState();
 }
-class _ReferenceProviderHomeState extends State<ReferenceProviderHome>{
- Map<String,dynamic>? me;List<Map<String,dynamic>> jobs=[];Timer? timer;bool busy=false,locationBusy=false;int tab=0;
- @override void initState(){super.initState();load();timer=Timer.periodic(const Duration(seconds:4),(_)=>load(silent:true));}
- @override void dispose(){timer?.cancel();super.dispose();}
- Future<void> load({bool silent=false})async{try{final m=await ApiService.providerMe(widget.session.token);final j=await ApiService.providerBookings(widget.session.token);final id=int.tryParse(m['id']?.toString()??'');if(m['is_available']==true&&id!=null)await _location(id);if(mounted)setState((){me=m;jobs=j;});}catch(e){if(mounted&&!silent)_snack(e.toString());}}
+class _ReferenceProviderHomeState extends State<ReferenceProviderHome> with WidgetsBindingObserver{
+ Map<String,dynamic>? me;List<Map<String,dynamic>> jobs=[];Timer? timer,buzzerTimer;bool busy=false,locationBusy=false;int tab=0;
+ final Set<int> knownRequestedIds={};
+ @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);load();timer=Timer.periodic(const Duration(seconds:4),(_)=>load(silent:true));}
+ @override void dispose(){WidgetsBinding.instance.removeObserver(this);timer?.cancel();_stopBuzzer();super.dispose();}
+ @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed){load(silent:true);}}
+ void _startBuzzer(){
+  if(buzzerTimer!=null)return;
+  buzzerTimer=Timer.periodic(const Duration(milliseconds:1100),(_)=>SystemSound.play(SystemSoundType.alert));
+  SystemSound.play(SystemSoundType.alert);
+ }
+ void _stopBuzzer(){buzzerTimer?.cancel();buzzerTimer=null;}
+ void _syncBuzzer(List<Map<String,dynamic>> incoming){
+  final ids=incoming.where((j)=>j['status']=='requested').map((j)=>int.tryParse(j['id']?.toString()??'')).whereType<int>().toSet();
+  final hasNew=ids.difference(knownRequestedIds).isNotEmpty;
+  knownRequestedIds
+    ..clear()
+    ..addAll(ids);
+  if(ids.isEmpty){_stopBuzzer();return;}
+  if(hasNew)_startBuzzer();
+ }
+ Future<void> load({bool silent=false})async{try{final m=await ApiService.providerMe(widget.session.token);final j=await ApiService.providerBookings(widget.session.token);final id=int.tryParse(m['id']?.toString()??'');if(m['is_available']==true&&id!=null)await _location(id);if(mounted){setState((){me=m;jobs=j;});_syncBuzzer(j);}}catch(e){if(mounted&&!silent)_snack(e.toString());}}
  Future<void> _location(int id)async{
   if(locationBusy)return;locationBusy=true;
   try{if(!await Geolocator.isLocationServiceEnabled())return;var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)return;final x=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.high,distanceFilter:10));await ApiService.updateProviderLocation(widget.session.token,id,x.latitude,x.longitude);}catch(_){}finally{locationBusy=false;}
