@@ -6,6 +6,15 @@ self.addEventListener('push', (event) => {
     data = { title: 'Gofixo', body: 'New service request' };
   }
 
+  if (data.type === 'booking_cancelled') {
+    event.waitUntil(
+      self.registration.getNotifications({ tag: data.tag || 'gofixo-request' }).then((notifications) => {
+        notifications.forEach((notification) => notification.close());
+      })
+    );
+    return;
+  }
+
   event.waitUntil(
     self.registration.showNotification(data.title || 'Gofixo', {
       body: data.body || 'New service request',
@@ -15,7 +24,7 @@ self.addEventListener('push', (event) => {
       silent: false,
       vibrate: [500, 200, 500, 200, 800],
       icon: '/favicon.ico',
-      data: { url: data.url || '/' }
+      data: { url: data.url || '/', booking_id: data.booking_id || null }
     })
   );
 });

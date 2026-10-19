@@ -75,6 +75,16 @@ function requireOwnProvider(req, res, next) {
   next();
 }
 
+// Register or refresh the authenticated provider's FCM token.
+router.post('/:id/fcm-token', requireAuth(['provider']), requireOwnProvider, async (req, res, next) => {
+  try {
+    const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+    if (!token || token.length > 4096) return res.status(400).json({ error: 'A valid FCM token is required' });
+    await pool.query('UPDATE service_providers SET fcm_token = $1 WHERE id = $2', [token, req.params.id]);
+    res.json({ registered: true });
+  } catch (err) { next(err); }
+});
+
 // Register a new provider (driver/worker) — KYC starts as 'pending'
 router.post('/register', async (req, res, next) => {
   try {

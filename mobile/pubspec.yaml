@@ -20,6 +20,9 @@ dependencies:
   google_maps_flutter: ^2.18.2
   web_socket_channel: ^3.0.3
   flutter_cashfree_pg_sdk: ^2.4.0+52
+  firebase_core: ^4.2.1
+  firebase_messaging: ^16.0.4
+  flutter_local_notifications: ^19.4.2
 
 dev_dependencies:
   flutter_test:
