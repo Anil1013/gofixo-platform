@@ -1,7 +1,7 @@
 {
-  "version": "1.0.31",
-  "buildNumber": 1000031,
-  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.31.apk",
-  "notes": "Gofixo v1.0.31 adds native Android partner booking alerts. This update includes repeated sound and vibration for incoming requests, with alert stop handling, plus the latest app fixes.",
+  "version": "1.0.32",
+  "buildNumber": 1000032,
+  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.32.apk",
+  "notes": "Gofixo v1.0.32: fixes manual partner Online/Offline availability independent of location refresh time, and includes Android booking alert notification, vibration and wake-lock permission fixes.",
   "forceUpdate": true
 }
