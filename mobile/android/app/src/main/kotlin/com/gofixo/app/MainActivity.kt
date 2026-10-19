@@ -14,6 +14,7 @@ import java.security.MessageDigest
 class MainActivity : FlutterActivity() {
     private val appInfoChannel = "gofixo/app_info"
     private val updateChannel = "gofixo/update"
+    private val bookingAlertChannel = "gofixo/booking_alert"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -33,6 +34,16 @@ class MainActivity : FlutterActivity() {
                         "abi" to Build.SUPPORTED_ABIS.firstOrNull().orEmpty(),
                     )
                 )
+            }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, bookingAlertChannel)
+            .setMethodCallHandler { call, result ->
+                if (call.method == "stop") {
+                    GofixoBookingAlertService.stop(this, call.argument<String>("bookingId"))
+                    result.success(true)
+                } else {
+                    result.notImplemented()
+                }
             }
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, updateChannel)
