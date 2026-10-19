@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'api_service.dart';
 
@@ -14,6 +15,7 @@ const AndroidNotificationChannel _requestChannel = AndroidNotificationChannel(
 );
 
 final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+const MethodChannel _bookingAlertChannel = MethodChannel('gofixo/booking_alert');
 
 int _notificationId(RemoteMessage message) =>
     int.tryParse(message.data['booking_id']?.toString() ?? '') ??
@@ -83,26 +85,19 @@ class PushService {
       await _localNotifications.cancel(id);
       return;
     }
-    final title = message.notification?.title ?? message.data['title'] ?? 'Gofixo — New service request';
-    final body = message.notification?.body ?? message.data['body'] ?? 'A nearby service request is available.';
-    await _localNotifications.show(
-      id,
-      title,
-      body,
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          _requestChannel.id,
-          _requestChannel.name,
-          channelDescription: _requestChannel.description,
-          importance: Importance.max,
-          priority: Priority.max,
-          playSound: true,
-          category: AndroidNotificationCategory.call,
-          tag: 'gofixo-booking-${message.data['booking_id'] ?? ''}',
-        ),
-      ),
-      payload: message.data['booking_id']?.toString(),
-    );
+    // Native Android FirebaseMessagingService owns booking request sound,
+    // vibration, and the ongoing notification in foreground and background.
+  }
+
+  static Future<void> stopBookingAlert([int? bookingId]) async {
+    if (defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      await _bookingAlertChannel.invokeMethod<void>('stop', {
+        if (bookingId != null) 'bookingId': bookingId.toString(),
+      });
+    } catch (error) {
+      debugPrint('Could not stop native booking alert: $error');
+    }
   }
 
   static Future<void> syncProviderToken(Session session) async {
