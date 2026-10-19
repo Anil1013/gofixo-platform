@@ -50,7 +50,7 @@ class GofixoBookingAlertService : Service() {
         when (intent?.action) {
             ACTION_STOP -> {
                 val target = intent.getStringExtra(EXTRA_BOOKING_ID).orEmpty()
-                if (target.isEmpty() || target == bookingId) stopSelf()
+                if (bookingId.isEmpty() || target.isEmpty() || target == bookingId) stopSelf()
                 return START_NOT_STICKY
             }
             ACTION_START -> {
