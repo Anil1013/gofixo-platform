@@ -23,6 +23,7 @@
         <service android:name="com.gofixo.app.GofixoMessagingService" android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+                <category android:name="android.intent.category.DEFAULT"/>
             </intent-filter>
         </service>
         <service android:name="com.gofixo.app.GofixoBookingAlertService" android:exported="false" android:foregroundServiceType="specialUse">
