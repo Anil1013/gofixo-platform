@@ -556,6 +556,64 @@ router.post('/:id/cancel', requireAuth(['customer']), async (req, res, next) => 
 
     await client.query('COMMIT');
     inTransaction = false;
+
+    // Stop the pending request alert on every partner phone/browser that could
+    // have received the offer. This runs only after the cancellation is committed.
+    pool.query(
+      `SELECT p.id AS provider_id, p.fcm_token, pps.endpoint, pps.p256dh, pps.auth
+       FROM bookings b
+       JOIN service_providers p
+         ON p.type = b.provider_type
+        AND (b.service_type <> 'services' OR b.service_category = ANY(p.service_categories))
+        AND p.current_lat IS NOT NULL AND p.current_lng IS NOT NULL
+        AND (6371 * acos(
+          LEAST(1, GREATEST(-1,
+            cos(radians(b.pickup_lat)) * cos(radians(p.current_lat)) *
+            cos(radians(p.current_lng) - radians(b.pickup_lng)) +
+            sin(radians(b.pickup_lat)) * sin(radians(p.current_lat))
+          ))
+        )) <= 10
+       LEFT JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
+       WHERE b.id = $1
+         AND (p.fcm_token IS NOT NULL OR pps.endpoint IS NOT NULL)
+         AND NOT (p.id = ANY(COALESCE(b.declined_providers, '{}')))`,
+      [id]
+    ).then(async (pushRows) => {
+      for (const row of pushRows.rows) {
+        const payload = {
+          type: 'booking_cancelled',
+          title: 'Gofixo — Request cancelled',
+          body: 'The customer cancelled this request.',
+          tag: `gofixo-booking-${id}`,
+          booking_id: id,
+          url: '/?provider=request'
+        };
+        if (row.fcm_token) {
+          const fcmResult = await sendProviderFcm(row.fcm_token, payload, { cancelled: true });
+          if (fcmResult && fcmResult.expired) {
+            await pool.query(
+              'UPDATE service_providers SET fcm_token = NULL WHERE id = $1 AND fcm_token = $2',
+              [row.provider_id, row.fcm_token]
+            );
+          }
+        }
+        if (row.endpoint) {
+          const webResult = await sendProviderPush(
+            { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
+            payload
+          );
+          if (webResult && webResult.expired) {
+            await pool.query(
+              'DELETE FROM provider_push_subscriptions WHERE provider_id = $1 AND endpoint = $2',
+              [row.provider_id, row.endpoint]
+            );
+          }
+        }
+      }
+    }).catch((pushError) => {
+      console.error('Failed to send booking cancellation alerts:', pushError.message);
+    });
+
     res.json({ message: 'Booking cancelled', booking_id: Number(id) });
   } catch (err) {
     if (inTransaction) await client.query('ROLLBACK').catch(() => {});
