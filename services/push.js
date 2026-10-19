@@ -69,10 +69,6 @@ async function sendProviderFcm(token, payload, { cancelled = false } = {}) {
         ...(cancelled ? {} : { sound: 'default' }),
       },
     },
-    apns: {
-      headers: { 'apns-priority': cancelled ? '5' : '10' },
-      payload: { aps: cancelled ? { 'content-available': 1 } : { sound: 'default' } },
-    },
     notification: {
       title: cancelled ? 'Gofixo — Request taken' : (payload.title || 'Gofixo — New service request'),
       body: cancelled ? 'Another partner accepted this request.' : (payload.body || 'A new nearby request is available.'),
