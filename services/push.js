@@ -57,21 +57,13 @@ async function sendProviderFcm(token, payload, { cancelled = false } = {}) {
   const admin = getFirebaseAdmin();
   if (!admin) return false;
   const bookingId = String(payload.booking_id || '');
-  const tag = `gofixo-booking-${bookingId}`;
   const message = {
     token,
     data: Object.fromEntries(Object.entries({ ...payload, type: cancelled ? 'booking_cancelled' : 'booking_request' }).map(([k, v]) => [k, String(v ?? '')])),
+    // Data-only Android messages are required so the native service can
+    // repeat the request alert and reliably stop it on cancellation/acceptance.
     android: {
       priority: 'high',
-      notification: {
-        channelId: 'gofixo_requests',
-        tag,
-        ...(cancelled ? {} : { sound: 'default' }),
-      },
-    },
-    notification: {
-      title: cancelled ? 'Gofixo — Request taken' : (payload.title || 'Gofixo — New service request'),
-      body: cancelled ? 'Another partner accepted this request.' : (payload.body || 'A new nearby request is available.'),
     },
   };
   try {
