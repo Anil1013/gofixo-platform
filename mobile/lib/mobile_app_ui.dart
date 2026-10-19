@@ -17,6 +17,7 @@ import 'package:flutter_cashfree_pg_sdk/utils/cfenums.dart';
 import 'package:flutter_cashfree_pg_sdk/utils/cfexceptions.dart';
 import 'package:flutter_cashfree_pg_sdk/api/cferrorresponse/cferrorresponse.dart';
 import 'api_service.dart';
+import 'push_service.dart';
 
 const gfOrange=Color(0xFF12B85F),gfNavy=Color(0xFF10213F),gfMuted=Color(0xFF728097),gfBg=Color(0xFFF4F7FB),gfLine=Color(0xFFE4E9F1),gfGreen=Color(0xFF12B85F);
 
@@ -1723,7 +1724,7 @@ class _Incoming extends StatelessWidget{
    Row(children:[
     Expanded(child:OutlinedButton(onPressed:()async{await ApiService.declineBooking(session.token,id);await changed();},child:const Text('Reject'))),
     const SizedBox(width:8),
-    Expanded(child:FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:()async{try{await ApiService.acceptBooking(session.token,id);await changed();}catch(e){ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}},child:const Text('Accept')))
+    Expanded(child:FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:()async{try{await ApiService.acceptBooking(session.token,id);await PushService.stopBookingAlert(id);await changed();}catch(e){ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}},child:const Text('Accept')))
    ])
   ]));
  }
