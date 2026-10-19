@@ -1,7 +1,7 @@
 {
-  "version": "1.0.29",
-  "buildNumber": 1000029,
-  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.29.apk",
-  "notes": "Gofixo v1.0.29 includes the latest 10 km matching, customer and partner profile photos, booking photo visibility, admin photo management, and OTA update fixes.",
+  "version": "1.0.30",
+  "buildNumber": 1000030,
+  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.30.apk",
+  "notes": "Gofixo v1.0.30 includes Android partner booking notifications and the latest 10 km matching, profile photo visibility, and update reliability improvements.",
   "forceUpdate": true
 }
