@@ -565,14 +565,6 @@ router.post('/:id/cancel', requireAuth(['customer']), async (req, res, next) => 
        JOIN service_providers p
          ON p.type = b.provider_type
         AND (b.service_type <> 'services' OR b.service_category = ANY(p.service_categories))
-        AND p.current_lat IS NOT NULL AND p.current_lng IS NOT NULL
-        AND (6371 * acos(
-          LEAST(1, GREATEST(-1,
-            cos(radians(b.pickup_lat)) * cos(radians(p.current_lat)) *
-            cos(radians(p.current_lng) - radians(b.pickup_lng)) +
-            sin(radians(b.pickup_lat)) * sin(radians(p.current_lat))
-          ))
-        )) <= 10
        LEFT JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
        WHERE b.id = $1
          AND (p.fcm_token IS NOT NULL OR pps.endpoint IS NOT NULL)
@@ -709,25 +701,8 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
        WHERE p.id <> $2
          AND p.type = b.provider_type
          AND (b.service_type <> 'services' OR b.service_category = ANY(p.service_categories))
-         AND p.is_available = true
-         AND p.kyc_status = 'approved'
-         AND p.current_lat IS NOT NULL AND p.current_lng IS NOT NULL
-         AND p.location_updated_at > NOW() - INTERVAL '5 minutes'
          AND (pps.endpoint IS NOT NULL OR p.fcm_token IS NOT NULL)
-         AND NOT (p.id = ANY(COALESCE(b.declined_providers, '{}')))
-         AND EXISTS (
-           SELECT 1 FROM provider_subscriptions ps
-           WHERE ps.provider_id = p.id
-             AND ps.status = 'active'
-             AND ps.expiry_date > NOW()
-         )
-         AND (6371 * acos(
-           LEAST(1, GREATEST(-1,
-             cos(radians(b.pickup_lat)) * cos(radians(p.current_lat)) *
-             cos(radians(p.current_lng) - radians(b.pickup_lng)) +
-             sin(radians(b.pickup_lat)) * sin(radians(p.current_lat))
-           ))
-         )) <= 10)`,
+         AND NOT (p.id = ANY(COALESCE(b.declined_providers, '{}')))`,
       [acceptedBooking.id, req.user.id]
     ).then(async (pushRows) => {
       for (const row of pushRows.rows) {
