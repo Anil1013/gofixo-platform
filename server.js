@@ -459,7 +459,8 @@ async function ensureRuntimeSchema() {
 
   await pool.query(`
     ALTER TABLE service_providers
-      ADD COLUMN IF NOT EXISTS service_categories TEXT[] NOT NULL DEFAULT '{}'
+      ADD COLUMN IF NOT EXISTS service_categories TEXT[] NOT NULL DEFAULT '{}',
+      ADD COLUMN IF NOT EXISTS fcm_token TEXT
   `);
 
   await pool.query(`
