@@ -35,6 +35,7 @@ const allowedOrigins = new Set([
 app.use(cors({
   origin(origin, callback) {
     if (!origin || allowedOrigins.has(origin)) return callback(null, true);
+    console.warn('[CORS] Rejected origin:', JSON.stringify(origin));
     return callback(new Error('CORS origin not allowed'));
   },
   methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
