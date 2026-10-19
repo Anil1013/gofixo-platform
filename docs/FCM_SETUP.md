@@ -1,9 +1,8 @@
-# Gofixo Firebase Cloud Messaging setup
+# Gofixo Android Firebase Cloud Messaging setup
 
 ## Already configured in the repository
 
 - Android Firebase client config: mobile/android/app/google-services.json
-- iOS Firebase client config: mobile/ios/Runner/GoogleService-Info.plist
 - Flutter FCM token registration and notification channel
 - Backend provider token storage and FCM send integration
 
@@ -13,14 +12,10 @@ The Firebase client files do not grant the backend permission to send pushes. Cr
 
 The backend uses this variable to send request notifications to registered partner FCM tokens. Without it, web push continues to work but native FCM delivery is not active.
 
-## iOS push delivery
-
-In Firebase Console, open Project settings → Cloud Messaging and configure Apple Push Notification service (APNs) with an Apple Developer APNs authentication key (.p8), Key ID and Team ID. The Apple Developer account must have Push Notifications enabled for the com.gofixo.app App ID. Then build/sign and install the iOS app on a physical iPhone to grant notification permission and validate delivery. iOS Simulator is not a reliable end-to-end APNs test target.
-
 ## Verification checklist
 
 1. Run flutter pub get, flutter analyze, flutter test, and an Android build.
-2. Log in as a provider on a real Android/iOS device and allow notifications.
+2. Log in as a provider on a real Android device and allow notifications.
 3. Verify that service_providers.fcm_token is populated for that provider.
 4. With backend credentials configured, create a matching request from a customer account while the partner app is foregrounded, backgrounded, and the screen is locked.
 5. Have another partner accept; verify that the other partners' request alert is silenced/replaced.
