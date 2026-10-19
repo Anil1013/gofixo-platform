@@ -4,7 +4,7 @@ const pool = require('../config/db');
 const crypto = require('crypto');
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
-const { sendProviderPush } = require('../services/push');
+const { sendProviderPush, sendProviderFcm } = require('../services/push');
 const { normalizeServiceCategory, getServiceBaseFare } = require('../services/catalog');
 const { calculateRideFare } = require('../services/ride-pricing');
 
@@ -398,32 +398,34 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
     await client.query('COMMIT');
     inTransaction = false;
 
-    // Send a background push after the booking is committed. This wakes the
-    // provider's browser/OS even when the app tab is sleeping or backgrounded.
-    // Foreground polling + buzzer remains as the fast path.
+    // Send Web Push and FCM alerts after the booking is committed. FCM reaches
+    // partner phones when the Flutter app is backgrounded or the screen is locked.
     pool.query(
-      `SELECT p.id AS provider_id, pps.endpoint, pps.p256dh, pps.auth
+      `SELECT p.id AS provider_id, p.fcm_token, pps.endpoint, pps.p256dh, pps.auth
        FROM service_providers p
-       JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
-       JOIN bookings alert_b ON alert_b.id = $5
+       LEFT JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
        WHERE p.type = $1
          AND ($4::text IS NULL OR $4 = ANY(p.service_categories))
          AND p.is_available = true
          AND p.kyc_status = 'approved'
-         AND p.current_lat IS NOT NULL
-         AND p.current_lng IS NOT NULL
+         AND p.current_lat IS NOT NULL AND p.current_lng IS NOT NULL
          AND p.location_updated_at > NOW() - INTERVAL '5 minutes'
-         AND NOT (p.id = ANY(COALESCE(alert_b.declined_providers, '{}')))
-         AND NOT EXISTS (
-           SELECT 1 FROM bookings active_b
-           WHERE active_b.provider_id = p.id
-             AND active_b.status IN ('requested', 'accepted', 'arrived', 'ongoing')
-         )
+         AND (pps.endpoint IS NOT NULL OR p.fcm_token IS NOT NULL)
          AND EXISTS (
            SELECT 1 FROM provider_subscriptions ps
            WHERE ps.provider_id = p.id
              AND ps.status = 'active'
              AND ps.expiry_date > NOW()
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM bookings active_b
+           WHERE active_b.provider_id = p.id
+             AND active_b.status IN ('accepted', 'arrived', 'ongoing')
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM bookings requested_b
+           WHERE requested_b.id = $5
+             AND p.id = ANY(COALESCE(requested_b.declined_providers, '{}'))
          )
          AND (6371 * acos(
            LEAST(1, GREATEST(-1,
@@ -435,24 +437,33 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       [provider_type, pickupLatitude, pickupLongitude, serviceCategory, result.rows[0].id]
     ).then(async (pushRows) => {
       for (const row of pushRows.rows) {
-        const resultPush = await sendProviderPush(
-          { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
-          {
-            title: 'Gofixo — New service request',
-            body: `Pickup: ${pickup_location || 'Customer location'}`,
-            tag: `gofixo-booking-${result.rows[0].id}`,
-            booking_id: result.rows[0].id,
-            url: '/?provider=request'
+        const payload = {
+          title: 'Gofixo — New service request',
+          body: `Pickup: ${pickup_location || 'Customer location'}`,
+          tag: `gofixo-booking-${result.rows[0].id}`,
+          booking_id: result.rows[0].id,
+          url: '/?provider=request'
+        };
+        if (row.fcm_token) {
+          const fcmResult = await sendProviderFcm(row.fcm_token, payload);
+          if (fcmResult && fcmResult.expired) {
+            await pool.query('UPDATE service_providers SET fcm_token = NULL WHERE id = $1 AND fcm_token = $2', [row.provider_id, row.fcm_token]);
           }
-        );
-        if (resultPush && resultPush.expired) {
-          await pool.query(
-            'DELETE FROM provider_push_subscriptions WHERE provider_id = $1 AND endpoint = $2',
-            [row.provider_id, row.endpoint]
+        }
+        if (row.endpoint) {
+          const webResult = await sendProviderPush(
+            { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
+            payload
           );
+          if (webResult && webResult.expired) {
+            await pool.query(
+              'DELETE FROM provider_push_subscriptions WHERE provider_id = $1 AND endpoint = $2',
+              [row.provider_id, row.endpoint]
+            );
+          }
         }
       }
-    }).catch((err) => console.error('Provider broadcast push error:', err.message));
+    })
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -630,48 +641,66 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
     inTransaction = false;
     const acceptedBooking = result.rows[0];
 
-    // Cancel the same booking alert for every other eligible provider that was
-    // broadcast the request. The service worker uses the same notification tag,
-    // so the visible alert is closed immediately instead of ringing after a winner
-    // has already accepted.
+    // Cancel this request's alert for all other eligible providers, for both
+    // browser subscriptions and native FCM tokens. Keep other partners online.
     pool.query(
-      `SELECT p.id AS provider_id, pps.endpoint, pps.p256dh, pps.auth
+      `SELECT p.id AS provider_id, p.fcm_token, pps.endpoint, pps.p256dh, pps.auth
        FROM service_providers p
-       JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
+       LEFT JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
+       JOIN bookings b ON b.id = $1
        WHERE p.id <> $2
+         AND p.type = b.provider_type
+         AND (b.service_type <> 'services' OR b.service_category = ANY(p.service_categories))
          AND p.is_available = true
          AND p.kyc_status = 'approved'
-         AND p.current_lat IS NOT NULL
-         AND p.current_lng IS NOT NULL
-         AND NOT (p.id = ANY(COALESCE((SELECT declined_providers FROM bookings WHERE id = $1), '{}')))
+         AND p.current_lat IS NOT NULL AND p.current_lng IS NOT NULL
+         AND p.location_updated_at > NOW() - INTERVAL '5 minutes'
+         AND (pps.endpoint IS NOT NULL OR p.fcm_token IS NOT NULL)
+         AND NOT (p.id = ANY(COALESCE(b.declined_providers, '{}')))
          AND EXISTS (
            SELECT 1 FROM provider_subscriptions ps
            WHERE ps.provider_id = p.id
              AND ps.status = 'active'
              AND ps.expiry_date > NOW()
-         )`,
+         )
+         AND (6371 * acos(
+           LEAST(1, GREATEST(-1,
+             cos(radians(b.pickup_lat)) * cos(radians(p.current_lat)) *
+             cos(radians(p.current_lng) - radians(b.pickup_lng)) +
+             sin(radians(b.pickup_lat)) * sin(radians(p.current_lat))
+           ))
+         )) <= 10)`,
       [acceptedBooking.id, req.user.id]
     ).then(async (pushRows) => {
       for (const row of pushRows.rows) {
-        const resultPush = await sendProviderPush(
-          { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
-          {
-            type: 'booking_cancelled',
-            title: 'Gofixo — Request taken',
-            body: 'This request was accepted by another partner.',
-            tag: `gofixo-booking-${acceptedBooking.id}`,
-            booking_id: acceptedBooking.id,
-            url: '/?provider=request'
+        const payload = {
+          type: 'booking_cancelled',
+          title: 'Gofixo — Request taken',
+          body: 'This request was accepted by another partner.',
+          tag: `gofixo-booking-${acceptedBooking.id}`,
+          booking_id: acceptedBooking.id,
+          url: '/?provider=request'
+        };
+        if (row.fcm_token) {
+          const fcmResult = await sendProviderFcm(row.fcm_token, payload, { cancelled: true });
+          if (fcmResult && fcmResult.expired) {
+            await pool.query('UPDATE service_providers SET fcm_token = NULL WHERE id = $1 AND fcm_token = $2', [row.provider_id, row.fcm_token]);
           }
-        );
-        if (resultPush && resultPush.expired) {
-          await pool.query(
-            'DELETE FROM provider_push_subscriptions WHERE provider_id = $1 AND endpoint = $2',
-            [row.provider_id, row.endpoint]
+        }
+        if (row.endpoint) {
+          const webResult = await sendProviderPush(
+            { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
+            payload
           );
+          if (webResult && webResult.expired) {
+            await pool.query(
+              'DELETE FROM provider_push_subscriptions WHERE provider_id = $1 AND endpoint = $2',
+              [row.provider_id, row.endpoint]
+            );
+          }
         }
       }
-    }).catch((err) => console.error('Provider cancellation push error:', err.message));
+    })
 
     res.json(acceptedBooking);
   } catch (err) {
