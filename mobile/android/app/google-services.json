@@ -1,0 +1,19 @@
+{
+  "project_info": {
+    "project_number": "624158325959",
+    "project_id": "gofixo",
+    "storage_bucket": "gofixo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:624158325959:android:cca6dbbdf8a5047d2792e2",
+        "android_client_info": { "package_name": "com.gofixo.app" }
+      },
+      "oauth_client": [],
+      "api_key": [{ "current_key": "AIzaSyCFQd-5oAhBpCuq3CoihGouSeBWF6ZWYwU" }],
+      "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+    }
+  ],
+  "configuration_version": "1"
+}
