@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'push_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_ota_kit/flutter_ota_kit.dart';
 import 'api_service.dart';
@@ -11,6 +13,8 @@ const orange=Color(0xFF12B85F), navy=Color(0xFF172B4D), muted=Color(0xFF64748B);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  await PushService.initialize();
   await FlutterPatcher.init();
   runApp(const GofixoApp());
 }
@@ -45,6 +49,7 @@ class _GateState extends State<Gate>{
       }
       final x=s.data;
       if(x==null)return RoleScreen(onLogin:refresh);
+      if(x.role=='provider') WidgetsBinding.instance.addPostFrameCallback((_) => PushService.syncProviderToken(x));
       return x.role=='provider'
         ?ReferenceProviderHome(session:x,onLogout:()async{await ApiService.clearSession();refresh();})
         :ReferenceCustomerHome(session:x,onLogout:()async{await ApiService.clearSession();refresh();});
