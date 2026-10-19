@@ -15,6 +15,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
+import com.gofixo.R
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 
@@ -120,7 +121,7 @@ class GofixoBookingAlertService : Service() {
 
     private fun buildNotification(title: String, body: String): Notification =
         NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(com.gofixo.app.R.mipmap.ic_launcher)
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(body)
             .setCategory(NotificationCompat.CATEGORY_CALL)
