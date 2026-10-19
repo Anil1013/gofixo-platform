@@ -25,7 +25,6 @@ Future<void> gofixoFirebaseBackgroundHandler(RemoteMessage message) async {
   await _localNotifications.initialize(
     const InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-      iOS: DarwinInitializationSettings(),
     ),
   );
   if (message.data['type'] == 'booking_cancelled') {
@@ -39,13 +38,12 @@ class PushService {
   static String? _lastRegisteredProvider;
 
   static Future<void> initialize() async {
-    if (_initialized) return;
+    if (defaultTargetPlatform != TargetPlatform.android || _initialized) return;
     _initialized = true;
     FirebaseMessaging.onBackgroundMessage(gofixoFirebaseBackgroundHandler);
     await _localNotifications.initialize(
       const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        iOS: DarwinInitializationSettings(),
       ),
       onDidReceiveNotificationResponse: (_) {},
     );
@@ -102,18 +100,13 @@ class PushService {
           category: AndroidNotificationCategory.call,
           tag: 'gofixo-booking-${message.data['booking_id'] ?? ''}',
         ),
-        iOS: const DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
       ),
       payload: message.data['booking_id']?.toString(),
     );
   }
 
   static Future<void> syncProviderToken(Session session) async {
-    if (session.role != 'provider' || session.userId == null) return;
+    if (defaultTargetPlatform != TargetPlatform.android || session.role != 'provider' || session.userId == null) return;
     final key = '${session.userId}:${session.token}';
     if (_lastRegisteredProvider == key) return;
     try {
