@@ -403,9 +403,6 @@ router.patch('/:id/availability', requireAuth(['provider']), async (req, res, ne
       if (sub.rows[0].current_lat === null || sub.rows[0].current_lng === null || !sub.rows[0].location_updated_at) {
         return res.status(400).json({ error: 'Share your current location before going available' });
       }
-      if (new Date(sub.rows[0].location_updated_at).getTime() <= Date.now() - 5 * 60 * 1000) {
-        return res.status(400).json({ error: 'Your location is stale. Update your current location before going available.' });
-      }
     }
 
     let result;
