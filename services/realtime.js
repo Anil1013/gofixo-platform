@@ -70,7 +70,7 @@ async function broadcastProviderLocation(providerId, lat, lng, updatedAt) {
     `SELECT id
      FROM bookings
      WHERE provider_id = $1
-       AND status IN ('accepted', 'ongoing')`,
+       AND status IN ('accepted', 'arrived', 'ongoing')`,
     [providerId]
   );
 
