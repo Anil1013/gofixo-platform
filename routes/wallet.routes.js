@@ -277,16 +277,20 @@ router.post('/webhooks/cashfree', async (req, res) => {
       }
 
       const row = tx.rows[0];
-      const paidAmount = Number(
-        payload?.data?.payment?.payment_amount ??
-        payload?.data?.order?.order_amount ??
-        0
-      );
+      // Only credit wallet top-ups when the signed success event includes the
+      // actual captured payment amount and it matches the pending order.
+      const paidAmount = Number(payload?.data?.payment?.payment_amount);
       const expectedAmount = Number(row.amount);
 
-      if (Number.isFinite(paidAmount) && paidAmount > 0 && Math.abs(paidAmount - expectedAmount) > 0.01) {
+      if (
+        !Number.isFinite(paidAmount) ||
+        paidAmount <= 0 ||
+        !Number.isFinite(expectedAmount) ||
+        expectedAmount <= 0 ||
+        Math.abs(paidAmount - expectedAmount) > 0.01
+      ) {
         await client.query('ROLLBACK');
-        return res.status(409).json({ error: 'Webhook amount does not match wallet top-up' });
+        return res.status(409).json({ error: 'Webhook payment amount is missing or does not match wallet top-up' });
       }
 
       if (['SUCCESS', 'PAID', 'COMPLETED'].includes(paymentStatus)) {
