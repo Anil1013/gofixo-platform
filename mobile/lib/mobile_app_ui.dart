@@ -2050,6 +2050,7 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
   Timer? pollTimer;
   Timer? routeTimer;
   LatLng? providerPoint;
+  LatLng? lastPublishedProviderPoint;
   LatLng? pickupPoint;
   LatLng? destinationPoint;
   LatLng? lastRoutedPoint;
@@ -2152,9 +2153,31 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
 
   void _startProviderGps(){
     gpsSub?.cancel();
-    gpsSub=Geolocator.getPositionStream(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:5)).listen((x){
+    gpsSub=Geolocator.getPositionStream(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:5)).listen((x)async{
       if(!mounted||x.accuracy>150)return;
-      setState(()=>providerPoint=LatLng(x.latitude,x.longitude));
+      final point=LatLng(x.latitude,x.longitude);
+      setState(()=>providerPoint=point);
+
+      // The provider dashboard may mark the partner unavailable once a job is
+      // accepted. Publish trip GPS here as well so the customer's live map
+      // continues receiving fresh coordinates during the active booking.
+      final providerId=int.tryParse(
+        widget.booking['provider_id']?.toString() ??
+        widget.session.user['id']?.toString() ?? '',
+      );
+      final last=lastPublishedProviderPoint;
+      final shouldPublish=last==null ||
+        Geolocator.distanceBetween(
+          last.latitude,last.longitude,point.latitude,point.longitude,
+        )>=10;
+      if(providerId!=null&&shouldPublish){
+        try{
+          await ApiService.updateProviderLocation(
+            widget.session.token,providerId,x.latitude,x.longitude,
+          );
+          lastPublishedProviderPoint=point;
+        }catch(_){}
+      }
     });
   }
 
