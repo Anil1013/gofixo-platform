@@ -1,7 +1,7 @@
 {
-  "version": "1.0.32",
-  "buildNumber": 1000032,
-  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.32/gofixo-release.apk",
-  "notes": "Gofixo v1.0.32: fixes manual partner Online/Offline availability independent of location refresh time, and includes Android booking alert notification, vibration and wake-lock permission fixes.",
+  "version": "1.0.33",
+  "buildNumber": 1000033,
+  "downloadUrl": "https://github.com/Anil1013/gofixo-platform/releases/download/v1.0.33/gofixo-release.apk",
+  "notes": "Gofixo v1.0.33: fixes provider realtime location tracking during arrived status and manual pickup selection when GPS is unavailable.",
   "forceUpdate": true
 }
