@@ -416,7 +416,7 @@ router.patch('/:id/availability', requireAuth(['provider']), async (req, res, ne
            AND NOT EXISTS (
              SELECT 1 FROM bookings b
              WHERE b.provider_id = service_providers.id
-               AND b.status IN ('requested', 'accepted', 'ongoing')
+               AND b.status IN ('requested', 'accepted', 'arrived', 'ongoing')
            )
          RETURNING id, generated_id, name, phone, type, kyc_status, avg_rating, is_available, current_lat, current_lng, location_updated_at`,
         [req.params.id]
