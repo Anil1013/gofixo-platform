@@ -143,10 +143,10 @@ router.get('/mine', requireAuth(['customer']), async (req, res, next) => {
   try {
     const result = await pool.query(
       `SELECT b.*,
-              CASE WHEN b.status IN ('accepted', 'ongoing', 'completed') THEN sp.name END AS provider_name,
-              CASE WHEN b.status IN ('accepted', 'ongoing', 'completed') THEN sp.generated_id END AS provider_generated_id,
-              CASE WHEN b.status IN ('accepted', 'ongoing', 'completed') THEN sp.phone END AS provider_phone,
-              CASE WHEN b.status IN ('accepted', 'ongoing', 'completed') THEN (SELECT pd.file_url FROM provider_documents pd WHERE pd.provider_id = sp.id AND pd.doc_type = 'profile_photo' ORDER BY pd.uploaded_at DESC, pd.id DESC LIMIT 1) END AS provider_profile_photo_url,
+              CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing', 'completed') THEN sp.name END AS provider_name,
+              CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing', 'completed') THEN sp.generated_id END AS provider_generated_id,
+              CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing', 'completed') THEN sp.phone END AS provider_phone,
+              CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing', 'completed') THEN (SELECT pd.file_url FROM provider_documents pd WHERE pd.provider_id = sp.id AND pd.doc_type = 'profile_photo' ORDER BY pd.uploaded_at DESC, pd.id DESC LIMIT 1) END AS provider_profile_photo_url,
               CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing') THEN sp.current_lat END AS provider_lat,
               CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing') THEN sp.current_lng END AS provider_lng
        FROM bookings b
@@ -170,8 +170,8 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
               b.fare_amount, b.route_distance_km, b.duration_minutes, b.status, b.payment_confirmed_by_provider,
               b.created_at, b.completed_at, b.pickup_lat, b.pickup_lng, b.drop_lat, b.drop_lng, b.offered_at,
               c.name AS customer_name,
-              CASE WHEN b.status IN ('accepted', 'ongoing', 'completed') THEN c.phone END AS customer_phone,
-              CASE WHEN b.status IN ('accepted', 'ongoing', 'completed') THEN c.profile_photo_url END AS customer_profile_photo_url
+              CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing', 'completed') THEN c.phone END AS customer_phone,
+              CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing', 'completed') THEN c.profile_photo_url END AS customer_profile_photo_url
        FROM bookings b
        LEFT JOIN customers c ON b.customer_id = c.id
        LEFT JOIN service_providers target_sp ON target_sp.id = $1
