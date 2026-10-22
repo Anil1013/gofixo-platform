@@ -1950,6 +1950,18 @@ class _Booking extends StatelessWidget{
    if(isService)Text(b['service_description']?.toString()??'',maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:gfMuted)),
    Text(b['pickup_location']?.toString()??'',maxLines:1,overflow:TextOverflow.ellipsis),
    Text((isService?'Service address: ':'→ ')+(b['drop_or_service_address']?.toString()??''),maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:gfMuted)),
+   if(s=='arrived'&&b['arrived_at']!=null)...[
+    Builder(builder:(context){
+      final at=DateTime.tryParse(b['arrived_at'].toString());
+      final seconds=at==null?0:DateTime.now().difference(at).inSeconds.clamp(0,900);
+      final minutes=(seconds/60).ceil().clamp(0,15);
+      final fee=(minutes*0.50).clamp(0,7.50).toDouble();
+      final left=(900-seconds).clamp(0,900);
+      return Container(width:double.infinity,margin:const EdgeInsets.only(top:8),padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:const Color(0xFFFFF7E8),borderRadius:BorderRadius.circular(12)),child:Text(
+        'PIN waiting · ₹'+fee.toStringAsFixed(2)+' at ₹0.50/min · auto-cancel in '+(left~/60).toString().padLeft(2,'0')+':'+(left%60).toString().padLeft(2,'0'),
+        style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:gfNavy)));
+    }),
+   ],
    if(s=='requested'||s=='accepted')Align(alignment:Alignment.centerRight,child:TextButton(onPressed:()async{await ApiService.cancelBooking(session.token,int.tryParse(id)??0);await onChanged();},child:const Text('Cancel'))),
    if(s=='accepted'||s=='arrived'||s=='ongoing')Align(alignment:Alignment.centerRight,child:OutlinedButton.icon(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>LiveTrackingPage(session:session,booking:b,isProvider:false))),icon:const Icon(Icons.location_searching),label:const Text('Track live')))
   ]));
