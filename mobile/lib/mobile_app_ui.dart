@@ -661,7 +661,7 @@ class _ProviderJobsTab extends StatelessWidget{
  final Session session;final List<Map<String,dynamic>> jobs;final Future<void> Function({bool silent}) onChanged;const _ProviderJobsTab({required this.session,required this.jobs,required this.onChanged});
  @override Widget build(BuildContext c)=>RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
   const _PageHeading(title:'Jobs',subtitle:'Incoming, accepted and completed work.'),
-  if(jobs.isEmpty)const _Waiting() else ...jobs.map((j){final s=j['status']?.toString()??'';if(s=='requested')return _Incoming(session:session,b:j,changed:onChanged);if(s=='accepted'||s=='ongoing')return _Active(session:session,b:j,changed:onChanged);return _JobSummary(b:j);}),
+  if(jobs.isEmpty)const _Waiting() else ...jobs.map((j){final s=j['status']?.toString()??'';if(s=='requested')return _Incoming(session:session,b:j,changed:onChanged);if(s=='accepted'||s=='arrived'||s=='ongoing')return _Active(session:session,b:j,changed:onChanged);return _JobSummary(b:j);}),
  ]));
 }
 
@@ -1797,6 +1797,12 @@ class _ActiveState extends State<_Active>{
   final accepted=status=='accepted';
   final arrived=status=='arrived';
   final ongoing=status=='ongoing';
+  final arrivedAt=DateTime.tryParse(widget.b['arrived_at']?.toString()??'');
+  final waitingSeconds=arrivedAt==null?0:DateTime.now().difference(arrivedAt).inSeconds.clamp(0,900);
+  final waitingMinutes=(waitingSeconds/60).ceil().clamp(0,15);
+  final waitingFee=double.tryParse(widget.b['waiting_fee_amount']?.toString()??'') ??
+      (arrivedAt==null?0.0:(waitingMinutes*0.50).clamp(0,7.50).toDouble());
+  final waitingSecondsLeft=(900-waitingSeconds).clamp(0,900);
 
   Future<void>markArrived()async{
    if(submitting)return;
@@ -1846,6 +1852,19 @@ class _ActiveState extends State<_Active>{
     )),
    ],
 
+   if(arrived)...[
+    const SizedBox(height:6),
+    Container(width:double.infinity,padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:const Color(0xFFFFF7E8),borderRadius:BorderRadius.circular(14)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Text('PIN waiting: ₹'+waitingFee.toStringAsFixed(2)+' accrued',style:const TextStyle(fontSize:13,fontWeight:FontWeight.w900,color:gfNavy)),
+      const SizedBox(height:3),
+      Text('₹0.50 per minute · maximum ₹7.50',style:const TextStyle(fontSize:11,color:gfMuted)),
+      const SizedBox(height:3),
+      Text(waitingSecondsLeft>0
+        ? 'Auto-cancel in '+(waitingSecondsLeft~/60).toString().padLeft(2,'0')+':'+(waitingSecondsLeft%60).toString().padLeft(2,'0')+' if PIN is not verified.'
+        : 'Waiting limit reached. The booking will be cancelled automatically.',
+        style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:gfNavy)),
+    ])),
+   ],
    if(accepted||arrived)...[
     const SizedBox(height:4),
     Container(width:double.infinity,padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:const Color(0xFFFFF7E8),borderRadius:BorderRadius.circular(14)),child:Row(children:[
@@ -1872,13 +1891,16 @@ class _ActiveState extends State<_Active>{
          Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
            const Text('UPFRONT FARE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
            Text('₹'+(widget.b['fare_amount']??0).toString(),style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:gfNavy)),
+           if(waitingFee>0) Text('Waiting fee ₹'+waitingFee.toStringAsFixed(2),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:gfGreen)),
            const Text('Fare is locked to the customer estimate',style:TextStyle(fontSize:10,color:gfMuted)),
          ])),
        ]),
      ),
      const SizedBox(height:8),
      SizedBox(width:double.infinity,child:FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:submitting?null:()async{
-      final value=double.tryParse(widget.b['fare_amount']?.toString()??'');
+      final baseFare=double.tryParse(widget.b['fare_amount']?.toString()??'');
+      final waitFee=double.tryParse(widget.b['waiting_fee_amount']?.toString()??'')??0;
+      final value=baseFare==null?null:double.parse((baseFare+waitFee).toStringAsFixed(2));
       if(value==null||value<=0){ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Locked fare is unavailable.')));return;}
       setState(()=>submitting=true);
       try{
