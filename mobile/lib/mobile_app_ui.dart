@@ -2108,6 +2108,7 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
   LatLng? destinationPoint;
   LatLng? lastRoutedPoint;
   Set<Polyline> routeLines={};
+  List<Map<String,dynamic>> liveRouteSteps=[];
   double? routeDistanceMeters;
   double? routeEtaSeconds;
   String status='';
@@ -2245,11 +2246,17 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
       final pts=_decodeGooglePolyline(r['encodedPolyline']?.toString()??'');
       final distance=double.tryParse(r['distanceMeters']?.toString()??'');
       final eta=double.tryParse(r['durationSeconds']?.toString()??'');
+      final steps=(r['steps'] is List ? (r['steps'] as List)
+        .whereType<Map>()
+        .map((step)=>Map<String,dynamic>.from(step))
+        .where((step)=>(step['instruction']?.toString()??'').trim().isNotEmpty)
+        .toList() : <Map<String,dynamic>>[]);
       if(pts.length>=2&&mounted){
         setState((){
           routeLines={Polyline(polylineId:const PolylineId('partner-route'),points:pts,color:gfGreen,width:5)};
           routeDistanceMeters=distance;
-          routeEtaSeconds=(eta!=null&&eta>0)?eta:(distance!=null&&distance>0?distance/1000/25*3600:null);
+          routeEtaSeconds=(eta!=null&&eta>0)?eta:null;
+          liveRouteSteps=steps;
         });
         lastRoutedPoint=p;
       }
@@ -2358,6 +2365,19 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
                 const SizedBox(width:10),
                 Expanded(child:_LiveMetric(icon:Icons.schedule_rounded,label:'Live ETA',value:routeEtaSeconds!=null&&routeEtaSeconds!>0?gfFormatEta(routeEtaSeconds):gfEstimateEta(routeDistanceMeters))),
               ]),
+            ],
+            if(liveRouteSteps.isNotEmpty)...[
+              const SizedBox(height:12),
+              const Text('NEXT DIRECTIONS',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
+              const SizedBox(height:5),
+              ...liveRouteSteps.take(3).map((step)=>Padding(
+                padding:const EdgeInsets.symmetric(vertical:4),
+                child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  const Icon(Icons.turn_right_rounded,size:17,color:gfGreen),
+                  const SizedBox(width:7),
+                  Expanded(child:Text(step['instruction']?.toString()??'',maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:11,color:gfNavy))),
+                ]),
+              )),
             ],
           ]),
         )),
