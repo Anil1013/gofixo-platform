@@ -1178,7 +1178,7 @@ class ReferenceBookingPage extends StatefulWidget{
 class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  GoogleMapController? mapController;
  StreamSubscription<Position>? locationSub;
- final dest=TextEditingController();final pickupController=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your current location…';String serviceCategory='other',serviceDescription='';Position? pos;Map<String,dynamic>? place,pickupPlace;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[],pickupSuggestions=[];Set<Polyline> routePolylines={};LatLng? destinationPoint,pickupPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce,pickupDebounce;LatLng? lastReversePoint;
+ final dest=TextEditingController();final pickupController=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your current location…';String serviceCategory='other',serviceDescription='';Position? pos;Map<String,dynamic>? place,pickupPlace;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[],pickupSuggestions=[];Set<Polyline> routePolylines={};List<Map<String,dynamic>> routeSteps=[];LatLng? destinationPoint,pickupPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce,pickupDebounce;LatLng? lastReversePoint;
  @override void initState(){super.initState();type=widget.type;serviceCategory=widget.serviceCategory??'other';serviceDescription=widget.serviceDescription??'';serviceDesc.text=serviceDescription;WidgetsBinding.instance.addPostFrameCallback((_)=>locate());}
  @override void dispose(){debounce?.cancel();pickupDebounce?.cancel();locationSub?.cancel();dest.dispose();pickupController.dispose();serviceDesc.dispose();super.dispose();}
  Future<void>locate()async{if(busy)return;setState(()=>busy=true);try{if(!await Geolocator.isLocationServiceEnabled())throw Exception('Please turn on Location Services.');var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)throw Exception('Location permission is required.');Position?best;for(var i=0;i<3;i++){final x=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:0,timeLimit:Duration(seconds:12)));if(best==null||x.accuracy<best.accuracy)best=x;if(x.accuracy<=30)break;}final x=best!;if(x.accuracy>150)throw Exception('GPS accuracy is too weak. Please move outdoors and try again.');final a=await _reverse(x.latitude,x.longitude);if(mounted){setState((){pos=x;pickup=a;pickupController.text=a;pickupPlace={'address':a,'lat':x.latitude,'lng':x.longitude};pickupPoint=LatLng(x.latitude,x.longitude);lastReversePoint=LatLng(x.latitude,x.longitude);});await _centerMap(LatLng(x.latitude,x.longitude),17);}_startLocationStream();}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
@@ -1225,12 +1225,17 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
     final points=_decodeGooglePolyline(r['encodedPolyline']?.toString()??'');
     if(points.length<2)throw Exception('No route found.');
     final googleEta=double.tryParse(r['durationSeconds']?.toString()??'');
-    final double fallbackEta=d>0?(d/25*3600):0.0;
+    final steps=(r['steps'] is List ? (r['steps'] as List)
+      .whereType<Map>()
+      .map((step)=>Map<String,dynamic>.from(step))
+      .where((step)=>(step['instruction']?.toString()??'').trim().isNotEmpty)
+      .toList() : <Map<String,dynamic>>[]);
     if(mounted)setState((){
       place=p;
       km=d;
       fare=_fare(type,d);
-      routeEtaSeconds=(googleEta!=null&&googleEta>0)?googleEta:fallbackEta;
+      routeSteps=steps;
+      routeEtaSeconds=(googleEta!=null&&googleEta>0)?googleEta:null;
       destinationPoint=LatLng(a,b);
       routePolylines={
         Polyline(
@@ -1551,6 +1556,38 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                      onPressed:busy?null:book,
                      child:const Text('Confirm ride'),
                    ),
+                 ],
+               ),
+             ),
+           ),
+         if(!isService&&routeSteps.isNotEmpty)
+           Padding(
+             padding:const EdgeInsets.only(top:12),
+             child:Container(
+               padding:const EdgeInsets.all(14),
+               decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(18)),
+               child:Column(
+                 crossAxisAlignment:CrossAxisAlignment.start,
+                 children:[
+                   const Text('GOOGLE MAPS DIRECTIONS',style:TextStyle(fontSize:10,fontWeight:FontWeight.w900,color:gfGreen)),
+                   const SizedBox(height:8),
+                   ...routeSteps.asMap().entries.map((entry){
+                     final step=entry.value;
+                     final meters=double.tryParse(step['distanceMeters']?.toString()??'0')??0;
+                     final distance=meters>=1000?(meters/1000).toStringAsFixed(1)+' km':meters.round().toString()+' m';
+                     return Padding(
+                       padding:const EdgeInsets.symmetric(vertical:7),
+                       child:Row(
+                         crossAxisAlignment:CrossAxisAlignment.start,
+                         children:[
+                           Container(width:25,height:25,alignment:Alignment.center,decoration:const BoxDecoration(color:Color(0xFFEFFFF5),shape:BoxShape.circle),child:Text((entry.key+1).toString(),style:const TextStyle(fontSize:10,fontWeight:FontWeight.w900,color:gfGreen))),
+                           const SizedBox(width:9),
+                           Expanded(child:Text(step['instruction']?.toString()??'',style:const TextStyle(fontSize:12,color:gfNavy))),
+                           if(meters>0)Text(distance,style:const TextStyle(fontSize:10,color:gfMuted)),
+                         ],
+                       ),
+                     );
+                   }),
                  ],
                ),
              ),
