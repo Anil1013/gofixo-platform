@@ -118,6 +118,49 @@ function generatePin() {
 //   completed  -> provider confirmed payment
 //   no_provider-> everyone nearby declined / missed it
 
+// Waiting policy: starts when the provider marks arrival. Rates are rupees, not paise.
+const WAITING_RATE_PER_MINUTE = 0.50;
+const WAITING_LIMIT_MINUTES = 15;
+let waitingSchemaReady;
+function ensureWaitingSchema() {
+  if (!waitingSchemaReady) {
+    waitingSchemaReady = pool.query(`
+      ALTER TABLE bookings
+        ADD COLUMN IF NOT EXISTS arrived_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS waiting_fee_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS waiting_fee_status TEXT NOT NULL DEFAULT 'not_applicable'
+    `).catch((err) => {
+      waitingSchemaReady = null;
+      console.error('[Gofixo waiting policy] Could not prepare booking columns:', err.message);
+      throw err;
+    });
+  }
+  return waitingSchemaReady;
+}
+
+// Run on the server as well as on API requests, so timeout cancellation does not
+// depend on a customer/provider keeping the app open.
+async function expireWaitingBookings() {
+  await ensureWaitingSchema();
+  await pool.query(`
+    UPDATE bookings
+       SET status = 'cancelled',
+           waiting_fee_amount = LEAST($1, GREATEST(0,
+             CEIL(EXTRACT(EPOCH FROM (NOW() - arrived_at)) / 60) * $2)),
+           waiting_fee_status = 'due',
+           start_pin = NULL,
+           offered_at = NULL
+     WHERE service_type = 'ride'
+       AND status = 'arrived'
+       AND arrived_at IS NOT NULL
+       AND arrived_at <= NOW() - ($3 * INTERVAL '1 minute')
+  `, [WAITING_RATE_PER_MINUTE * WAITING_LIMIT_MINUTES, WAITING_RATE_PER_MINUTE, WAITING_LIMIT_MINUTES]);
+}
+const waitingExpiryTimer = setInterval(() => {
+  expireWaitingBookings().catch((err) => console.error('[Gofixo waiting policy] Expiry sweep failed:', err.message));
+}, 15000);
+if (typeof waitingExpiryTimer.unref === 'function') waitingExpiryTimer.unref();
+
 // List all bookings (admin panel only — contains customer phone numbers and PINs)
 router.get('/', requireAdmin, async (req, res, next) => {
   try {
@@ -742,14 +785,19 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
 // can show a real "arrived" state before the one-time start PIN is entered.
 router.post('/:id/arrived', requireAuth(['provider']), async (req, res, next) => {
   try {
+    await ensureWaitingSchema();
     const result = await pool.query(
       `UPDATE bookings
-       SET status = 'arrived'
+       SET status = 'arrived',
+           arrived_at = NOW(),
+           waiting_fee_amount = 0,
+           waiting_fee_status = 'accruing'
        WHERE id = $1
          AND provider_id = $2
          AND status = 'accepted'
        RETURNING id, service_type, customer_id, provider_id, pickup_location, drop_or_service_address,
-                 pickup_lat, pickup_lng, drop_lat, drop_lng, fare_amount, status, created_at`,
+                 pickup_lat, pickup_lng, drop_lat, drop_lng, fare_amount, status, created_at,
+                 arrived_at, waiting_fee_amount, waiting_fee_status`,
       [req.params.id, req.user.id]
     );
     if (result.rows.length === 0) {
@@ -834,15 +882,29 @@ router.post('/:id/start', requireAuth(['provider']), async (req, res, next) => {
       return res.status(400).json({ error: 'pin must be exactly 4 digits' });
     }
 
+    await ensureWaitingSchema();
     const result = await pool.query(
       `UPDATE bookings
-       SET status = 'ongoing', start_pin = NULL
+       SET status = 'ongoing',
+           waiting_fee_amount = CASE
+             WHEN status = 'arrived' AND arrived_at IS NOT NULL
+               THEN LEAST($4, CEIL(EXTRACT(EPOCH FROM (NOW() - arrived_at)) / 60) * $5)
+             ELSE 0
+           END,
+           waiting_fee_status = CASE
+             WHEN status = 'arrived' AND arrived_at IS NOT NULL THEN 'due'
+             ELSE 'not_applicable'
+           END,
+           start_pin = NULL
        WHERE id = $1
          AND provider_id = $2
          AND status IN ('accepted', 'arrived')
          AND start_pin = $3
-       RETURNING id, service_type, customer_id, provider_id, pickup_location, status, created_at`,
-      [id, req.user.id, normalizedPin]
+         AND (status <> 'arrived' OR arrived_at > NOW() - ($6 * INTERVAL '1 minute'))
+       RETURNING id, service_type, customer_id, provider_id, pickup_location, status, created_at,
+                 arrived_at, waiting_fee_amount, waiting_fee_status`,
+      [id, req.user.id, normalizedPin, WAITING_RATE_PER_MINUTE * WAITING_LIMIT_MINUTES,
+       WAITING_RATE_PER_MINUTE, WAITING_LIMIT_MINUTES]
     );
 
     if (result.rows.length > 0) {
@@ -850,14 +912,18 @@ router.post('/:id/start', requireAuth(['provider']), async (req, res, next) => {
     }
 
     const existing = await pool.query(
-      'SELECT provider_id, start_pin, status FROM bookings WHERE id = $1',
+      'SELECT provider_id, start_pin, status, arrived_at FROM bookings WHERE id = $1',
       [id]
     );
     if (existing.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
     if (existing.rows[0].provider_id !== req.user.id) {
       return res.status(403).json({ error: 'This booking does not belong to you' });
     }
-    if (existing.rows[0].status !== 'accepted') {
+    if (existing.rows[0].status === 'arrived' && existing.rows[0].arrived_at && Date.now() - new Date(existing.rows[0].arrived_at).getTime() >= WAITING_LIMIT_MINUTES * 60000) {
+      await expireWaitingBookings();
+      return res.status(409).json({ error: 'Waiting limit reached. This ride has been cancelled.' });
+    }
+    if (existing.rows[0].status !== 'accepted' && existing.rows[0].status !== 'arrived') {
       return res.status(400).json({
         error: existing.rows[0].status === 'requested'
           ? 'Accept the request first'
