@@ -155,6 +155,24 @@ async function expireWaitingBookings() {
        AND arrived_at IS NOT NULL
        AND arrived_at <= NOW() - ($3 * INTERVAL '1 minute')
   `, [WAITING_RATE_PER_MINUTE * WAITING_LIMIT_MINUTES, WAITING_RATE_PER_MINUTE, WAITING_LIMIT_MINUTES]);
+  await pool.query(`
+    UPDATE service_providers sp
+       SET is_available = true
+     WHERE sp.is_available = false
+       AND EXISTS (
+         SELECT 1 FROM bookings expired
+          WHERE expired.provider_id = sp.id
+            AND expired.status = 'cancelled'
+            AND expired.waiting_fee_status = 'due'
+            AND expired.arrived_at <= NOW() - ($1 * INTERVAL '1 minute')
+       )
+       AND NOT EXISTS (
+         SELECT 1 FROM bookings active
+          WHERE active.provider_id = sp.id
+            AND active.status IN ('accepted', 'arrived', 'ongoing')
+       )
+       AND sp.kyc_status = 'approved'
+  `, [WAITING_LIMIT_MINUTES]);
 }
 const waitingExpiryTimer = setInterval(() => {
   expireWaitingBookings().catch((err) => console.error('[Gofixo waiting policy] Expiry sweep failed:', err.message));
@@ -211,6 +229,7 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
     const result = await pool.query(
       `SELECT b.id, b.service_type, b.service_category, b.service_description, b.customer_id, b.provider_id, b.pickup_location, b.drop_or_service_address,
               b.fare_amount, b.route_distance_km, b.duration_minutes, b.status, b.payment_confirmed_by_provider,
+              b.arrived_at, b.waiting_fee_amount, b.waiting_fee_status,
               b.created_at, b.completed_at, b.pickup_lat, b.pickup_lng, b.drop_lat, b.drop_lng, b.offered_at,
               c.name AS customer_name,
               CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing', 'completed') THEN c.phone END AS customer_phone,
