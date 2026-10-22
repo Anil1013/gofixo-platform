@@ -165,6 +165,7 @@ async function expireWaitingBookings() {
             AND expired.status = 'cancelled'
             AND expired.waiting_fee_status = 'due'
             AND expired.arrived_at <= NOW() - ($1 * INTERVAL '1 minute')
+            AND expired.arrived_at > NOW() - (($1 + 1) * INTERVAL '1 minute')
        )
        AND NOT EXISTS (
          SELECT 1 FROM bookings active
@@ -1056,7 +1057,7 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
     await client.query('BEGIN');
 
     const existing = await client.query(
-      'SELECT provider_id, customer_id, status, fare_amount, payment_status FROM bookings WHERE id = $1 FOR UPDATE',
+      'SELECT provider_id, customer_id, service_type, status, fare_amount, payment_status, waiting_fee_amount, waiting_fee_status FROM bookings WHERE id = $1 FOR UPDATE',
       [id]
     );
     if (existing.rows.length === 0) {
@@ -1083,13 +1084,18 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Booking has no valid locked fare' });
     }
-    if (submittedFare !== null && Math.abs(submittedFare - lockedFare) > 0.01) {
+    const isService = existing.rows[0].service_type === 'services';
+    const waitingFee = !isService && ['due', 'accruing'].includes(existing.rows[0].waiting_fee_status)
+      ? Number(Number(existing.rows[0].waiting_fee_amount || 0).toFixed(2)) : 0;
+    const totalCharge = Number((lockedFare + waitingFee).toFixed(2));
+    if (submittedFare !== null && Math.abs(submittedFare - totalCharge) > 0.01) {
       await client.query('ROLLBACK');
-      return res.status(409).json({ error: 'Fare is locked to the upfront booking price' });
+      return res.status(409).json({ error: waitingFee > 0
+        ? 'Total due includes the waiting fee. Refresh the booking and retry.'
+        : 'Fare is locked to the upfront booking price' });
     }
 
     const fare = Number(lockedFare.toFixed(2));
-    const isService = existing.rows[0].service_type === 'services';
     if (isService && paymentMethod !== 'wallet') {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Home-service bookings must be settled from the Gofixo Wallet' });
@@ -1100,7 +1106,7 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
     }
     const effectiveCommissionPercent = isService ? commissionPercent : 0;
     const commission = Number((fare * effectiveCommissionPercent / 100).toFixed(2));
-    const providerAmount = Number((fare - commission).toFixed(2));
+    const providerAmount = Number((fare + waitingFee - commission).toFixed(2));
 
     if (isService) {
       const captured = await captureServiceWallet(client, Number(id), existing.rows[0].customer_id, fare);
@@ -1118,15 +1124,15 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
            payment_status = 'paid',
            commission_amount = $2,
            provider_earning_amount = $3,
-           fare_amount = $4,
+           waiting_fee_status = CASE WHEN $7 > 0 THEN 'paid' ELSE waiting_fee_status END,
            completed_at = NOW()
        WHERE id = $5
          AND provider_id = $6
          AND status = 'ongoing'
        RETURNING id, service_type, customer_id, provider_id, pickup_location, fare_amount,
                  payment_method, payment_status, commission_amount, provider_earning_amount,
-                 status, completed_at`,
-      [paymentMethod, commission, providerAmount, fare, id, req.user.id]
+                 waiting_fee_amount, waiting_fee_status, status, completed_at`,
+      [paymentMethod, commission, providerAmount, fare, id, req.user.id, waitingFee]
     );
 
     if (booking.rows.length === 0) {
@@ -1141,7 +1147,7 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
         (booking_id, customer_id, provider_id, gross_amount, commission_amount, provider_amount, payment_method, status, paid_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, 'paid', NOW())
        ON CONFLICT (booking_id) DO NOTHING`,
-      [id, booking.rows[0].customer_id, req.user.id, fare, commission, providerAmount, paymentMethod]
+      [id, booking.rows[0].customer_id, req.user.id, totalCharge, commission, providerAmount, paymentMethod]
     );
 
     // Earnings log records the partner's net earning, not the customer's gross
