@@ -89,37 +89,17 @@ const HOME_SERVICE_CARDS = [
 
 const LOCATION_PROMPTED_KEY = 'gofixo_location_prompted';
 
-function calculateStraightLineKm(from, to) {
-  if (!from || !to) return 0;
-  const toRad = (value) => (value * Math.PI) / 180;
-  const dLat = toRad(to.lat - from.lat);
-  const dLng = toRad(to.lng - from.lng);
-  const a = Math.sin(dLat / 2) ** 2
-    + Math.cos(toRad(from.lat)) * Math.cos(toRad(to.lat)) * Math.sin(dLng / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)));
-}
-
 async function buildRoute(from, to) {
   if (!from || !to || !Number.isFinite(Number(from.lat)) || !Number.isFinite(Number(from.lng))
     || !Number.isFinite(Number(to.lat)) || !Number.isFinite(Number(to.lng))) {
-    return null;
+    throw new Error('Please select valid pickup and destination locations.');
   }
 
-  let routed = null;
-  try {
-    routed = await getRoute(from, to);
-  } catch {
-    routed = null;
+  const routed = await getRoute(from, to);
+  if (!routed || !Number.isFinite(routed.distanceKm) || routed.distanceKm <= 0 || !Array.isArray(routed.line) || routed.line.length < 2) {
+    throw new Error('Google Maps could not calculate a drivable route. Please check the map API setup and try again.');
   }
-  if (routed && Number.isFinite(routed.distanceKm) && routed.distanceKm > 0) return routed;
-  const distanceKm = calculateStraightLineKm(from, to);
-  if (!Number.isFinite(distanceKm) || distanceKm <= 0) return null;
-  return {
-    distanceKm: Math.max(distanceKm, 0.1),
-    durationMin: Math.max(1, Math.round(distanceKm * 3)),
-    line: null,
-    fallback: true,
-  };
+  return routed;
 }
 
 export default function Home({ onBooked, initialCategory = 'ride' }) {
@@ -687,8 +667,21 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
               </div>
               {route && (
                 <div className="ride-summary">
-                  <span>🛣 {formatDistance(route.distanceKm)} · ~{route.durationMin} min</span>
+                  <span>🛣 {formatDistance(route.distanceKm)} · Google Maps ETA ~{route.durationMin} min</span>
                   <strong>₹{estimatedFare}</strong>
+                </div>
+              )}
+              {route?.steps?.length > 0 && (
+                <div className="route-directions" aria-label="Google Maps route directions">
+                  <h3>Route directions</h3>
+                  <ol>
+                    {route.steps.map((step, index) => (
+                      <li key={index}>
+                        <span>{step.instruction}</span>
+                        {step.distanceMeters > 0 && <small>{formatDistance(step.distanceMeters / 1000)}</small>}
+                      </li>
+                    ))}
+                  </ol>
                 </div>
               )}
             </div>
