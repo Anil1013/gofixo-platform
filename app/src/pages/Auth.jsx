@@ -178,6 +178,19 @@ export default function Auth({ onAuthed }) {
           {mode === 'login' && role === 'customer' && <button type="button" onClick={() => { setMode('forgot'); setError(''); setMessage(''); }}>Forgot password?</button>}
         </div>
       </form>
+
+      <section className="public-info" aria-label="Pricing and policies">
+        <h2>Transparent pricing</h2>
+        <p>Home-service visit charge: <strong>₹250 per booking</strong>, even if work is not completed. Parts, labour and additional work may cost extra and should be explained before work starts.</p>
+        <nav className="public-info-links" aria-label="Public information">
+          <a href="/pricing.html">Pricing</a>
+          <a href="/terms.html">Terms &amp; Conditions</a>
+          <a href="/privacy.html">Privacy Policy</a>
+          <a href="/cancellation-refund.html">Cancellation &amp; Refunds</a><a href="/contact.html">Contact</a>
+        </nav>
+        <p className="public-contact">Support: <a href="mailto:ruhil.13r@gmail.com">ruhil.13r@gmail.com</a> · <a href="tel:+917988130279">+91 7988130279</a></p>
+        <p className="public-legal-name">Legal name: Anil Kumar</p>
+      </section>
     </div>
   );
 }
