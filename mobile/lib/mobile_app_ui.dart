@@ -661,13 +661,26 @@ class _ProviderJobsTab extends StatelessWidget{
  final Session session;final List<Map<String,dynamic>> jobs;final Future<void> Function({bool silent}) onChanged;const _ProviderJobsTab({required this.session,required this.jobs,required this.onChanged});
  @override Widget build(BuildContext c)=>RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
   const _PageHeading(title:'Jobs',subtitle:'Incoming, accepted and completed work.'),
-  if(jobs.isEmpty)const _Waiting() else ...jobs.map((j){final s=j['status']?.toString()??'';if(s=='requested')return _Incoming(session:session,b:j,changed:onChanged);if(s=='accepted'||s=='arrived'||s=='ongoing')return _Active(session:session,b:j,changed:onChanged);return _JobSummary(b:j);}),
+  if(jobs.isEmpty)const _Waiting() else ...jobs.map((j){final s=j['status']?.toString()??'';if(s=='requested')return _Incoming(session:session,b:j,changed:onChanged);if(s=='accepted'||s=='arrived'||s=='ongoing')return _Active(session:session,b:j,changed:onChanged);return _JobSummary(b:j,session:session,changed:onChanged);}),
  ]));
 }
 
 class _JobSummary extends StatelessWidget{
- final Map<String,dynamic>b;const _JobSummary({required this.b});
- @override Widget build(BuildContext c)=>_Box(child:Row(children:[const Icon(Icons.check_circle_outline,color:gfGreen),const SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text((b['status']?.toString()??'').toUpperCase(),style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),Text(b['drop_or_service_address']?.toString()??'',maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:11,color:gfMuted))])),Text('₹'+(b['fare_amount']??b['final_fare']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy))]));
+ final Map<String,dynamic>b; final Session session; final Future<void> Function({bool silent}) changed;
+ const _JobSummary({required this.b,required this.session,required this.changed});
+ @override Widget build(BuildContext c){
+  final due=double.tryParse(b['waiting_fee_amount']?.toString()??'0')??0;
+  final feeDue=b['status']=='cancelled'&&b['waiting_fee_status']=='due'&&due>0;
+  return _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+   Row(children:[Icon(feeDue?Icons.schedule:Icons.check_circle_outline,color:gfGreen),const SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text((b['status']?.toString()??'').toUpperCase(),style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),Text(b['drop_or_service_address']?.toString()??'',maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:11,color:gfMuted))])),Text('₹'+(b['fare_amount']??b['final_fare']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy))]),
+   if(feeDue)...[
+    const SizedBox(height:8),
+    Text('Waiting fee due: ₹'+due.toStringAsFixed(2)+' (cash)',style:const TextStyle(fontSize:12,fontWeight:FontWeight.w800,color:gfNavy)),
+    const SizedBox(height:6),
+    SizedBox(width:double.infinity,child:FilledButton(onPressed:()async{try{await ApiService.confirmWaitingFee(session.token,int.tryParse(b['id']?.toString()??'')??0);await changed();}catch(e){ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}},child:const Text('Confirm waiting fee collected →'))),
+   ],
+  ]));
+ }
 }
 
 class _ProviderEarningsTab extends StatefulWidget {
