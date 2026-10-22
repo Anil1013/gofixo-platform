@@ -87,7 +87,7 @@ class ReferenceProviderHome extends StatefulWidget{
  @override State<ReferenceProviderHome> createState()=>_ReferenceProviderHomeState();
 }
 class _ReferenceProviderHomeState extends State<ReferenceProviderHome> with WidgetsBindingObserver{
- Map<String,dynamic>? me;List<Map<String,dynamic>> jobs=[];Timer? timer,buzzerTimer;bool busy=false,locationBusy=false;int tab=0;
+ Map<String,dynamic>? me;List<Map<String,dynamic>> jobs=[];Timer? timer,buzzerTimer;bool busy=false,locationBusy=false,loadingJobs=false;int tab=0;
  final Set<int> knownRequestedIds={};
  @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);load();timer=Timer.periodic(const Duration(seconds:4),(_)=>load(silent:true));}
  @override void dispose(){WidgetsBinding.instance.removeObserver(this);timer?.cancel();_stopBuzzer();super.dispose();}
@@ -107,7 +107,7 @@ class _ReferenceProviderHomeState extends State<ReferenceProviderHome> with Widg
   if(ids.isEmpty){_stopBuzzer();return;}
   if(hasNew)_startBuzzer();
  }
- Future<void> load({bool silent=false})async{try{final m=await ApiService.providerMe(widget.session.token);final j=await ApiService.providerBookings(widget.session.token);final id=int.tryParse(m['id']?.toString()??'');if(m['is_available']==true&&id!=null)await _location(id);if(mounted){setState((){me=m;jobs=j;});_syncBuzzer(j);}}catch(e){if(mounted&&!silent)_snack(e.toString());}}
+ Future<void> load({bool silent=false})async{if(loadingJobs)return;loadingJobs=true;try{final m=await ApiService.providerMe(widget.session.token);final id=int.tryParse(m['id']?.toString()??'');if(m['is_available']==true&&id!=null)await _location(id);final j=await ApiService.providerBookings(widget.session.token);if(mounted){setState((){me=m;jobs=j;});_syncBuzzer(j);}}catch(e){if(mounted&&!silent)_snack(e.toString());}finally{loadingJobs=false;}}
  Future<void> _location(int id)async{
   if(locationBusy)return;locationBusy=true;
   try{if(!await Geolocator.isLocationServiceEnabled())return;var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)return;final x=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.high,distanceFilter:10));await ApiService.updateProviderLocation(widget.session.token,id,x.latitude,x.longitude);}catch(_){}finally{locationBusy=false;}
