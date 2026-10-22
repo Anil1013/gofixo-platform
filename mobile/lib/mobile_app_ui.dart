@@ -1824,9 +1824,9 @@ class _ActiveState extends State<_Active>{
      ])),
    ]),
    if(widget.b['customer_id']!=null) const SizedBox(height:10),
-   Text(ongoing?'TRIP IN PROGRESS':arrived?'ARRIVED AT PICKUP':'ON THE WAY',style:const TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
+   Text(ongoing?'TRIP IN PROGRESS':arrived?'ARRIVED AT PICKUP':accepted?'BOOKING ACCEPTED':'BOOKING STATUS',style:const TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
    const SizedBox(height:4),
-   Text(ongoing?'Confirm payment to complete':arrived?'Enter customer PIN to start the trip':'Navigate to pickup',style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy)),
+   Text(ongoing?'Confirm payment to complete':(accepted||arrived)?'Enter customer PIN to start the trip':'Navigate to pickup',style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy)),
    const SizedBox(height:10),
    _Route('Pickup',widget.b['pickup_location']?.toString()??''),
    if(widget.b['drop_or_service_address']!=null&&widget.b['drop_or_service_address'].toString().trim().isNotEmpty)
@@ -1846,10 +1846,10 @@ class _ActiveState extends State<_Active>{
     )),
    ],
 
-   if(arrived)...[
+   if(accepted||arrived)...[
     const SizedBox(height:4),
-    Container(width:double.infinity,padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:const Color(0xFFFFF7E8),borderRadius:BorderRadius.circular(14)),child:const Row(children:[
-     Icon(Icons.lock_outline_rounded,color:gfGreen),SizedBox(width:8),Expanded(child:Text('Ask the customer for the 4-digit start PIN. The trip begins only after verification.',style:TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:gfNavy)))
+    Container(width:double.infinity,padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:const Color(0xFFFFF7E8),borderRadius:BorderRadius.circular(14)),child:Row(children:[
+     const Icon(Icons.lock_outline_rounded,color:gfGreen),const SizedBox(width:8),Expanded(child:Text(accepted?'When you reach the pickup/service address, ask the customer for their 4-digit start PIN. You can enter it here.':'Ask the customer for the 4-digit start PIN. The trip/job begins only after verification.',style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:gfNavy)))
     ])),
     const SizedBox(height:8),
     TextField(controller:pin,maxLength:4,keyboardType:TextInputType.number,onChanged:(_)=>setState((){}),decoration:const InputDecoration(labelText:'Customer 4-digit PIN')),
@@ -1857,7 +1857,7 @@ class _ActiveState extends State<_Active>{
       style:FilledButton.styleFrom(backgroundColor:gfGreen),
       onPressed:pin.text.length==4&&!submitting?startTrip:null,
       icon:const Icon(Icons.play_arrow_rounded),
-      label:Text(submitting?'Starting…':'Start trip →'),
+      label:Text(submitting?'Starting…':'Verify PIN & start →'),
     )),
    ],
 
