@@ -1017,3 +1017,20 @@ button.cta:disabled { opacity: 0.5; }
 @media (max-width: 390px) {
   .service-specialty-grid { grid-template-columns: 1fr; }
 }
+
+
+/* ---- Public pricing and policy links ---- */
+.public-info {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 26px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--text);
+}
+.public-info h2 { font-size: 17px; margin: 0 0 8px; }
+.public-info p { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin: 0; }
+.public-info-links { display: flex; flex-wrap: wrap; gap: 10px 14px; margin-top: 14px; }
+.public-info-links a { color: var(--plum); font-size: 12px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
