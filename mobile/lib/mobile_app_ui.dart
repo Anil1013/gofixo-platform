@@ -1813,7 +1813,8 @@ class _ActiveState extends State<_Active>{
   final arrivedAt=DateTime.tryParse(widget.b['arrived_at']?.toString()??'');
   final waitingSeconds=arrivedAt==null?0:DateTime.now().difference(arrivedAt).inSeconds.clamp(0,900);
   final waitingMinutes=(waitingSeconds/60).ceil().clamp(0,15);
-  final waitingFee=double.tryParse(widget.b['waiting_fee_amount']?.toString()??'') ??
+  final storedWaitingFee=double.tryParse(widget.b['waiting_fee_amount']?.toString()??'0')??0;
+  final waitingFee=storedWaitingFee>0?storedWaitingFee:
       (arrivedAt==null?0.0:(waitingMinutes*0.50).clamp(0,7.50).toDouble());
   final waitingSecondsLeft=(900-waitingSeconds).clamp(0,900);
 
