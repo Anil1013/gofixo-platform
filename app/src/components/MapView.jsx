@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -55,6 +55,7 @@ function loadGoogleMaps(apiKey) {
 // Uses Google Maps JavaScript API when VITE_GOOGLE_MAPS_API_KEY is configured.
 // Leaflet remains a safe visual fallback; route geometry and ETA still come from Google Routes API.
 export default function MapView({ markers = [], line = null, height = 200, draggableMarkers = false, onMarkerDragEnd = null }) {
+  const [mapReady, setMapReady] = useState(0);
   const el = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -81,6 +82,7 @@ export default function MapView({ markers = [], line = null, height = 200, dragg
         mapRef.current = leafletMap;
         layerRef.current = leafletGroup;
         googleModeRef.current = false;
+        setMapReady((value) => value + 1);
         window.setTimeout(() => { if (!cancelled) leafletMap?.invalidateSize(); }, 150);
       } catch {
         mapRef.current = null;
@@ -103,6 +105,7 @@ export default function MapView({ markers = [], line = null, height = 200, dragg
         mapRef.current = map;
         layerRef.current = { maps, overlays: [] };
         googleModeRef.current = true;
+        setMapReady((value) => value + 1);
       }).catch(() => renderLeaflet());
     } else {
       renderLeaflet();
@@ -199,7 +202,7 @@ export default function MapView({ markers = [], line = null, height = 200, dragg
     } catch {
       // Invalid map payload must not blank the booking screen.
     }
-  }, [JSON.stringify(markers), JSON.stringify(line), draggableMarkers, onMarkerDragEnd]);
+  }, [mapReady, JSON.stringify(markers), JSON.stringify(line), draggableMarkers, onMarkerDragEnd]);
 
   return <div ref={el} className="map-box" style={{ height }} />;
 }
