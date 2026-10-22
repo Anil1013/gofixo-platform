@@ -272,7 +272,7 @@ app.post('/api/routes/compute', async (req, res) => {
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-        'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline'
+        'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.legs.steps.distanceMeters,routes.legs.steps.staticDuration,routes.legs.steps.navigationInstruction.instructions,routes.legs.steps.navigationInstruction.maneuver'
       },
       body: JSON.stringify({
         origin: { location: { latLng: { latitude: originLat, longitude: originLng } } },
@@ -302,7 +302,16 @@ app.post('/api/routes/compute', async (req, res) => {
     return res.json({
       distanceMeters: Number(route.distanceMeters || 0),
       durationSeconds: Number.isFinite(durationSeconds) ? durationSeconds : 0,
-      encodedPolyline: route.polyline.encodedPolyline
+      encodedPolyline: route.polyline.encodedPolyline,
+      steps: (Array.isArray(route.legs) ? route.legs : [])
+        .flatMap((leg) => Array.isArray(leg.steps) ? leg.steps : [])
+        .map((step) => ({
+          instruction: String(step.navigationInstruction?.instructions || '').trim(),
+          maneuver: String(step.navigationInstruction?.maneuver || '').trim(),
+          distanceMeters: Number(step.distanceMeters || 0),
+          durationSeconds: Number.parseFloat(String(step.staticDuration || '').replace('s', '')) || 0,
+        }))
+        .filter((step) => step.instruction)
     });
   } catch (err) {
     console.error('Google Routes error:', err.message);
