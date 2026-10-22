@@ -188,7 +188,7 @@ export default function Auth({ onAuthed }) {
           <a href="/privacy.html">Privacy Policy</a>
           <a href="/cancellation-refund.html">Cancellation &amp; Refunds</a><a href="/contact.html">Contact</a>
         </nav>
-        <p className="public-contact">Support: <a href="mailto:ruhil.13r@gmail.com">ruhil.13r@gmail.com</a> · <a href="tel:+917988132790">+91 7988130279</a></p>
+        <p className="public-contact">Support: <a href="mailto:ruhil.13r@gmail.com">ruhil.13r@gmail.com</a> · <a href="tel:+917988130279">+91 7988130279</a></p>
         <p className="public-legal-name">Legal name: Anil Kumar</p>
       </section>
     </div>
