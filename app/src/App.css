@@ -1034,3 +1034,6 @@ button.cta:disabled { opacity: 0.5; }
 .public-info p { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin: 0; }
 .public-info-links { display: flex; flex-wrap: wrap; gap: 10px 14px; margin-top: 14px; }
 .public-info-links a { color: var(--plum); font-size: 12px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+
+.public-contact, .public-legal-name { margin-top: 12px !important; font-size: 12px !important; overflow-wrap: anywhere; }
+.public-contact a { color: var(--plum); }
