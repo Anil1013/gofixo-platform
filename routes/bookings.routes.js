@@ -165,7 +165,6 @@ async function expireWaitingBookings() {
             AND expired.status = 'cancelled'
             AND expired.waiting_fee_status = 'due'
             AND expired.arrived_at <= NOW() - ($1 * INTERVAL '1 minute')
-            AND expired.arrived_at > NOW() - (($1 + 1) * INTERVAL '1 minute')
        )
        AND NOT EXISTS (
          SELECT 1 FROM bookings active
