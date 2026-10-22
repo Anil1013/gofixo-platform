@@ -655,7 +655,6 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
                ))
              )) <= 10
          )
-         AND (b.service_type <> 'services' OR b.service_category = ANY(sp.service_categories))
          AND NOT EXISTS (
            SELECT 1
            FROM bookings active_b
