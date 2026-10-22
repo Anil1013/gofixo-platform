@@ -1037,3 +1037,48 @@ button.cta:disabled { opacity: 0.5; }
 
 .public-contact, .public-legal-name { margin-top: 12px !important; font-size: 12px !important; overflow-wrap: anywhere; }
 .public-contact a { color: var(--plum); }
+
+
+/* Google Maps route instructions */
+.route-directions {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid #dce8e1;
+  border-radius: 16px;
+  background: #fff;
+}
+.route-directions h3 {
+  margin: 0 0 8px;
+  color: #087f46;
+  font-size: 13px;
+  font-weight: 800;
+}
+.route-directions ol {
+  list-style: none;
+  counter-reset: route-step;
+  margin: 0;
+  padding: 0;
+}
+.route-directions li {
+  counter-increment: route-step;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid #edf2ef;
+  font-size: 12px;
+}
+.route-directions li::before {
+  content: counter(route-step);
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #e8f7ee;
+  color: #087f46;
+  font-weight: 800;
+}
+.route-directions li span { flex: 1; line-height: 1.45; }
+.route-directions li small { color: #64748b; white-space: nowrap; }
