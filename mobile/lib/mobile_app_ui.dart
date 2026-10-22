@@ -1281,7 +1281,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
   if(address.trim().isEmpty){_snack('Please enter the destination or service address.');return;}
   setState(()=>busy=true);
   try{
-    await ApiService.createBooking(
+    final createdBooking = await ApiService.createBooking(
       widget.session.token,
       providerType:type,
       pickup:pickup,
@@ -1296,7 +1296,21 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
       serviceCategory:isService?serviceCategory:null,
       serviceDescription:isService?serviceDescription:null,
     );
-    if(mounted){Navigator.pop(context);await widget.onChanged();}
+    // Keep the customer on the new booking's live status instead of returning
+    // straight to Home, so they can see when a partner accepts the request.
+    await widget.onChanged();
+    if(mounted){
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder:(_)=>LiveTrackingPage(
+            session:widget.session,
+            booking:createdBooking,
+            isProvider:false,
+          ),
+        ),
+      );
+    }
   }catch(e){_snack(e.toString());}
   finally{if(mounted)setState(()=>busy=false);}
 }
