@@ -147,14 +147,23 @@ export async function getRoute(from, to) {
 
     if (!Number.isFinite(distanceMeters) || distanceMeters <= 0 || line.length < 2) return null;
 
+    const steps = Array.isArray(data.steps) ? data.steps
+      .map((step) => ({
+        instruction: String(step.instruction || '').trim(),
+        distanceMeters: Number(step.distanceMeters || 0),
+        durationSeconds: Number(step.durationSeconds || 0),
+      }))
+      .filter((step) => step.instruction) : [];
+
     return {
       distanceKm: distanceMeters / 1000,
       durationMin: Math.max(1, Math.round(durationSeconds / 60)),
       line,
+      steps,
       fallback: false,
     };
-  } catch {
-    return null;
+  } catch (error) {
+    throw error;
   }
 }
 
