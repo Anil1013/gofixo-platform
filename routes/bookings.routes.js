@@ -227,6 +227,7 @@ router.get('/mine', requireAuth(['customer']), async (req, res, next) => {
 // the provider has to get it from the customer in person.
 router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) => {
   try {
+    await ensureWaitingSchema();
     const result = await pool.query(
       `SELECT b.id, b.service_type, b.service_category, b.service_description, b.customer_id, b.provider_id, b.pickup_location, b.drop_or_service_address,
               b.fare_amount, b.route_distance_km, b.duration_minutes, b.status, b.payment_confirmed_by_provider,
@@ -826,6 +827,44 @@ router.post('/:id/arrived', requireAuth(['provider']), async (req, res, next) =>
     res.json(result.rows[0]);
   } catch (err) {
     next(err);
+  }
+});
+
+// Partner confirms cash collection of a PIN-waiting fee after the 15-minute auto-cancel.
+router.post('/:id/confirm-waiting-fee', requireAuth(['provider']), async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    await ensureWaitingSchema();
+    await client.query('BEGIN');
+    const result = await client.query(
+      `UPDATE bookings
+          SET waiting_fee_status = 'paid'
+        WHERE id = $1
+          AND provider_id = $2
+          AND status = 'cancelled'
+          AND waiting_fee_status = 'due'
+          AND waiting_fee_amount > 0
+        RETURNING id, provider_id, waiting_fee_amount, waiting_fee_status`,
+      [req.params.id, req.user.id]
+    );
+    if (!result.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'No unpaid waiting fee is available for this booking.' });
+    }
+    const fee = Number(result.rows[0].waiting_fee_amount);
+    await client.query(
+      `INSERT INTO earnings_log (booking_id, provider_id, amount)
+       VALUES ($1, $2, $3)
+       ON CONFLICT DO NOTHING`,
+      [req.params.id, req.user.id, fee]
+    );
+    await client.query('COMMIT');
+    return res.json({ booking_id: Number(req.params.id), waiting_fee_amount: fee, waiting_fee_status: 'paid' });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    next(err);
+  } finally {
+    client.release();
   }
 });
 
