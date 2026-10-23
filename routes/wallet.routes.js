@@ -144,6 +144,13 @@ router.post('/admin/topup-config', requireAdmin, qrUpload.single('qr_image'), as
   if (req.file && !['image/png', 'image/jpeg', 'image/webp'].includes(req.file.mimetype)) {
     return res.status(400).json({ error: 'QR image must be PNG, JPEG or WebP' });
   }
+  if (req.file) {
+    const b = req.file.buffer;
+    const png = b.length >= 8 && b.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    const jpeg = b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
+    const webp = b.length >= 12 && b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP';
+    if (!png && !jpeg && !webp) return res.status(400).json({ error: 'The uploaded file is not a valid PNG, JPEG or WebP image' });
+  }
   try {
     await ensureTopupSchema();
     const result = await pool.query(
@@ -178,9 +185,13 @@ router.post('/topup-intent', requireAuth(['customer']), async (req, res, next) =
   }
   try {
     await ensureTopupSchema();
-    const upiId = String(process.env.GOFIXO_UPI_ID || '').trim();
+    const storedConfig = await pool.query(
+      'SELECT upi_id, qr_image FROM wallet_payment_settings WHERE id=1'
+    );
+    const saved = storedConfig.rows[0];
+    const upiId = String(saved?.upi_id || process.env.GOFIXO_UPI_ID || '').trim();
     const qrImageUrl = String(process.env.GOFIXO_UPI_QR_IMAGE_URL || '').trim();
-    if (!upiId || !/^https:\/\//i.test(qrImageUrl)) {
+    if (!upiId || !(saved?.qr_image || /^https:\/\//i.test(qrImageUrl))) {
       return res.status(503).json({ error: 'Gofixo UPI QR is not configured yet. No payment claim can be submitted.' });
     }
     const client = await pool.connect();
