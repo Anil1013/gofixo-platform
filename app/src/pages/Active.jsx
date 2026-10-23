@@ -99,7 +99,16 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
       // Once provider GPS is available, route from the moving partner to pickup,
       // then switch to the destination when the trip starts.
       const target = liveProvider && booking.status !== 'ongoing' ? pickup : (hasDrop ? drop : pickup);
-      const origin = liveProvider || pickup;
+      const storedProvider = {
+        lat: Number(booking.provider_lat),
+        lng: Number(booking.provider_lng),
+      };
+      const hasStoredProvider = Number.isFinite(storedProvider.lat)
+        && Number.isFinite(storedProvider.lng)
+        && !(storedProvider.lat === 0 && storedProvider.lng === 0);
+      // Match the provider marker: use the last known provider GPS if realtime
+      // hasn't delivered a fresh fix yet; otherwise route from the live GPS.
+      const origin = liveProvider || (hasStoredProvider && booking.status !== 'ongoing' ? storedProvider : pickup);
       if (![origin.lat, origin.lng, target.lat, target.lng].every(Number.isFinite)
         || (origin.lat === 0 && origin.lng === 0) || (target.lat === 0 && target.lng === 0)) {
         setRoadRoute(null);
