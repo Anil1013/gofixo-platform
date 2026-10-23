@@ -417,6 +417,9 @@ class _CustomerWalletTabState extends State<_CustomerWalletTab>{
   @override Widget build(BuildContext c){
     final available=double.tryParse(walletData['available_balance']?.toString()??'0')??0;
     final reserved=double.tryParse(walletData['reserved_balance']?.toString()??'0')??0;
+    final qrImageBase64=(topupConfig['qrImageBase64']??'').toString();
+    final qrImageUrl=(topupConfig['qrImageUrl']??'').toString();
+    final hasQr=topupConfig['configured']==true&&(qrImageBase64.isNotEmpty||qrImageUrl.startsWith('https://'));
     return RefreshIndicator(onRefresh:_load,child:ListView(padding:const EdgeInsets.fromLTRB(14,10,14,28),children:[
       const _PageHeading(title:'Gofixo Wallet',subtitle:'Wallet ledger and payment history.'),
       const SizedBox(height:10),
@@ -433,8 +436,10 @@ class _CustomerWalletTabState extends State<_CustomerWalletTab>{
         const SizedBox(height:5),
         const Text('Pay to Gofixo using the official QR, then enter the UTR from your payment receipt. Wallet credit is added only after the admin matches the payment in the bank record.',style:TextStyle(fontSize:11,color:gfMuted)),
         const SizedBox(height:12),
-        if(topupConfig['configured']==true&&topupConfig['qrImageUrl']!=null&&topupConfig['qrImageUrl'].toString().isNotEmpty)...[
-          Center(child:ClipRRect(borderRadius:BorderRadius.circular(14),child:Image.network(topupConfig['qrImageUrl'].toString(),height:190,width:190,fit:BoxFit.contain,errorBuilder:(context,error,stack)=>const SizedBox(height:100,child:Center(child:Text('QR image could not load',style:TextStyle(color:gfMuted))))))),
+        if(hasQr)...[
+          Center(child:ClipRRect(borderRadius:BorderRadius.circular(14),child:qrImageBase64.isNotEmpty
+            ?Image.memory(base64Decode(qrImageBase64),height:190,width:190,fit:BoxFit.contain,errorBuilder:(context,error,stack)=>const SizedBox(height:100,child:Center(child:Text('QR image could not load',style:TextStyle(color:gfMuted)))))
+            :Image.network(qrImageUrl,height:190,width:190,fit:BoxFit.contain,errorBuilder:(context,error,stack)=>const SizedBox(height:100,child:Center(child:Text('QR image could not load',style:TextStyle(color:gfMuted))))))),
           const SizedBox(height:8),
           if((topupConfig['payeeName']??'').toString().isNotEmpty) Center(child:Text(topupConfig['payeeName'].toString(),style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy))),
           if((topupConfig['upiId']??'').toString().isNotEmpty) Center(child:SelectableText('UPI ID: '+topupConfig['upiId'].toString(),style:const TextStyle(fontSize:12,color:gfGreen,fontWeight:FontWeight.w700))),
