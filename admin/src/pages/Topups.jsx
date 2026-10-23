@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { apiGet, apiPost } from '../api';
+import { apiGet, apiPost, apiUpload } from '../api';
 
 const STATUSES = [
   { value: 'pending_verification', label: 'Needs review' },
@@ -25,6 +25,12 @@ export default function Topups() {
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [paymentConfig, setPaymentConfig] = useState({ upi_id: '', payee_name: 'Gofixo', has_qr: false, configured: false });
+  const [upiId, setUpiId] = useState('');
+  const [payeeName, setPayeeName] = useState('Gofixo');
+  const [qrFile, setQrFile] = useState(null);
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [fileInputKey, setFileInputKey] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -39,7 +45,48 @@ export default function Topups() {
     }
   }, [status]);
 
-  useEffect(() => { load(); }, [load]);
+  const loadConfig = useCallback(async () => {
+    try {
+      const data = await apiGet('/wallet/admin/topup-config');
+      setPaymentConfig(data);
+      setUpiId(data.upi_id || '');
+      setPayeeName(data.payee_name || 'Gofixo');
+    } catch (err) {
+      setError(err.message || 'Could not load UPI payment settings.');
+    }
+  }, []);
+
+  useEffect(() => { load(); loadConfig(); }, [load, loadConfig]);
+
+  async function saveConfig(event) {
+    event.preventDefault();
+    if (!upiId.trim() || !payeeName.trim()) {
+      setError('UPI ID and payee name are required.');
+      return;
+    }
+    if (!paymentConfig.has_qr && !qrFile) {
+      setError('Upload the official Gofixo UPI QR image before saving settings.');
+      return;
+    }
+    setSavingConfig(true);
+    setError('');
+    setNotice('');
+    try {
+      const form = new FormData();
+      form.append('upi_id', upiId.trim());
+      form.append('payee_name', payeeName.trim());
+      if (qrFile) form.append('qr_image', qrFile);
+      await apiUpload('/wallet/admin/topup-config', form);
+      setQrFile(null);
+      setFileInputKey((key) => key + 1);
+      setNotice('UPI payment settings saved. Customers can now see the official QR.');
+      await loadConfig();
+    } catch (err) {
+      setError(err.message || 'Could not save UPI payment settings.');
+    } finally {
+      setSavingConfig(false);
+    }
+  }
 
   async function verify(request) {
     const amountText = window.prompt(
@@ -111,6 +158,36 @@ export default function Topups() {
         <button className="btn btn-approve" type="button" onClick={load} disabled={loading}>
           {loading ? 'Refreshing…' : 'Refresh'}
         </button>
+      </div>
+
+      <div className="topup-config-card">
+        <div>
+          <h3>Customer payment QR settings</h3>
+          <p className="page-subtitle">Store the official QR securely in the backend database. It is sent only to signed-in customers, not published as a repository asset.</p>
+        </div>
+        <div className={paymentConfig.configured ? 'topup-config-status is-ready' : 'topup-config-status'}>
+          {paymentConfig.configured ? 'QR configured' : 'Setup required'}
+          {paymentConfig.updated_at_ist && <span>Updated {paymentConfig.updated_at_ist} IST</span>}
+        </div>
+        <form className="topup-config-form" onSubmit={saveConfig}>
+          <label>
+            Official UPI ID
+            <input value={upiId} onChange={(event) => setUpiId(event.target.value)} placeholder="name@bank" autoComplete="off" required />
+          </label>
+          <label>
+            Payee name
+            <input value={payeeName} onChange={(event) => setPayeeName(event.target.value)} placeholder="Gofixo" maxLength={120} required />
+          </label>
+          <label>
+            QR image {paymentConfig.has_qr ? '(optional — choose only to replace)' : '(required)'}
+            <input key={fileInputKey} type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => setQrFile(event.target.files?.[0] || null)} required={!paymentConfig.has_qr} />
+            <span className="sub-line">PNG, JPG or WebP · maximum 1 MB</span>
+          </label>
+          {qrFile && <span className="sub-line">Selected: {qrFile.name}</span>}
+          <button className="btn btn-approve" type="submit" disabled={savingConfig}>
+            {savingConfig ? 'Saving settings…' : 'Save payment settings'}
+          </button>
+        </form>
       </div>
 
       <div className="topup-safety-note">
