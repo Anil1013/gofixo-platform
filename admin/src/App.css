@@ -527,3 +527,133 @@ nav { display: flex; flex-direction: column; gap: 2px; }
     min-width: 820px;
   }
 }
+
+
+/* ---- Manual UPI wallet top-up review ---- */
+.topup-safety-note {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 16px;
+  margin: 0 0 20px;
+  border: 1px solid #f0d6a4;
+  border-radius: 10px;
+  background: #fff9ed;
+  color: #6d4c12;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.topup-safety-note strong { font-size: 13.5px; }
+.topup-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+  flex-wrap: wrap;
+}
+.topup-toolbar label { font-size: 13px; color: var(--text-dim); }
+.topup-toolbar select {
+  min-width: 190px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+}
+.topup-count { margin-left: auto; color: var(--text-dim); font-size: 12px; }
+.topup-alert {
+  padding: 11px 14px;
+  border-radius: 8px;
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.topup-alert-error { color: #9f243d; background: #FCE8ED; border: 1px solid #f4c5d0; }
+.topup-alert-success { color: #087c6f; background: #E3F7F3; border: 1px solid #b9e9df; }
+.topup-empty {
+  padding: 38px 18px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  text-align: center;
+  color: var(--text-dim);
+  background: rgba(255,255,255,.65);
+  font-size: 13px;
+}
+.topup-table-wrap { width: 100%; overflow-x: auto; border-radius: 10px; }
+.topup-table { min-width: 980px; }
+.topup-table code {
+  display: inline-block;
+  max-width: 240px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  color: var(--text);
+  background: #F5F1F8;
+  padding: 3px 6px;
+  border-radius: 5px;
+  font-size: 11px;
+}
+.topup-table .btn { margin: 3px 4px 3px 0; }
+@media (max-width: 760px) {
+  .content { padding: 24px 16px; }
+  .topup-toolbar { align-items: flex-start; }
+  .topup-count { margin-left: 0; width: 100%; }
+}
+
+
+.topup-config-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  box-shadow: 0 8px 22px rgba(59,42,92,.04);
+}
+.topup-config-card h3 { margin: 0 0 5px; font-size: 16px; }
+.topup-config-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  color: #9a6514;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.topup-config-status span { color: var(--text-dim); font-weight: 400; font-size: 11px; }
+.topup-config-status.is-ready { color: #087c6f; }
+.topup-config-form {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+.topup-config-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.topup-config-form input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  color: var(--text);
+  background: #fff;
+}
+.topup-config-form input[type="file"] { font-size: 12px; padding: 8px; }
+.topup-config-form button { justify-self: start; margin: 0; }
+@media (max-width: 760px) {
+  .topup-config-card { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+  .topup-config-status { align-items: flex-start; }
+  .topup-config-form { grid-template-columns: minmax(0, 1fr); }
+}

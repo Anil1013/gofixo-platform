@@ -72,3 +72,18 @@ export async function apiGetBlob(path) {
   }
   return res.blob();
 }
+
+export async function apiUpload(path, formData) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'x-admin-key': getAdminKey() },
+    body: formData,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new Error('Admin key incorrect — please log in again');
+  }
+  if (!res.ok) throw new Error(data.error || `API error: ${res.status}`);
+  return data;
+}

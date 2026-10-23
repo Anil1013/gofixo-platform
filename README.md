@@ -96,6 +96,21 @@ Authenticated customer/provider sockets can subscribe to a booking and receive p
 
 Run `config/schema.sql` for a new database. Production startup also applies additive compatibility changes for fields/tables introduced after the initial schema.
 
+## Manual UPI wallet top-ups
+
+Customer wallet top-ups use the configured Gofixo UPI QR and are **not** credited from a screenshot or UTR alone.
+
+The admin console's **Wallet top-ups** tab lets an admin set the payee name, optionally set the UPI ID for the app-launch shortcut, and securely upload the QR image (PNG/JPEG/WebP, up to 1 MB). The QR is stored in the backend database and returned only to authenticated customers; it is not committed to GitHub or exposed as a public static asset. The QR image is sufficient for scan-and-pay; the UPI ID is optional and only enables the direct UPI-app shortcut. Optional environment fallbacks are `GOFIXO_UPI_ID`, `GOFIXO_UPI_PAYEE_NAME`, and `GOFIXO_UPI_QR_IMAGE_URL` (HTTPS only).
+
+The customer app calls `GET /api/wallet/topup-config`, submits amount + UTR to `POST /api/wallet/topup-intent`, and can review submissions at `GET /api/wallet/topup-requests`. Amounts are limited to ₹50–₹50,000. UTRs are unique across all requests. Submitting a UTR never changes the wallet balance.
+
+The admin console's **Wallet top-ups** tab also configures the official QR, reviews pending requests, verifies bank-confirmed amounts, or rejects claims. Admin endpoints use the existing `x-admin-key` / `ADMIN_SECRET` protection:
+- `GET /api/wallet/admin/topups?status=pending_verification`
+- `POST /api/wallet/admin/topups/:id/verify` with `{ "verified_amount": 500, "bank_reference": "bank statement reference", "note": "optional" }`
+- `POST /api/wallet/admin/topups/:id/reject` with `{ "note": "reason" }`
+
+Verify only after matching the payment against the actual bank record. The confirmed amount must exactly match the submitted amount. Wallet credit, status transition and audit entry are performed in one database transaction. All displayed audit timestamps use Asia/Kolkata.
+
 ## Mobile releases
 
 Flutter mobile code lives in `mobile/`.
