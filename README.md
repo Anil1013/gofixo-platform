@@ -100,14 +100,11 @@ Run `config/schema.sql` for a new database. Production startup also applies addi
 
 Customer wallet top-ups use the configured Gofixo UPI QR and are **not** credited from a screenshot or UTR alone.
 
-Configure these backend environment variables in the production runtime (do not commit real account values):
-- `GOFIXO_UPI_ID` — the official Gofixo UPI ID.
-- `GOFIXO_UPI_PAYEE_NAME` — payee name displayed to the customer.
-- `GOFIXO_UPI_QR_IMAGE_URL` — HTTPS URL for the official QR image.
+The admin console's **Wallet top-ups** tab lets an admin set the official UPI ID and payee name, and securely upload the QR image (PNG/JPEG/WebP, up to 1 MB). The QR is stored in the backend database and returned only to authenticated customers; it is not committed to GitHub or exposed as a public static asset. Optional environment fallbacks are `GOFIXO_UPI_ID`, `GOFIXO_UPI_PAYEE_NAME`, and `GOFIXO_UPI_QR_IMAGE_URL` (HTTPS only).
 
 The customer app calls `GET /api/wallet/topup-config`, submits amount + UTR to `POST /api/wallet/topup-intent`, and can review submissions at `GET /api/wallet/topup-requests`. Amounts are limited to ₹50–₹50,000. UTRs are unique across all requests. Submitting a UTR never changes the wallet balance.
 
-The admin console now includes a **Wallet top-ups** tab to review pending requests, verify bank-confirmed amounts, or reject claims. Admin endpoints use the existing `x-admin-key` / `ADMIN_SECRET` protection:
+The admin console's **Wallet top-ups** tab also configures the official QR, reviews pending requests, verifies bank-confirmed amounts, or rejects claims. Admin endpoints use the existing `x-admin-key` / `ADMIN_SECRET` protection:
 - `GET /api/wallet/admin/topups?status=pending_verification`
 - `POST /api/wallet/admin/topups/:id/verify` with `{ "verified_amount": 500, "bank_reference": "bank statement reference", "note": "optional" }`
 - `POST /api/wallet/admin/topups/:id/reject` with `{ "note": "reason" }`
