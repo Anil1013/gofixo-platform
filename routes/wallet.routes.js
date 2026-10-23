@@ -77,7 +77,7 @@ router.get('/topup-config', requireAuth(['customer']), async (_req, res, next) =
     const qrImageUrl = String(process.env.GOFIXO_UPI_QR_IMAGE_URL || '').trim();
     res.set('Cache-Control', 'no-store');
     res.json({
-      configured: Boolean(upiId && qrImageUrl),
+      configured: Boolean(upiId && /^https:\/\//i.test(qrImageUrl)),
       paymentMethod: 'upi_qr',
       upiId,
       payeeName,
