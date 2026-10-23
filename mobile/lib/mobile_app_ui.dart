@@ -599,6 +599,56 @@ class _ProviderMiniMapState extends State<_ProviderMiniMap>{
  bool touched=false;
  LatLng? pickup;
  LatLng? destination;
+ Set<Polyline> roadRoutes={};
+ String routeSignature='';
+
+ @override void initState(){super.initState();WidgetsBinding.instance.addPostFrameCallback((_)=>_loadRoadRoute());}
+ @override void didUpdateWidget(covariant _ProviderMiniMap oldWidget){super.didUpdateWidget(oldWidget);if(oldWidget.b['id']!=widget.b['id']||oldWidget.b['pickup_lat']!=widget.b['pickup_lat']||oldWidget.b['drop_lat']!=widget.b['drop_lat'])_loadRoadRoute();}
+
+ Future<void> _loadRoadRoute() async {
+  final pLat=double.tryParse((widget.b['pickup_lat']??widget.b['pickup_latitude'])?.toString()??'');
+  final pLng=double.tryParse((widget.b['pickup_lng']??widget.b['pickup_longitude'])?.toString()??'');
+  final dLat=double.tryParse((widget.b['drop_lat']??widget.b['drop_latitude'])?.toString()??'');
+  final dLng=double.tryParse((widget.b['drop_lng']??widget.b['drop_longitude'])?.toString()??'');
+  if(pLat==null||pLng==null||dLat==null||dLng==null)return;
+  final signature='$pLat,$pLng>$dLat,$dLng';
+  if(signature==routeSignature)return;
+  routeSignature=signature;
+  try{
+   final result=await ApiService.computeRoute(pLat,pLng,dLat,dLng);
+   final pts=_decodeGooglePolyline(result['encodedPolyline']?.toString()??'');
+   if(!mounted||pts.length<2)return;
+   setState(()=>roadRoutes={Polyline(polylineId:const PolylineId('preview-road-route'),points:pts,width:5,color:gfGreen)});
+   WidgetsBinding.instance.addPostFrameCallback((_)=>_fitRoute());
+  }catch(_){
+   // Never show a misleading straight line when Google cannot return a road route.
+  }
+ }
+
+ List<LatLng> _decodeGooglePolyline(String encoded){
+  final pts=<LatLng>[];var index=0,lat=0,lng=0;
+  while(index<encoded.length){
+   var result=0,shift=0;int b;
+   do{if(index>=encoded.length)return pts;b=encoded.codeUnitAt(index++)-63;result|=(b&31)<<shift;shift+=5;}while(b>=32);
+   lat+=((result&1)!=0?~(result>>1):(result>>1));result=0;shift=0;
+   do{if(index>=encoded.length)return pts;b=encoded.codeUnitAt(index++)-63;result|=(b&31)<<shift;shift+=5;}while(b>=32);
+   lng+=((result&1)!=0?~(result>>1):(result>>1));pts.add(LatLng(lat/1e5,lng/1e5));
+  }
+  return pts;
+ }
+
+ Future<void> _fitRoute() async {
+  final all=<LatLng>[if(pickup!=null)pickup!,if(destination!=null)destination!];
+  for(final route in roadRoutes)all.addAll(route.points);
+  if(controller==null||all.length<2)return;
+  try{
+   var minLat=all.first.latitude,maxLat=all.first.latitude,minLng=all.first.longitude,maxLng=all.first.longitude;
+   for(final p in all.skip(1)){minLat=min(minLat,p.latitude);maxLat=max(maxLat,p.latitude);minLng=min(minLng,p.longitude);maxLng=max(maxLng,p.longitude);}
+   if((maxLat-minLat).abs()<0.0001){minLat-=0.001;maxLat+=0.001;}
+   if((maxLng-minLng).abs()<0.0001){minLng-=0.001;maxLng+=0.001;}
+   await controller!.animateCamera(CameraUpdate.newLatLngBounds(LatLngBounds(southwest:LatLng(minLat,minLng),northeast:LatLng(maxLat,maxLng)),70));
+  }catch(_){}
+ }
 
  @override Widget build(BuildContext c){
   final pLat=double.tryParse((widget.b['pickup_lat']??widget.b['pickup_latitude'])?.toString()??'');
@@ -638,9 +688,7 @@ class _ProviderMiniMapState extends State<_ProviderMiniMap>{
       if(pickup!=null)Marker(markerId:const MarkerId('pickup'),position:pickup!,infoWindow:const InfoWindow(title:'Customer Pickup')),
       if(destination!=null)Marker(markerId:const MarkerId('destination'),position:destination!,infoWindow:const InfoWindow(title:'Destination')),
     },
-    polylines:{
-      if(pickup!=null&&destination!=null)Polyline(polylineId:const PolylineId('preview'),points:[pickup!,destination!],width:5,color:gfGreen),
-    },
+    polylines:roadRoutes,
     zoomControlsEnabled:false,myLocationButtonEnabled:false,compassEnabled:true,
    ),
    Positioned(left:12,right:12,top:12,child:Container(padding:const EdgeInsets.all(11),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(15),boxShadow:const[BoxShadow(color:Color(0x22000000),blurRadius:10)]),child:Row(children:[
@@ -2156,6 +2204,7 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
   LatLng? pickupPoint;
   LatLng? destinationPoint;
   LatLng? lastRoutedPoint;
+  LatLng? lastRouteTarget;
   Set<Polyline> routeLines={};
   List<Map<String,dynamic>> liveRouteSteps=[];
   double? routeDistanceMeters;
@@ -2289,7 +2338,10 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
     final p=providerPoint!;
     final target=(status=='ongoing'&&destinationPoint!=null)?destinationPoint:pickupPoint;
     if(target==null)return;
-    if(lastRoutedPoint!=null&&Geolocator.distanceBetween(lastRoutedPoint!.latitude,lastRoutedPoint!.longitude,p.latitude,p.longitude)<100)return;
+    final targetChanged=lastRouteTarget==null||
+      Geolocator.distanceBetween(lastRouteTarget!.latitude,lastRouteTarget!.longitude,target.latitude,target.longitude)>5;
+    if(!targetChanged&&lastRoutedPoint!=null&&
+      Geolocator.distanceBetween(lastRoutedPoint!.latitude,lastRoutedPoint!.longitude,p.latitude,p.longitude)<100)return;
     try{
       final r=await ApiService.computeRoute(p.latitude,p.longitude,target.latitude,target.longitude);
       final pts=_decodeGooglePolyline(r['encodedPolyline']?.toString()??'');
@@ -2308,6 +2360,7 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
           liveRouteSteps=steps;
         });
         lastRoutedPoint=p;
+        lastRouteTarget=target;
       }
     }catch(_){}
   }
