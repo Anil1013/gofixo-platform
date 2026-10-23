@@ -352,19 +352,45 @@ class _CustomerWalletTab extends StatefulWidget{
 
 class _CustomerWalletTabState extends State<_CustomerWalletTab>{
   Map<String,dynamic> walletData={};
+  Map<String,dynamic> topupConfig={};
   List<Map<String,dynamic>> transactions=[];
+  List<Map<String,dynamic>> topupRequests=[];
+  final TextEditingController amountController=TextEditingController();
+  final TextEditingController utrController=TextEditingController();
   bool loading=true;
+  bool submitting=false;
 
   @override void initState(){super.initState();_load();}
+  @override void dispose(){amountController.dispose();utrController.dispose();super.dispose();}
 
   Future<void> _load()async{
     try{
       final w=await ApiService.wallet(widget.session.token);
       final tx=await ApiService.walletTransactions(widget.session.token);
-      if(mounted)setState((){walletData=w;transactions=tx;loading=false;});
+      Map<String,dynamic> cfg={};
+      List<Map<String,dynamic>> requests=[];
+      try{cfg=await ApiService.walletTopupConfig(widget.session.token);}catch(_){}
+      try{requests=await ApiService.walletTopupRequests(widget.session.token);}catch(_){}
+      if(mounted)setState((){walletData=w;transactions=tx;topupConfig=cfg;topupRequests=requests;loading=false;});
     }catch(e){
       if(mounted){setState(()=>loading=false);_snack(e.toString());}
     }
+  }
+
+  Future<void> _submitTopup()async{
+    final amount=double.tryParse(amountController.text.trim());
+    final utr=utrController.text.trim();
+    if(amount==null||amount<50||amount>50000){_snack('Enter an amount between ₹50 and ₹50,000.');return;}
+    if(utr.length<8){_snack('Enter the UTR/reference from your payment receipt.');return;}
+    if(submitting)return;
+    setState(()=>submitting=true);
+    try{
+      final result=await ApiService.submitWalletTopup(widget.session.token,amount,utr);
+      amountController.clear();utrController.clear();
+      _snack((result['message']??'Payment claim submitted for verification.').toString());
+      await _load();
+    }catch(e){_snack(e.toString());}
+    finally{if(mounted)setState(()=>submitting=false);}
   }
 
   void _snack(String s){
@@ -386,10 +412,40 @@ class _CustomerWalletTabState extends State<_CustomerWalletTab>{
         Text('Reserved ₹'+reserved.toStringAsFixed(2)+' · INR',style:const TextStyle(color:Colors.white70,fontSize:11)),
       ])),
       const SizedBox(height:12),
-      const _Box(child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Icon(Icons.info_outline,color:gfGreen,size:18),SizedBox(width:9),
-        Expanded(child:Text('Gateway wallet top-ups are disabled. Do not treat a QR screenshot or payment claim as confirmed. Use bank-confirmed payment records; wallet credit requires admin verification.',style:TextStyle(fontSize:11,color:gfMuted)))
+      _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        const Text('Add money by UPI',style:TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy)),
+        const SizedBox(height:5),
+        const Text('Pay to Gofixo using the official QR, then enter the UTR from your payment receipt. Wallet credit is added only after the admin matches the payment in the bank record.',style:TextStyle(fontSize:11,color:gfMuted)),
+        const SizedBox(height:12),
+        if(topupConfig['configured']==true&&topupConfig['qrImageUrl']!=null&&topupConfig['qrImageUrl'].toString().isNotEmpty)...[
+          Center(child:ClipRRect(borderRadius:BorderRadius.circular(14),child:Image.network(topupConfig['qrImageUrl'].toString(),height:190,width:190,fit:BoxFit.contain,errorBuilder:(context,error,stack)=>const SizedBox(height:100,child:Center(child:Text('QR image could not load',style:TextStyle(color:gfMuted))))))),
+          const SizedBox(height:8),
+          if((topupConfig['payeeName']??'').toString().isNotEmpty) Center(child:Text(topupConfig['payeeName'].toString(),style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy))),
+          if((topupConfig['upiId']??'').toString().isNotEmpty) Center(child:SelectableText('UPI ID: '+topupConfig['upiId'].toString(),style:const TextStyle(fontSize:12,color:gfGreen,fontWeight:FontWeight.w700))),
+        ]else
+          const _Box(child:Text('UPI QR is not configured yet. Please contact Gofixo support; do not send money to an unverified QR.',style:TextStyle(fontSize:11,color:gfOrange))),
+        const SizedBox(height:12),
+        TextField(controller:amountController,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Amount (₹50–₹50,000)',border:OutlineInputBorder(),prefixText:'₹ ')),
+        const SizedBox(height:10),
+        TextField(controller:utrController,textCapitalization:TextCapitalization.characters,decoration:const InputDecoration(labelText:'UPI UTR / transaction reference',hintText:'Enter the reference from receipt',border:OutlineInputBorder())),
+        const SizedBox(height:10),
+        SizedBox(width:double.infinity,child:FilledButton(onPressed:submitting||topupConfig['configured']!=true?null:_submitTopup,style:FilledButton.styleFrom(backgroundColor:gfGreen,foregroundColor:Colors.white),child:Text(submitting?'Submitting…':'I have paid — submit UTR'))),
       ])),
+      if(topupRequests.isNotEmpty)...[
+        const SizedBox(height:16),
+        const Text('UPI top-up requests',style:TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy)),
+        const SizedBox(height:8),
+        ...topupRequests.take(10).map((r)=>Padding(padding:const EdgeInsets.only(bottom:8),child:_Box(child:Row(children:[
+          const Icon(Icons.receipt_long,color:gfGreen),
+          const SizedBox(width:10),
+          Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Text('₹'+(double.tryParse(r['amount']?.toString()??'0')??0).toStringAsFixed(2),style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
+            Text('UTR: '+(r['utr']??'').toString(),style:const TextStyle(fontSize:10,color:gfMuted)),
+            Text((r['status']??'pending_verification').toString().replaceAll('_',' ').toUpperCase(),style:const TextStyle(fontSize:10,color:gfGreen,fontWeight:FontWeight.w800)),
+            if((r['admin_note']??'').toString().isNotEmpty)Text(r['admin_note'].toString(),style:const TextStyle(fontSize:10,color:gfMuted)),
+          ])),
+        ])))),
+      ],
       const SizedBox(height:18),
       const Text('Recent transactions',style:TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy)),
       const SizedBox(height:8),
