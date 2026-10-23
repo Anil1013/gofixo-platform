@@ -279,6 +279,9 @@ app.post('/api/routes/compute', async (req, res) => {
         destination: { location: { latLng: { latitude: destinationLat, longitude: destinationLng } } },
         travelMode: 'DRIVE',
         routingPreference: 'TRAFFIC_AWARE',
+        // Request detailed road-following geometry instead of a coarse overview line.
+        polylineQuality: 'HIGH_QUALITY',
+        polylineEncoding: 'ENCODED_POLYLINE',
         computeAlternativeRoutes: false,
         routeModifiers: { avoidTolls: false, avoidHighways: false, avoidFerries: false },
         languageCode: 'en-IN',
