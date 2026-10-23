@@ -10,12 +10,6 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter_cashfree_pg_sdk/api/cfpayment/cfwebcheckoutpayment.dart';
-import 'package:flutter_cashfree_pg_sdk/api/cfpaymentgateway/cfpaymentgatewayservice.dart';
-import 'package:flutter_cashfree_pg_sdk/api/cfsession/cfsession.dart';
-import 'package:flutter_cashfree_pg_sdk/utils/cfenums.dart';
-import 'package:flutter_cashfree_pg_sdk/utils/cfexceptions.dart';
-import 'package:flutter_cashfree_pg_sdk/api/cferrorresponse/cferrorresponse.dart';
 import 'api_service.dart';
 import 'push_service.dart';
 
@@ -357,16 +351,11 @@ class _CustomerWalletTab extends StatefulWidget{
 }
 
 class _CustomerWalletTabState extends State<_CustomerWalletTab>{
-  final CFPaymentGatewayService _cashfree=CFPaymentGatewayService();
   Map<String,dynamic> walletData={};
   List<Map<String,dynamic>> transactions=[];
-  bool loading=true,paying=false;
+  bool loading=true;
 
-  @override void initState(){
-    super.initState();
-    _cashfree.setCallback(_verifyPayment,_paymentError);
-    _load();
-  }
+  @override void initState(){super.initState();_load();}
 
   Future<void> _load()async{
     try{
@@ -375,78 +364,6 @@ class _CustomerWalletTabState extends State<_CustomerWalletTab>{
       if(mounted)setState((){walletData=w;transactions=tx;loading=false;});
     }catch(e){
       if(mounted){setState(()=>loading=false);_snack(e.toString());}
-    }
-  }
-
-  void _paymentError(CFErrorResponse error,String orderId){
-    if(mounted)setState(()=>paying=false);
-    _snack(error.getMessage() ?? 'Payment failed.');
-  }
-
-  void _verifyPayment(String orderId) async{
-    for(var i=0;i<12;i++){
-      try{
-        final status=await ApiService.walletTopupStatus(widget.session.token,orderId);
-        final s=status['status']?.toString().toLowerCase()??'';
-        if(s=='success'){
-          if(mounted){setState(()=>paying=false);_snack('Payment successful. Wallet balance updated.');await _load();}
-          return;
-        }
-        if(s=='failed'){
-          if(mounted){setState(()=>paying=false);_snack('Payment failed. No money was added to your wallet.');}
-          return;
-        }
-      }catch(_){}
-      await Future.delayed(const Duration(seconds:1));
-    }
-    if(mounted){setState(()=>paying=false);_snack('Payment is being verified. Refresh your wallet in a moment.');await _load();}
-  }
-
-  Future<void> _addMoney()async{
-    if(paying)return;
-    final amount=await showDialog<double>(
-      context:context,
-      builder:(c){
-        final controller=TextEditingController(text:'500');
-        return AlertDialog(
-          title:const Text('Add money to wallet'),
-          content:TextField(
-            controller:controller,
-            keyboardType:const TextInputType.numberWithOptions(decimal:true),
-            decoration:const InputDecoration(prefixText:'₹ ',labelText:'Amount',hintText:'100–1000000'),
-          ),
-          actions:[
-            TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cancel')),
-            FilledButton(onPressed:(){
-              final n=double.tryParse(controller.text.trim());
-              if(n!=null)Navigator.pop(c,n);
-            },child:const Text('Continue')),
-          ],
-        );
-      },
-    );
-    if(amount==null||amount<=0)return;
-    setState(()=>paying=true);
-    try{
-      final order=await ApiService.walletTopupIntent(widget.session.token,amount);
-      final orderId=order['order_id']?.toString()??'';
-      final sessionId=order['payment_session_id']?.toString()??'';
-      final env=(order['environment']?.toString().toLowerCase()=='production')
-          ?CFEnvironment.PRODUCTION:CFEnvironment.SANDBOX;
-      if(orderId.isEmpty||sessionId.isEmpty)throw Exception('Payment session could not be created.');
-      final session=CFSessionBuilder()
-          .setEnvironment(env)
-          .setOrderId(orderId)
-          .setPaymentSessionId(sessionId)
-          .build();
-      final payment=CFWebCheckoutPaymentBuilder().setSession(session).build();
-      _cashfree.doPayment(payment);
-    }on CFException catch(e){
-      if(mounted)setState(()=>paying=false);
-      _snack(e.message);
-    }catch(e){
-      if(mounted)setState(()=>paying=false);
-      _snack(e.toString());
     }
   }
 
@@ -459,7 +376,7 @@ class _CustomerWalletTabState extends State<_CustomerWalletTab>{
     final available=double.tryParse(walletData['available_balance']?.toString()??'0')??0;
     final reserved=double.tryParse(walletData['reserved_balance']?.toString()??'0')??0;
     return RefreshIndicator(onRefresh:_load,child:ListView(padding:const EdgeInsets.fromLTRB(14,10,14,28),children:[
-      const _PageHeading(title:'Gofixo Wallet',subtitle:'Secure balance for home-service payments.'),
+      const _PageHeading(title:'Gofixo Wallet',subtitle:'Wallet ledger and payment history.'),
       const SizedBox(height:10),
       Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:gfNavy,borderRadius:BorderRadius.circular(24)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         const Text('AVAILABLE BALANCE',style:TextStyle(color:Colors.white70,fontSize:9,fontWeight:FontWeight.w800)),
@@ -468,34 +385,29 @@ class _CustomerWalletTabState extends State<_CustomerWalletTab>{
         const SizedBox(height:8),
         Text('Reserved ₹'+reserved.toStringAsFixed(2)+' · INR',style:const TextStyle(color:Colors.white70,fontSize:11)),
       ])),
-      const SizedBox(height:14),
-      SizedBox(width:double.infinity,child:FilledButton.icon(
-        onPressed:paying?null:_addMoney,
-        style:FilledButton.styleFrom(backgroundColor:gfGreen,padding:const EdgeInsets.symmetric(vertical:14)),
-        icon:paying?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2,color:Colors.white)):const Icon(Icons.add_card_rounded),
-        label:Text(paying?'Processing payment…':'Add money securely'),
-      )),
-      const SizedBox(height:8),
-      const _Box(child:Row(children:[
-        Icon(Icons.verified_user_outlined,color:gfGreen,size:18),SizedBox(width:9),
-        Expanded(child:Text('Payments are processed by Cashfree. Gofixo credits your wallet only after verified payment confirmation.',style:TextStyle(fontSize:10,color:gfMuted)))
+      const SizedBox(height:12),
+      const _Box(child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Icon(Icons.info_outline,color:gfGreen,size:18),SizedBox(width:9),
+        Expanded(child:Text('Gateway wallet top-ups are disabled. Do not treat a QR screenshot or payment claim as confirmed. Use bank-confirmed payment records; wallet credit requires admin verification.',style:TextStyle(fontSize:11,color:gfMuted)))
       ])),
       const SizedBox(height:18),
       const Text('Recent transactions',style:TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy)),
       const SizedBox(height:8),
       if(loading) const _Box(child:Center(child:Padding(padding:EdgeInsets.all(18),child:CircularProgressIndicator(color:gfGreen))))
       else if(transactions.isEmpty) const _Box(child:Text('No wallet transactions yet.',style:TextStyle(fontSize:11,color:gfMuted)))
-      else ...transactions.take(20).map((tx){
+      else ...transactions.take(50).map((tx){
         final amount=double.tryParse(tx['amount']?.toString()??'0')??0;
         final type=tx['type']?.toString()??'TRANSACTION';
         final status=tx['status']?.toString()??'';
         final credit=type=='TOPUP'||type=='BOOKING_RELEASE'||type=='REFUND';
+        final when=(tx['created_at']??'').toString();
         return Padding(padding:const EdgeInsets.only(bottom:8),child:_Box(child:Row(children:[
           Icon(credit?Icons.south_west_rounded:Icons.north_east_rounded,color:credit?gfGreen:gfOrange,size:20),
           const SizedBox(width:10),
           Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
             Text(type.replaceAll('_',' '),style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy,fontSize:12)),
-            Text(status.toUpperCase(),style:const TextStyle(color:gfMuted,fontSize:9)),
+            Text(status.toUpperCase()+(when.isEmpty?'':' · '+when),style:const TextStyle(color:gfMuted,fontSize:9)),
+            if((tx['reference_id']??'').toString().isNotEmpty) Text('Ref: '+tx['reference_id'].toString(),style:const TextStyle(color:gfMuted,fontSize:9)),
           ])),
           Text((credit?'+':'-')+'₹'+amount.toStringAsFixed(2),style:TextStyle(fontWeight:FontWeight.w900,color:credit?gfGreen:gfNavy)),
         ])));
