@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiPost, API_BASE, getToken } from '../api';
 import MapView from '../components/MapView';
 import ProfilePhoto from '../components/ProfilePhoto';
@@ -25,6 +25,7 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
   const [liveProvider, setLiveProvider] = useState(null);
   const [roadRoute, setRoadRoute] = useState(null);
   const [routeError, setRouteError] = useState('');
+  const lastRouteRequest = useRef(null);
 
   // Refresh booking state and the assigned provider's coordinates every 15 seconds
   // while the ride/service is active. The backend only exposes that location to
@@ -92,17 +93,34 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
     async function refreshRoadRoute() {
       const pickup = { lat: Number(booking.pickup_lat), lng: Number(booking.pickup_lng) };
       const drop = { lat: Number(booking.drop_lat), lng: Number(booking.drop_lng) };
-      const hasDrop = Number.isFinite(drop.lat) && Number.isFinite(drop.lng);
-      const target = booking.status === 'ongoing' && hasDrop ? drop : pickup;
+      const hasDrop = Number.isFinite(drop.lat) && Number.isFinite(drop.lng)
+        && !(drop.lat === 0 && drop.lng === 0);
+      // Before a live provider fix arrives, show the booked ride's road route.
+      // Once provider GPS is available, route from the moving partner to pickup,
+      // then switch to the destination when the trip starts.
+      const target = liveProvider && booking.status !== 'ongoing' ? pickup : (hasDrop ? drop : pickup);
       const origin = liveProvider || pickup;
       if (![origin.lat, origin.lng, target.lat, target.lng].every(Number.isFinite)
         || (origin.lat === 0 && origin.lng === 0) || (target.lat === 0 && target.lng === 0)) {
         setRoadRoute(null);
         return;
       }
+      const previous = lastRouteRequest.current;
+      if (previous && previous.target.lat === target.lat && previous.target.lng === target.lng) {
+        const rad = (value) => value * Math.PI / 180;
+        const dLat = rad(origin.lat - previous.origin.lat);
+        const dLng = rad(origin.lng - previous.origin.lng);
+        const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(previous.origin.lat)) * Math.cos(rad(origin.lat)) * Math.sin(dLng / 2) ** 2;
+        const movedMeters = 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h)));
+        if (movedMeters < 100) return;
+      }
       try {
         const result = await getRoute(origin, target);
-        if (!cancelled) { setRoadRoute(result); setRouteError(''); }
+        if (!cancelled) {
+          lastRouteRequest.current = { origin, target };
+          setRoadRoute(result);
+          setRouteError('');
+        }
       } catch {
         if (!cancelled) { setRoadRoute(null); setRouteError('Road route is temporarily unavailable.'); }
       }
