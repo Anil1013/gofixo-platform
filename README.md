@@ -107,12 +107,12 @@ Configure these backend environment variables in the production runtime (do not 
 
 The customer app calls `GET /api/wallet/topup-config`, submits amount + UTR to `POST /api/wallet/topup-intent`, and can review submissions at `GET /api/wallet/topup-requests`. Amounts are limited to ₹50–₹50,000. UTRs are unique across all requests. Submitting a UTR never changes the wallet balance.
 
-Admin endpoints use the existing `x-admin-key` / `ADMIN_SECRET` protection:
+The admin console now includes a **Wallet top-ups** tab to review pending requests, verify bank-confirmed amounts, or reject claims. Admin endpoints use the existing `x-admin-key` / `ADMIN_SECRET` protection:
 - `GET /api/wallet/admin/topups?status=pending_verification`
 - `POST /api/wallet/admin/topups/:id/verify` with `{ "verified_amount": 500, "bank_reference": "bank statement reference", "note": "optional" }`
 - `POST /api/wallet/admin/topups/:id/reject` with `{ "note": "reason" }`
 
-Verify only after matching the payment against the actual bank record. The confirmed amount must exactly match the submitted amount. Wallet credit, status transition and audit entry are performed in one database transaction. Admin verification endpoints are API-only in this change; connect them to the admin console before treating the workflow as operationally complete. All displayed audit timestamps use Asia/Kolkata.
+Verify only after matching the payment against the actual bank record. The confirmed amount must exactly match the submitted amount. Wallet credit, status transition and audit entry are performed in one database transaction. All displayed audit timestamps use Asia/Kolkata.
 
 ## Mobile releases
 
