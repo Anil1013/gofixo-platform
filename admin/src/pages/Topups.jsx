@@ -60,8 +60,8 @@ export default function Topups() {
 
   async function saveConfig(event) {
     event.preventDefault();
-    if (!upiId.trim() || !payeeName.trim()) {
-      setError('UPI ID and payee name are required.');
+    if (!payeeName.trim()) {
+      setError('Payee name is required.');
       return;
     }
     if (!paymentConfig.has_qr && !qrFile) {
@@ -171,8 +171,8 @@ export default function Topups() {
         </div>
         <form className="topup-config-form" onSubmit={saveConfig}>
           <label>
-            Official UPI ID
-            <input value={upiId} onChange={(event) => setUpiId(event.target.value)} placeholder="name@bank" autoComplete="off" required />
+            Official UPI ID (optional — enables opening a UPI app)
+            <input value={upiId} onChange={(event) => setUpiId(event.target.value)} placeholder="name@bank (optional)" autoComplete="off" />
           </label>
           <label>
             Payee name
