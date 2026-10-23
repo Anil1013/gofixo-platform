@@ -2334,10 +2334,18 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
   }
 
   Future<void>_refreshRoute()async{
-    if(providerPoint==null)return;
-    final p=providerPoint!;
-    final target=(status=='ongoing'&&destinationPoint!=null)?destinationPoint:pickupPoint;
+    // Before the partner's first GPS update, show the booked pickup-to-drop
+    // road route instead of returning early (which left the customer map blank).
+    final p=providerPoint ?? pickupPoint;
+    if(p==null)return;
+    final target = status=='ongoing'
+      ? destinationPoint
+      : (providerPoint!=null ? pickupPoint : (destinationPoint ?? pickupPoint));
     if(target==null)return;
+    if(Geolocator.distanceBetween(p.latitude,p.longitude,target.latitude,target.longitude)<20){
+      if(mounted)setState(()=>routeLines={});
+      return;
+    }
     final targetChanged=lastRouteTarget==null||
       Geolocator.distanceBetween(lastRouteTarget!.latitude,lastRouteTarget!.longitude,target.latitude,target.longitude)>5;
     if(!targetChanged&&lastRoutedPoint!=null&&
