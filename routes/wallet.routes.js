@@ -89,8 +89,8 @@ router.get('/topup-config', requireAuth(['customer']), async (_req, res, next) =
       'SELECT upi_id, payee_name, qr_image, qr_mime_type FROM wallet_payment_settings WHERE id=1'
     );
     const row = stored.rows[0];
-    const upiId = String(row?.upi_id || process.env.GOFIXO_UPI_ID || '').trim();
-    const payeeName = String(row?.payee_name || process.env.GOFIXO_UPI_PAYEE_NAME || 'Gofixo').trim();
+    const upiId = String(row ? (row.upi_id || '') : (process.env.GOFIXO_UPI_ID || '')).trim();
+    const payeeName = String(row ? (row.payee_name || 'Gofixo') : (process.env.GOFIXO_UPI_PAYEE_NAME || 'Gofixo')).trim();
     const qrImageUrl = String(process.env.GOFIXO_UPI_QR_IMAGE_URL || '').trim();
     const qrImageBase64 = row?.qr_image ? Buffer.from(row.qr_image).toString('base64') : '';
     const qrImageMimeType = row?.qr_mime_type || '';
@@ -189,7 +189,6 @@ router.post('/topup-intent', requireAuth(['customer']), async (req, res, next) =
       'SELECT upi_id, qr_image FROM wallet_payment_settings WHERE id=1'
     );
     const saved = storedConfig.rows[0];
-    const upiId = String(saved?.upi_id || process.env.GOFIXO_UPI_ID || '').trim();
     const qrImageUrl = String(process.env.GOFIXO_UPI_QR_IMAGE_URL || '').trim();
     if (!(saved?.qr_image || /^https:\/\//i.test(qrImageUrl))) {
       return res.status(503).json({ error: 'Gofixo UPI QR is not configured yet. No payment claim can be submitted.' });
