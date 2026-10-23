@@ -599,3 +599,61 @@ nav { display: flex; flex-direction: column; gap: 2px; }
   .topup-toolbar { align-items: flex-start; }
   .topup-count { margin-left: 0; width: 100%; }
 }
+
+
+.topup-config-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  box-shadow: 0 8px 22px rgba(59,42,92,.04);
+}
+.topup-config-card h3 { margin: 0 0 5px; font-size: 16px; }
+.topup-config-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  color: #9a6514;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.topup-config-status span { color: var(--text-dim); font-weight: 400; font-size: 11px; }
+.topup-config-status.is-ready { color: #087c6f; }
+.topup-config-form {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+.topup-config-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.topup-config-form input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  color: var(--text);
+  background: #fff;
+}
+.topup-config-form input[type="file"] { font-size: 12px; padding: 8px; }
+.topup-config-form button { justify-self: start; margin: 0; }
+@media (max-width: 760px) {
+  .topup-config-card { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+  .topup-config-status { align-items: flex-start; }
+  .topup-config-form { grid-template-columns: minmax(0, 1fr); }
+}
