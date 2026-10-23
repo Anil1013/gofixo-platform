@@ -1,9 +1,11 @@
 const express = require('express');
+const multer = require('multer');
 const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
 
 const router = express.Router();
+const qrUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1024 * 1024 } });
 
 let topupSchemaPromise;
 function ensureTopupSchema() {
@@ -36,6 +38,17 @@ function ensureTopupSchema() {
     CREATE UNIQUE INDEX IF NOT EXISTS wallet_topup_verified_bank_reference_unique
     ON wallet_topup_requests (UPPER(BTRIM(bank_reference)))
     WHERE status = 'verified' AND bank_reference IS NOT NULL
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS wallet_payment_settings (
+      id SMALLINT PRIMARY KEY CHECK (id = 1),
+      upi_id VARCHAR(200) NOT NULL,
+      payee_name VARCHAR(120) NOT NULL DEFAULT 'Gofixo',
+      qr_image BYTEA,
+      qr_mime_type VARCHAR(50),
+      updated_by TEXT NOT NULL DEFAULT 'admin',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
   `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS wallet_topup_audit (
@@ -72,16 +85,25 @@ function actorName(req) {
 router.get('/topup-config', requireAuth(['customer']), async (_req, res, next) => {
   try {
     await ensureTopupSchema();
-    const upiId = String(process.env.GOFIXO_UPI_ID || '').trim();
-    const payeeName = String(process.env.GOFIXO_UPI_PAYEE_NAME || 'Gofixo').trim();
+    const stored = await pool.query(
+      'SELECT upi_id, payee_name, qr_image, qr_mime_type FROM wallet_payment_settings WHERE id=1'
+    );
+    const row = stored.rows[0];
+    const upiId = String(row?.upi_id || process.env.GOFIXO_UPI_ID || '').trim();
+    const payeeName = String(row?.payee_name || process.env.GOFIXO_UPI_PAYEE_NAME || 'Gofixo').trim();
     const qrImageUrl = String(process.env.GOFIXO_UPI_QR_IMAGE_URL || '').trim();
+    const qrImageBase64 = row?.qr_image ? Buffer.from(row.qr_image).toString('base64') : '';
+    const qrImageMimeType = row?.qr_mime_type || '';
+    const configured = Boolean(upiId && (qrImageBase64 || /^https:\/\//i.test(qrImageUrl)));
     res.set('Cache-Control', 'no-store');
     res.json({
-      configured: Boolean(upiId && /^https:\/\//i.test(qrImageUrl)),
+      configured,
       paymentMethod: 'upi_qr',
       upiId,
       payeeName,
-      qrImageUrl,
+      qrImageUrl: qrImageBase64 ? '' : qrImageUrl,
+      qrImageBase64,
+      qrImageMimeType,
       minAmount: 50,
       maxAmount: 50000,
       currency: 'INR',
@@ -90,7 +112,61 @@ router.get('/topup-config', requireAuth(['customer']), async (_req, res, next) =
   } catch (err) { next(err); }
 });
 
-// Customer submits a payment claim. This endpoint NEVER credits the wallet.
+router.get('/admin/topup-config', requireAdmin, async (_req, res, next) => {
+  try {
+    await ensureTopupSchema();
+    const result = await pool.query(
+      `SELECT upi_id, payee_name, qr_image IS NOT NULL AS has_qr, qr_mime_type, updated_by,
+              to_char(updated_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS updated_at_ist
+       FROM wallet_payment_settings WHERE id=1`
+    );
+    const row = result.rows[0];
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      configured: Boolean(row?.upi_id && row?.has_qr),
+      upi_id: row?.upi_id || '',
+      payee_name: row?.payee_name || 'Gofixo',
+      has_qr: Boolean(row?.has_qr),
+      qr_mime_type: row?.qr_mime_type || '',
+      updated_by: row?.updated_by || '',
+      updated_at_ist: row?.updated_at_ist || ''
+    });
+  } catch (err) { next(err); }
+});
+
+router.post('/admin/topup-config', requireAdmin, qrUpload.single('qr_image'), async (req, res, next) => {
+  const upiId = String(req.body?.upi_id || '').trim().slice(0, 200);
+  const payeeName = String(req.body?.payee_name || 'Gofixo').trim().slice(0, 120);
+  if (!/^[A-Za-z0-9._-]{2,200}@[A-Za-z0-9.-]{2,100}$/.test(upiId)) {
+    return res.status(400).json({ error: 'Enter a valid UPI ID (example: name@bank)' });
+  }
+  if (!payeeName) return res.status(400).json({ error: 'Payee name is required' });
+  if (req.file && !['image/png', 'image/jpeg', 'image/webp'].includes(req.file.mimetype)) {
+    return res.status(400).json({ error: 'QR image must be PNG, JPEG or WebP' });
+  }
+  try {
+    await ensureTopupSchema();
+    const result = await pool.query(
+      `INSERT INTO wallet_payment_settings (id, upi_id, payee_name, qr_image, qr_mime_type, updated_by)
+       VALUES (1, $1, $2, $3, $4, $5)
+       ON CONFLICT (id) DO UPDATE SET
+         upi_id=EXCLUDED.upi_id,
+         payee_name=EXCLUDED.payee_name,
+         qr_image=COALESCE(EXCLUDED.qr_image, wallet_payment_settings.qr_image),
+         qr_mime_type=COALESCE(EXCLUDED.qr_mime_type, wallet_payment_settings.qr_mime_type),
+         updated_by=EXCLUDED.updated_by,
+         updated_at=NOW()
+       RETURNING upi_id, payee_name, qr_image IS NOT NULL AS has_qr, qr_mime_type,
+         to_char(updated_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS updated_at_ist`,
+      [upiId, payeeName, req.file ? req.file.buffer : null, req.file ? req.file.mimetype : null, 'admin']
+    );
+    const row = result.rows[0];
+    res.set('Cache-Control', 'no-store');
+    return res.json({ configured: Boolean(row.upi_id && row.has_qr), ...row });
+  } catch (err) { next(err); }
+});
+
+ This endpoint NEVER credits the wallet.
 router.post('/topup-intent', requireAuth(['customer']), async (req, res, next) => {
   const amount = Number(req.body?.amount);
   const utr = String(req.body?.utr || '').trim().replace(/\s+/g, '').toUpperCase().slice(0, 120);
