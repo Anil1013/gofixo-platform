@@ -5,7 +5,9 @@ const { requireAdmin } = require('../middleware/admin');
 
 const router = express.Router();
 
-async function ensureTopupSchema() {
+let topupSchemaPromise;
+function ensureTopupSchema() {
+  if (!topupSchemaPromise) topupSchemaPromise = (async () => {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS wallet_topup_requests (
       id BIGSERIAL PRIMARY KEY,
@@ -31,6 +33,11 @@ async function ensureTopupSchema() {
     ON wallet_topup_requests (customer_id, created_at DESC)
   `);
   await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS wallet_topup_verified_bank_reference_unique
+    ON wallet_topup_requests (UPPER(BTRIM(bank_reference)))
+    WHERE status = 'verified' AND bank_reference IS NOT NULL
+  `);
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS wallet_topup_audit (
       id BIGSERIAL PRIMARY KEY,
       request_id BIGINT NOT NULL REFERENCES wallet_topup_requests(id) ON DELETE CASCADE,
@@ -40,6 +47,8 @@ async function ensureTopupSchema() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  })().catch((err) => { topupSchemaPromise = null; throw err; });
+  return topupSchemaPromise;
 }
 
 async function ensureWallet(client, customerId) {
@@ -84,7 +93,7 @@ router.get('/topup-config', requireAuth(['customer']), async (_req, res, next) =
 // Customer submits a payment claim. This endpoint NEVER credits the wallet.
 router.post('/topup-intent', requireAuth(['customer']), async (req, res, next) => {
   const amount = Number(req.body?.amount);
-  const utr = String(req.body?.utr || '').trim().replace(/\s+/g, '').slice(0, 120);
+  const utr = String(req.body?.utr || '').trim().replace(/\s+/g, '').toUpperCase().slice(0, 120);
   if (!Number.isFinite(amount) || amount < 50 || amount > 50000) {
     return res.status(400).json({ error: 'Amount must be between ₹50 and ₹50,000' });
   }
@@ -93,18 +102,32 @@ router.post('/topup-intent', requireAuth(['customer']), async (req, res, next) =
   }
   try {
     await ensureTopupSchema();
-    const result = await pool.query(
-      `INSERT INTO wallet_topup_requests (customer_id, amount, utr)
-       VALUES ($1, $2, $3)
-       RETURNING id, amount, utr, status, created_at,
-         to_char(created_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS created_at_ist`,
-      [req.user.id, Number(amount.toFixed(2)), utr]
-    );
-    await pool.query(
-      `INSERT INTO wallet_topup_audit (request_id, action, actor, details)
-       VALUES ($1, 'submitted', $2, $3)`,
-      [result.rows[0].id, String(req.user.id), 'Customer submitted UTR; pending bank-record verification']
-    );
+    const upiId = String(process.env.GOFIXO_UPI_ID || '').trim();
+    const qrImageUrl = String(process.env.GOFIXO_UPI_QR_IMAGE_URL || '').trim();
+    if (!upiId || !/^https:\/\//i.test(qrImageUrl)) {
+      return res.status(503).json({ error: 'Gofixo UPI QR is not configured yet. No payment claim can be submitted.' });
+    }
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      result = await client.query(
+        `INSERT INTO wallet_topup_requests (customer_id, amount, utr)
+         VALUES ($1, $2, $3)
+         RETURNING id, amount, utr, status, created_at,
+           to_char(created_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS created_at_ist`,
+        [req.user.id, Number(amount.toFixed(2)), utr]
+      );
+      await client.query(
+        `INSERT INTO wallet_topup_audit (request_id, action, actor, details)
+         VALUES ($1, 'submitted', $2, $3)`,
+        [result.rows[0].id, String(req.user.id), 'Customer submitted UTR; pending bank-record verification']
+      );
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally { client.release(); }
     return res.status(201).json({
       request: result.rows[0],
       message: 'Payment claim submitted. Wallet balance will change only after bank verification.'
@@ -192,7 +215,7 @@ router.post('/admin/topups/:id/verify', requireAdmin, async (req, res, next) => 
       `INSERT INTO wallet_transactions
        (wallet_id, customer_id, type, amount, balance_before, balance_after, reserved_before, reserved_after,
         status, reference_id, metadata)
-       VALUES ($1,$2,'TOPUP',$3,$4,$5,$6,$6,'completed',$7,$8::jsonb)`,
+       VALUES ($1,$2,'TOPUP',$3,$4,$5,$6,$6,'success',$7,$8::jsonb)`,
       [wallet.id, request.customer_id, request.amount, before, after, wallet.reserved_balance,
        'manual-upi-topup:' + request.id,
        JSON.stringify({ topup_request_id: request.id, utr: request.utr, bank_reference: bankReference, verified_by: actorName(req) })]
@@ -212,7 +235,7 @@ router.post('/admin/topups/:id/verify', requireAdmin, async (req, res, next) => 
     return res.json({ request: updated.rows[0], credited_amount: Number(request.amount), available_balance: after, timezone: 'Asia/Kolkata' });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
-    if (err.code === '23505') return res.status(409).json({ error: 'This top-up was already credited; no duplicate credit was made' });
+    if (err.code === '23505') return res.status(409).json({ error: 'This payment reference has already been used; no duplicate wallet credit was made' });
     next(err);
   } finally { client.release(); }
 });
@@ -289,6 +312,22 @@ router.get('/transactions', requireAuth(['customer']), async (req, res, next) =>
   } catch (err) {
     next(err);
   }
+});
+
+// Backward-compatible status endpoint for older app builds.
+router.get('/topup-status/:requestId', requireAuth(['customer']), async (req, res, next) => {
+  const id = Number(req.params.requestId);
+  if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid top-up request ID' });
+  try {
+    await ensureTopupSchema();
+    const result = await pool.query(
+      `SELECT id, amount, utr, status, bank_reference, admin_note, created_at, verified_at
+       FROM wallet_topup_requests WHERE id=$1 AND customer_id=$2`,
+      [id, req.user.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Top-up request not found' });
+    res.json({ request: result.rows[0] });
+  } catch (err) { next(err); }
 });
 
 module.exports = router;
