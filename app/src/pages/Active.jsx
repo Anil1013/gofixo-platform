@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { apiPost, API_BASE, getToken } from '../api';
 import MapView from '../components/MapView';
 import ProfilePhoto from '../components/ProfilePhoto';
-import { navigateToCoords } from '../utils/geo';
+import { navigateToCoords, getRoute, formatDistance } from '../utils/geo';
 
 const STEPS = [
   { key: 'requested', label: 'Finding driver', icon: '🔍' },
@@ -23,6 +23,8 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [liveProvider, setLiveProvider] = useState(null);
+  const [roadRoute, setRoadRoute] = useState(null);
+  const [routeError, setRouteError] = useState('');
 
   // Refresh booking state and the assigned provider's coordinates every 15 seconds
   // while the ride/service is active. The backend only exposes that location to
@@ -83,6 +85,31 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
       if (ws) ws.close();
     };
   }, [booking.id, booking.status]);
+
+  // Draw Google Routes road geometry and recalculate when the partner moves or trip phase changes.
+  useEffect(() => {
+    let cancelled = false;
+    async function refreshRoadRoute() {
+      const pickup = { lat: Number(booking.pickup_lat), lng: Number(booking.pickup_lng) };
+      const drop = { lat: Number(booking.drop_lat), lng: Number(booking.drop_lng) };
+      const hasDrop = Number.isFinite(drop.lat) && Number.isFinite(drop.lng);
+      const target = booking.status === 'ongoing' && hasDrop ? drop : pickup;
+      const origin = liveProvider || pickup;
+      if (![origin.lat, origin.lng, target.lat, target.lng].every(Number.isFinite)
+        || (origin.lat === 0 && origin.lng === 0) || (target.lat === 0 && target.lng === 0)) {
+        setRoadRoute(null);
+        return;
+      }
+      try {
+        const result = await getRoute(origin, target);
+        if (!cancelled) { setRoadRoute(result); setRouteError(''); }
+      } catch {
+        if (!cancelled) { setRoadRoute(null); setRouteError('Road route is temporarily unavailable.'); }
+      }
+    }
+    refreshRoadRoute();
+    return () => { cancelled = true; };
+  }, [booking.id, booking.status, booking.pickup_lat, booking.pickup_lng, booking.drop_lat, booking.drop_lng, liveProvider?.lat, liveProvider?.lng]);
 
   async function cancelBooking() {
     setError('');
@@ -147,7 +174,27 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
         ))}
       </div>
 
-      {booking.status !== 'completed' && <MapView markers={markers} height={180} />}
+      {booking.status !== 'completed' && (
+        <>
+          <MapView markers={markers} line={roadRoute?.line || null} height={220} />
+          {roadRoute && (
+            <div className="status-card" style={{ marginTop: 8 }}>
+              <p className="fare-line">Road route <span>{formatDistance(roadRoute.distanceKm)} · ~{roadRoute.durationMin} min</span></p>
+              {roadRoute.steps?.length > 0 && (
+                <ol className="route-directions">
+                  {roadRoute.steps.slice(0, 5).map((step, index) => (
+                    <li key={`${index}-${step.instruction}`}>
+                      <span>{step.instruction}</span>
+                      {step.distanceMeters > 0 && <small>{formatDistance(step.distanceMeters / 1000)}</small>}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          )}
+          {routeError && <p className="auth-error">{routeError}</p>}
+        </>
+      )}
 
       <div className="status-card">
         <p className="pickup-line">📍 Pickup: {booking.pickup_location}</p>
