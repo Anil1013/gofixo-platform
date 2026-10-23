@@ -173,7 +173,7 @@ router.post('/admin/topup-config', requireAdmin, qrUpload.single('qr_image'), as
   } catch (err) { next(err); }
 });
 
- This endpoint NEVER credits the wallet.
+ // This endpoint NEVER credits the wallet.
 router.post('/topup-intent', requireAuth(['customer']), async (req, res, next) => {
   const amount = Number(req.body?.amount);
   const utr = String(req.body?.utr || '').trim().replace(/\s+/g, '').toUpperCase().slice(0, 120);
