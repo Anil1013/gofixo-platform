@@ -94,7 +94,7 @@ router.get('/topup-config', requireAuth(['customer']), async (_req, res, next) =
     const qrImageUrl = String(process.env.GOFIXO_UPI_QR_IMAGE_URL || '').trim();
     const qrImageBase64 = row?.qr_image ? Buffer.from(row.qr_image).toString('base64') : '';
     const qrImageMimeType = row?.qr_mime_type || '';
-    const configured = Boolean(upiId && (qrImageBase64 || /^https:\/\//i.test(qrImageUrl)));
+    const configured = Boolean(qrImageBase64 || /^https:\/\//i.test(qrImageUrl));
     res.set('Cache-Control', 'no-store');
     res.json({
       configured,
@@ -137,7 +137,7 @@ router.get('/admin/topup-config', requireAdmin, async (_req, res, next) => {
 router.post('/admin/topup-config', requireAdmin, qrUpload.single('qr_image'), async (req, res, next) => {
   const upiId = String(req.body?.upi_id || '').trim().slice(0, 200);
   const payeeName = String(req.body?.payee_name || 'Gofixo').trim().slice(0, 120);
-  if (!/^[A-Za-z0-9._-]{2,200}@[A-Za-z0-9.-]{2,100}$/.test(upiId)) {
+  if (upiId && !/^[A-Za-z0-9._-]{2,200}@[A-Za-z0-9.-]{2,100}$/.test(upiId)) {
     return res.status(400).json({ error: 'Enter a valid UPI ID (example: name@bank)' });
   }
   if (!payeeName) return res.status(400).json({ error: 'Payee name is required' });
@@ -169,7 +169,7 @@ router.post('/admin/topup-config', requireAdmin, qrUpload.single('qr_image'), as
     );
     const row = result.rows[0];
     res.set('Cache-Control', 'no-store');
-    return res.json({ configured: Boolean(row.upi_id && row.has_qr), ...row });
+    return res.json({ configured: Boolean(row.has_qr), ...row });
   } catch (err) { next(err); }
 });
 
@@ -191,7 +191,7 @@ router.post('/topup-intent', requireAuth(['customer']), async (req, res, next) =
     const saved = storedConfig.rows[0];
     const upiId = String(saved?.upi_id || process.env.GOFIXO_UPI_ID || '').trim();
     const qrImageUrl = String(process.env.GOFIXO_UPI_QR_IMAGE_URL || '').trim();
-    if (!upiId || !(saved?.qr_image || /^https:\/\//i.test(qrImageUrl))) {
+    if (!(saved?.qr_image || /^https:\/\//i.test(qrImageUrl))) {
       return res.status(503).json({ error: 'Gofixo UPI QR is not configured yet. No payment claim can be submitted.' });
     }
     const client = await pool.connect();
