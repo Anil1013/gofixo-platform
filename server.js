@@ -15,6 +15,7 @@ const bookingsRoutes = require('./routes/bookings.routes');
 const authRoutes = require('./routes/auth.routes');
 const adminRoutes = require('./routes/admin.routes');
 const walletRoutes = require('./routes/wallet.routes');
+const paymentTrackingRoutes = require('./routes/payment-tracking.routes');
 const pool = require('./config/db');
 const { attachRealtime } = require('./services/realtime');
 const { getServiceCatalog } = require('./services/catalog');
@@ -347,6 +348,7 @@ app.use('/api/subscriptions', subscriptionsRoutes);
 app.use('/api/bookings', bookingsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/payments', paymentTrackingRoutes);
 app.use('/api/wallet', walletRoutes);
 
 // Generic error handler — never leak raw error details in production
