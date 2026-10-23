@@ -449,7 +449,7 @@ class _CustomerWalletTabState extends State<_CustomerWalletTab>{
         TextField(controller:amountController,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Amount (₹50–₹50,000)',border:OutlineInputBorder(),prefixText:'₹ ')),
         const SizedBox(height:10),
         SizedBox(width:double.infinity,child:OutlinedButton.icon(
-          onPressed:topupConfig['configured']==true?_openUpiApp:null,
+          onPressed:topupConfig['configured']==true&&(topupConfig['upiId']??'').toString().trim().isNotEmpty?_openUpiApp:null,
           icon:const Icon(Icons.open_in_new_rounded),
           label:const Text('Pay using UPI app'),
         )),
