@@ -657,3 +657,96 @@ nav { display: flex; flex-direction: column; gap: 2px; }
   .topup-config-status { align-items: flex-start; }
   .topup-config-form { grid-template-columns: minmax(0, 1fr); }
 }
+
+
+/* ---- Unified admin payment ledger ---- */
+.payments-head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.payments-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 20px;
+}
+.payments-stat {
+  padding: 17px 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  min-width: 0;
+}
+.payments-stat span {
+  display: block;
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-bottom: 9px;
+}
+.payments-stat strong {
+  display: block;
+  font-size: 22px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.payments-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.payments-toolbar label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.payments-toolbar select, .payments-toolbar input {
+  min-height: 40px;
+  min-width: 210px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+}
+.payments-toolbar .payments-search { flex: 1; min-width: 240px; }
+.payments-toolbar .payments-search input { width: 100%; }
+.payments-updated {
+  color: var(--text-dim);
+  font-size: 11px;
+  margin-left: auto;
+  padding-bottom: 11px;
+}
+.payments-table { min-width: 1450px; }
+.payments-table td { vertical-align: top; line-height: 1.45; }
+.payments-table th { white-space: nowrap; }
+.payments-date { min-width: 155px; }
+.payments-amount { white-space: nowrap; font-size: 14px; }
+.payments-specialty {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: #eaf8f1;
+  color: #087c53;
+  font-size: 11px;
+  text-transform: capitalize;
+}
+.payments-reference { overflow-wrap: anywhere; max-width: 220px; }
+.payments-notes { max-width: 220px; white-space: normal; overflow-wrap: anywhere; }
+.payments-footnote {
+  margin-top: 14px;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.55;
+}
+@media (max-width: 760px) {
+  .payments-summary { grid-template-columns: 1fr; }
+  .payments-stat { padding: 14px 16px; }
+  .payments-stat strong { font-size: 20px; }
+  .payments-head-actions { width: 100%; }
+  .payments-toolbar .payments-search { min-width: 100%; }
+  .payments-updated { width: 100%; margin-left: 0; padding-bottom: 0; }
+  .payments-table { min-width: 1450px; }
+}
