@@ -1,7 +1,7 @@
 {
-  "version": "1.0.36",
-  "buildNumber": 1000036,
-  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.36.apk",
-  "notes": "Gofixo v1.0.36: wallet top-up status now shows the 24-hour admin review deadline and overdue status; admin top-up queue refreshes automatically. UPI payments still require bank verification before wallet credit.",
+  "version": "1.0.37",
+  "buildNumber": 1000037,
+  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.37.apk",
+  "notes": "Gofixo v1.0.37: QR-only wallet top-up. Customer app no longer displays the receiving UPI ID or offers a UPI deep-link button. Admin config requires the official QR, and wallet credit still requires bank verification of the submitted UTR.",
   "forceUpdate": false
 }
