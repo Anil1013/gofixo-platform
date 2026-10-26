@@ -529,6 +529,8 @@ nav { display: flex; flex-direction: column; gap: 2px; }
 }
 
 
+.topup-sla-overdue { color: #b42318; font-size: 12px; line-height: 1.4; }
+
 /* ---- Manual UPI wallet top-up review ---- */
 .topup-safety-note {
   display: flex;

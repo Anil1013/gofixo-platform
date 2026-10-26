@@ -469,6 +469,10 @@ class _CustomerWalletTabState extends State<_CustomerWalletTab>{
             Text('₹'+(double.tryParse(r['amount']?.toString()??'0')??0).toStringAsFixed(2),style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
             Text('UTR: '+(r['utr']??'').toString(),style:const TextStyle(fontSize:10,color:gfMuted)),
             Text((r['status']??'pending_verification').toString().replaceAll('_',' ').toUpperCase(),style:const TextStyle(fontSize:10,color:gfGreen,fontWeight:FontWeight.w800)),
+            if((r['status']??'pending_verification')=='pending_verification') Text(
+              r['review_overdue']==true ? 'Verification delayed — please contact Gofixo support.' : 'Review due by '+(r['review_due_at_ist']??'within 24 hours').toString()+' IST',
+              style:TextStyle(fontSize:10,color:r['review_overdue']==true?gfOrange:gfMuted,fontWeight:FontWeight.w600),
+            ),
             if((r['admin_note']??'').toString().isNotEmpty)Text(r['admin_note'].toString(),style:const TextStyle(fontSize:10,color:gfMuted)),
           ])),
         ])))),
