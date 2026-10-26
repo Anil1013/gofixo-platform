@@ -89,7 +89,7 @@ router.get('/topup-config', requireAuth(['customer']), async (_req, res, next) =
       'SELECT upi_id, payee_name, qr_image, qr_mime_type FROM wallet_payment_settings WHERE id=1'
     );
     const row = stored.rows[0];
-    const upiId = String(row ? (row.upi_id || '') : (process.env.GOFIXO_UPI_ID || '')).trim();
+    const upiId = String(row?.upi_id || process.env.GOFIXO_UPI_ID || '').trim();
     const payeeName = String(row ? (row.payee_name || 'Gofixo') : (process.env.GOFIXO_UPI_PAYEE_NAME || 'Gofixo')).trim();
     const qrImageUrl = String(process.env.GOFIXO_UPI_QR_IMAGE_URL || '').trim();
     const qrImageBase64 = row?.qr_image ? Buffer.from(row.qr_image).toString('base64') : '';
