@@ -94,7 +94,7 @@ router.get('/topup-config', requireAuth(['customer']), async (_req, res, next) =
     const qrImageUrl = String(process.env.GOFIXO_UPI_QR_IMAGE_URL || '').trim();
     const qrImageBase64 = row?.qr_image ? Buffer.from(row.qr_image).toString('base64') : '';
     const qrImageMimeType = row?.qr_mime_type || '';
-    const configured = Boolean(qrImageBase64 || /^https:\/\//i.test(qrImageUrl));
+    const configured = Boolean(upiId && (qrImageBase64 || /^https:\/\//i.test(qrImageUrl)));
     res.set('Cache-Control', 'no-store');
     res.json({
       configured,
@@ -137,8 +137,8 @@ router.get('/admin/topup-config', requireAdmin, async (_req, res, next) => {
 router.post('/admin/topup-config', requireAdmin, qrUpload.single('qr_image'), async (req, res, next) => {
   const upiId = String(req.body?.upi_id || '').trim().slice(0, 200);
   const payeeName = String(req.body?.payee_name || 'Gofixo').trim().slice(0, 120);
-  if (upiId && !/^[A-Za-z0-9._-]{2,200}@[A-Za-z0-9.-]{2,100}$/.test(upiId)) {
-    return res.status(400).json({ error: 'Enter a valid UPI ID (example: name@bank)' });
+  if (!/^[A-Za-z0-9._-]{2,200}@[A-Za-z0-9.-]{2,100}$/.test(upiId)) {
+    return res.status(400).json({ error: 'A valid Gofixo receiving UPI ID is required (example: name@bank)' });
   }
   if (!payeeName) return res.status(400).json({ error: 'Payee name is required' });
   if (req.file && !['image/png', 'image/jpeg', 'image/webp'].includes(req.file.mimetype)) {
@@ -189,9 +189,10 @@ router.post('/topup-intent', requireAuth(['customer']), async (req, res, next) =
       'SELECT upi_id, qr_image FROM wallet_payment_settings WHERE id=1'
     );
     const saved = storedConfig.rows[0];
+    const configuredUpiId = String(saved?.upi_id || process.env.GOFIXO_UPI_ID || '').trim();
     const qrImageUrl = String(process.env.GOFIXO_UPI_QR_IMAGE_URL || '').trim();
-    if (!(saved?.qr_image || /^https:\/\//i.test(qrImageUrl))) {
-      return res.status(503).json({ error: 'Gofixo UPI QR is not configured yet. No payment claim can be submitted.' });
+    if (!configuredUpiId || !(saved?.qr_image || /^https:\/\//i.test(qrImageUrl))) {
+      return res.status(503).json({ error: 'Gofixo receiving UPI ID and official QR must both be configured before a payment claim can be submitted.' });
     }
     const client = await pool.connect();
     let result;
@@ -201,7 +202,10 @@ router.post('/topup-intent', requireAuth(['customer']), async (req, res, next) =
         `INSERT INTO wallet_topup_requests (customer_id, amount, utr)
          VALUES ($1, $2, $3)
          RETURNING id, amount, utr, status, created_at,
-           to_char(created_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS created_at_ist`,
+           to_char(created_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS created_at_ist,
+           to_char((created_at + INTERVAL '24 hours') AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS review_due_at_ist,
+           (NOW() > created_at + INTERVAL '24 hours') AS review_overdue,
+           GREATEST(0, CEIL(EXTRACT(EPOCH FROM ((created_at + INTERVAL '24 hours') - NOW())) / 3600))::int AS review_hours_remaining`,
         [req.user.id, Number(amount.toFixed(2)), utr]
       );
       await client.query(
@@ -230,6 +234,9 @@ router.get('/topup-requests', requireAuth(['customer']), async (req, res, next) 
     const result = await pool.query(
       `SELECT id, amount, utr, status, bank_reference, admin_note,
               to_char(created_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS created_at_ist,
+              to_char((created_at + INTERVAL '24 hours') AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS review_due_at_ist,
+              (status='pending_verification' AND NOW() > created_at + INTERVAL '24 hours') AS review_overdue,
+              GREATEST(0, CEIL(EXTRACT(EPOCH FROM ((created_at + INTERVAL '24 hours') - NOW())) / 3600))::int AS review_hours_remaining,
               to_char(verified_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS verified_at_ist
        FROM wallet_topup_requests WHERE customer_id=$1
        ORDER BY created_at DESC, id DESC LIMIT 50`,
@@ -252,6 +259,9 @@ router.get('/admin/topups', requireAdmin, async (req, res, next) => {
               r.amount, r.utr, r.status, r.bank_reference, r.admin_note,
               r.created_at, r.verified_at, r.verified_by,
               to_char(r.created_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS created_at_ist,
+              to_char((r.created_at + INTERVAL '24 hours') AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS review_due_at_ist,
+              (r.status='pending_verification' AND NOW() > r.created_at + INTERVAL '24 hours') AS review_overdue,
+              GREATEST(0, CEIL(EXTRACT(EPOCH FROM ((r.created_at + INTERVAL '24 hours') - NOW())) / 3600))::int AS review_hours_remaining,
               to_char(r.verified_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS verified_at_ist
        FROM wallet_topup_requests r JOIN customers c ON c.id=r.customer_id
        WHERE r.status=$1 ORDER BY r.created_at ASC, r.id ASC LIMIT 250`,
