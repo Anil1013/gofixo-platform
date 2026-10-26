@@ -4,6 +4,7 @@ import Plans from './pages/Plans';
 import Bookings from './pages/Bookings';
 import Customers from './pages/Customers';
 import Topups from './pages/Topups';
+import Payments from './pages/Payments';
 import './App.css';
 
 const TABS = {
@@ -12,6 +13,7 @@ const TABS = {
   plans: { label: 'Plans', component: Plans },
   customers: { label: 'Customers', component: Customers },
   topups: { label: 'Wallet top-ups', component: Topups },
+  payments: { label: 'All payments', component: Payments },
 };
 
 const BIKE_IMG = 'https://images.unsplash.com/photo-1767275090329-331c0ffb1005?w=500&h=500&fit=crop&auto=format&q=70';
