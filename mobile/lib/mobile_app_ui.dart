@@ -10,7 +10,6 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'api_service.dart';
 import 'push_service.dart';
 
@@ -378,21 +377,6 @@ class _CustomerWalletTabState extends State<_CustomerWalletTab>{
     }
   }
 
-  Future<void> _openUpiApp()async{
-    final amount=double.tryParse(amountController.text.trim());
-    final upiId=(topupConfig['upiId']??'').toString().trim();
-    final payee=(topupConfig['payeeName']??'Gofixo').toString().trim();
-    if(amount==null||amount<50||amount>50000){_snack('Enter an amount between ₹50 and ₹50,000 first.');return;}
-    if(upiId.isEmpty){_snack('Gofixo UPI details are not configured.');return;}
-    final uri=Uri(scheme:'upi',host:'pay',queryParameters:{
-      'pa':upiId,'pn':payee,'am':amount.toStringAsFixed(2),'cu':'INR','tn':'Gofixo wallet top-up'
-    });
-    try{
-      final launched=await launchUrl(uri,mode:LaunchMode.externalApplication);
-      if(!launched&&mounted)_snack('No UPI app could open. Scan the QR code instead.');
-    }catch(_){if(mounted)_snack('Could not open a UPI app. Scan the QR code instead.');}
-  }
-
   Future<void> _submitTopup()async{
     final amount=double.tryParse(amountController.text.trim());
     final utr=utrController.text.trim();
@@ -432,9 +416,9 @@ class _CustomerWalletTabState extends State<_CustomerWalletTab>{
       ])),
       const SizedBox(height:12),
       _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        const Text('Add money by UPI',style:TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy)),
+        const Text('Add money by QR',style:TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy)),
         const SizedBox(height:5),
-        const Text('Pay to Gofixo using the official QR, then enter the UTR from your payment receipt. Wallet credit is added only after the admin matches the payment in the bank record.',style:TextStyle(fontSize:11,color:gfMuted)),
+        const Text('Scan this official QR in your UPI app, complete the payment, then enter the UTR from your receipt. Wallet credit is added only after the admin verifies the bank record.',style:TextStyle(fontSize:11,color:gfMuted)),
         const SizedBox(height:12),
         if(hasQr)...[
           Center(child:ClipRRect(borderRadius:BorderRadius.circular(14),child:qrImageBase64.isNotEmpty
@@ -442,17 +426,10 @@ class _CustomerWalletTabState extends State<_CustomerWalletTab>{
             :Image.network(qrImageUrl,height:190,width:190,fit:BoxFit.contain,errorBuilder:(context,error,stack)=>const SizedBox(height:100,child:Center(child:Text('QR image could not load',style:TextStyle(color:gfMuted))))))),
           const SizedBox(height:8),
           if((topupConfig['payeeName']??'').toString().isNotEmpty) Center(child:Text(topupConfig['payeeName'].toString(),style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy))),
-          if((topupConfig['upiId']??'').toString().isNotEmpty) Center(child:SelectableText('UPI ID: '+topupConfig['upiId'].toString(),style:const TextStyle(fontSize:12,color:gfGreen,fontWeight:FontWeight.w700))),
         ]else
-          const _Box(child:Text('UPI QR is not configured yet. Please contact Gofixo support; do not send money to an unverified QR.',style:TextStyle(fontSize:11,color:gfOrange))),
+          const _Box(child:Text('Official payment QR is not configured yet. Please contact Gofixo support; do not send money to an unverified QR.',style:TextStyle(fontSize:11,color:gfOrange))),
         const SizedBox(height:12),
         TextField(controller:amountController,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Amount (₹50–₹50,000)',border:OutlineInputBorder(),prefixText:'₹ ')),
-        const SizedBox(height:10),
-        SizedBox(width:double.infinity,child:OutlinedButton.icon(
-          onPressed:topupConfig['configured']==true&&(topupConfig['upiId']??'').toString().trim().isNotEmpty?_openUpiApp:null,
-          icon:const Icon(Icons.open_in_new_rounded),
-          label:const Text('Pay using UPI app'),
-        )),
         const SizedBox(height:10),
         TextField(controller:utrController,textCapitalization:TextCapitalization.characters,decoration:const InputDecoration(labelText:'UPI UTR / transaction reference',hintText:'Enter the reference from receipt',border:OutlineInputBorder())),
         const SizedBox(height:10),
