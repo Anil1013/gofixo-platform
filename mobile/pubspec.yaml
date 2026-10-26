@@ -1,7 +1,7 @@
 name: mobile
 description: "Gofixo customer and partner mobile app"
 publish_to: 'none'
-version: 1.0.35+1000035
+version: 1.0.36+1000036
 environment:
   sdk: ^3.13.4
 
