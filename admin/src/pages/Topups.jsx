@@ -56,10 +56,19 @@ export default function Topups() {
     }
   }, []);
 
-  useEffect(() => { load(); loadConfig(); }, [load, loadConfig]);
+  useEffect(() => {
+    load();
+    loadConfig();
+    const timer = window.setInterval(() => load(), 30000);
+    return () => window.clearInterval(timer);
+  }, [load, loadConfig]);
 
   async function saveConfig(event) {
     event.preventDefault();
+    if (!/^[A-Za-z0-9._-]{2,200}@[A-Za-z0-9.-]{2,100}$/.test(upiId.trim())) {
+      setError('Enter Gofixo’s valid receiving UPI ID (example: name@bank).');
+      return;
+    }
     if (!payeeName.trim()) {
       setError('Payee name is required.');
       return;
@@ -153,7 +162,7 @@ export default function Topups() {
       <div className="page-head-row">
         <div>
           <h2>UPI Wallet Top-ups</h2>
-          <p className="page-subtitle">Match each customer UTR against the actual bank record before crediting their wallet.</p>
+          <p className="page-subtitle">Review each UPI claim within 24 hours. Match the UTR and exact amount against the actual bank record before crediting the wallet.</p>
         </div>
         <button className="btn btn-approve" type="button" onClick={load} disabled={loading}>
           {loading ? 'Refreshing…' : 'Refresh'}
@@ -171,8 +180,8 @@ export default function Topups() {
         </div>
         <form className="topup-config-form" onSubmit={saveConfig}>
           <label>
-            Official UPI ID (optional — enables opening a UPI app)
-            <input value={upiId} onChange={(event) => setUpiId(event.target.value)} placeholder="name@bank (optional)" autoComplete="off" />
+            Gofixo receiving UPI ID (required)
+            <input value={upiId} onChange={(event) => setUpiId(event.target.value)} placeholder="name@bank" autoComplete="off" required />
           </label>
           <label>
             Payee name
@@ -219,6 +228,7 @@ export default function Topups() {
                 <th>Amount</th>
                 <th>UTR / bank reference</th>
                 <th>Submitted (IST)</th>
+                <th>24-hour review SLA</th>
                 <th>Status</th>
                 <th>Admin action</th>
               </tr>
@@ -238,6 +248,13 @@ export default function Topups() {
                     {request.admin_note && <div className="sub-line">Note: {request.admin_note}</div>}
                   </td>
                   <td>{request.created_at_ist || (request.created_at ? new Date(request.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—')}</td>
+                  <td>
+                    {request.status === 'pending_verification' ? (
+                      request.review_overdue
+                        ? <strong className="topup-sla-overdue">Overdue — review immediately</strong>
+                        : <span>Due by {request.review_due_at_ist || 'within 24 hours'} IST{Number.isFinite(Number(request.review_hours_remaining)) ? ' · ' + request.review_hours_remaining + 'h left' : ''}</span>
+                    ) : <span className="sub-line">{request.review_due_at_ist || '—'}</span>}
+                  </td>
                   <td><span className={'badge badge-' + (request.status === 'verified' ? 'approved' : request.status === 'rejected' ? 'rejected' : 'pending')}>{readableStatus(request.status)}</span></td>
                   <td>
                     {request.status === 'pending_verification' ? (
