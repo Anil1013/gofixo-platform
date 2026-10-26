@@ -302,7 +302,7 @@ router.get('/records', async (req, res, next) => {
           sub.cycle_start,
           sub.cycle_end,
           COALESCE(bt.paid_at, b.completed_at, b.created_at),
-          to_char(COALESCE(bt.paid_at, b.completed_at, b.created_at) AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS'),
+          to_char((COALESCE(bt.paid_at, b.completed_at, b.created_at) AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS'),
           CASE WHEN b.service_type='services' THEN 'Home service paid through wallet' ELSE 'Ride settlement recorded against partner' END
         FROM booking_transactions bt
         JOIN bookings b ON b.id=bt.booking_id
@@ -310,12 +310,13 @@ router.get('/records', async (req, res, next) => {
         LEFT JOIN service_providers sp ON sp.id=bt.provider_id
         LEFT JOIN LATERAL (
           SELECT p.plan_name,
-                 to_char(ps.start_date AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS cycle_start,
-                 to_char(ps.expiry_date AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS cycle_end
+                 to_char((ps.start_date AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS cycle_start,
+                 to_char((ps.expiry_date AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS cycle_end
           FROM provider_subscriptions ps
           JOIN subscription_plans p ON p.id=ps.plan_id
           WHERE ps.provider_id=bt.provider_id
             AND ps.start_date <= COALESCE(bt.paid_at, b.completed_at, NOW())
+            AND ps.expiry_date > COALESCE(bt.paid_at, b.completed_at, NOW())
           ORDER BY ps.start_date DESC, ps.id DESC
           LIMIT 1
         ) sub ON TRUE
@@ -357,6 +358,7 @@ router.get('/records', async (req, res, next) => {
           JOIN subscription_plans p ON p.id=ps.plan_id
           WHERE ps.provider_id=t.provider_id
             AND ps.start_date <= COALESCE(t.occurred_at, t.created_at)
+            AND ps.expiry_date > COALESCE(t.occurred_at, t.created_at)
           ORDER BY ps.start_date DESC, ps.id DESC
           LIMIT 1
         ) sub ON TRUE
