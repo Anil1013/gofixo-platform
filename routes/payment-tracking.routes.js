@@ -217,4 +217,179 @@ router.get('/transactions/:id/audit', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+
+// Consolidated admin ledger. Sources remain separate so the same booking cannot be
+// counted twice and a subscription cycle is not treated as paid unless a payment record exists.
+router.get('/records', async (req, res, next) => {
+  try {
+    await ensureSchema();
+    // Keep this endpoint usable even before the wallet top-up screen has been opened
+    // on a newly provisioned database.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS wallet_topup_requests (
+        id BIGSERIAL PRIMARY KEY,
+        customer_id INT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+        amount NUMERIC(12,2) NOT NULL CHECK (amount >= 50 AND amount <= 50000),
+        utr VARCHAR(120) NOT NULL,
+        status VARCHAR(24) NOT NULL DEFAULT 'pending_verification'
+          CHECK (status IN ('pending_verification','verified','rejected')),
+        bank_reference VARCHAR(120),
+        admin_note TEXT,
+        verified_by TEXT,
+        verified_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    const requestedStatus = String(req.query.status || 'approved').trim().toLowerCase();
+    const allowedStatuses = new Set(['approved', 'all', 'pending_verification', 'rejected', 'failed', 'refunded', 'payout_pending']);
+    if (!allowedStatuses.has(requestedStatus)) return res.status(400).json({ error: 'Invalid payment status filter' });
+    const search = String(req.query.search || '').trim().slice(0, 120);
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit || '1000', 10) || 1000, 1), 2000);
+    const result = await pool.query(
+      `WITH records AS (
+        SELECT
+          'TOPUP-' || r.id::text AS record_id,
+          'wallet_topup'::text AS source,
+          'Wallet top-up'::text AS payment_type,
+          'Customer → Gofixo'::text AS payment_flow,
+          CASE WHEN r.status='verified' THEN 'approved' ELSE r.status END::text AS status,
+          r.amount::numeric AS amount,
+          'INR'::text AS currency,
+          r.customer_id,
+          c.name AS customer_name,
+          c.phone AS customer_phone,
+          NULL::integer AS provider_id,
+          NULL::text AS provider_code,
+          NULL::text AS provider_name,
+          NULL::text AS provider_phone,
+          'Customer wallet'::text AS professional_field,
+          'UPI QR'::text AS payment_method,
+          COALESCE(r.bank_reference, r.utr)::text AS reference,
+          NULL::text AS plan_name,
+          NULL::text AS cycle_start,
+          NULL::text AS cycle_end,
+          COALESCE(r.verified_at, r.created_at) AS occurred_at,
+          to_char(COALESCE(r.verified_at, r.created_at) AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS occurred_at_ist,
+          r.admin_note AS notes
+        FROM wallet_topup_requests r
+        LEFT JOIN customers c ON c.id=r.customer_id
+
+        UNION ALL
+
+        SELECT
+          'BOOKING-' || bt.booking_id::text,
+          'booking',
+          CASE WHEN b.service_type='ride' THEN 'Ride payment' ELSE 'Home service payment' END,
+          CASE WHEN lower(COALESCE(bt.payment_method,''))='cash' THEN 'Customer → Partner' ELSE 'Customer → Gofixo wallet' END,
+          CASE WHEN lower(COALESCE(bt.status,'')) IN ('paid','verified','success','completed') THEN 'approved' ELSE lower(COALESCE(bt.status,'pending_verification')) END,
+          bt.gross_amount::numeric,
+          'INR'::text,
+          bt.customer_id,
+          c.name,
+          c.phone,
+          bt.provider_id,
+          sp.generated_id,
+          sp.name,
+          sp.phone,
+          CASE
+            WHEN b.service_type='ride' THEN initcap(replace(COALESCE(b.provider_type, sp.type, 'ride'), '_', ' '))
+            ELSE initcap(replace(COALESCE(b.service_category, sp.service_categories[1], 'home service'), '_', ' '))
+          END,
+          COALESCE(bt.payment_method, 'unknown'),
+          ('Booking #' || bt.booking_id::text),
+          sub.plan_name,
+          sub.cycle_start,
+          sub.cycle_end,
+          COALESCE(bt.paid_at, b.completed_at, b.created_at),
+          to_char((COALESCE(bt.paid_at, b.completed_at, b.created_at) AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS'),
+          CASE WHEN b.service_type='services' THEN 'Home service paid through wallet' ELSE 'Ride settlement recorded against partner' END
+        FROM booking_transactions bt
+        JOIN bookings b ON b.id=bt.booking_id
+        LEFT JOIN customers c ON c.id=bt.customer_id
+        LEFT JOIN service_providers sp ON sp.id=bt.provider_id
+        LEFT JOIN LATERAL (
+          SELECT p.plan_name,
+                 to_char((ps.start_date AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS cycle_start,
+                 to_char((ps.expiry_date AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS cycle_end
+          FROM provider_subscriptions ps
+          JOIN subscription_plans p ON p.id=ps.plan_id
+          WHERE ps.provider_id=bt.provider_id
+            AND ps.start_date <= COALESCE(bt.paid_at, b.completed_at, NOW())
+            AND ps.expiry_date > COALESCE(bt.paid_at, b.completed_at, NOW())
+          ORDER BY ps.start_date DESC, ps.id DESC
+          LIMIT 1
+        ) sub ON TRUE
+
+        UNION ALL
+
+        SELECT
+          'TRACK-' || t.id::text,
+          'payment_tracking',
+          initcap(replace(t.transaction_type, '_', ' ')),
+          CASE WHEN t.direction='out' THEN 'Gofixo → Recipient' ELSE 'Payer → Gofixo' END,
+          CASE WHEN lower(t.status) IN ('paid','verified') THEN 'approved' ELSE lower(t.status) END,
+          t.amount::numeric,
+          COALESCE(t.currency, 'INR'),
+          t.customer_id,
+          c.name,
+          c.phone,
+          t.provider_id,
+          sp.generated_id,
+          sp.name,
+          sp.phone,
+          CASE WHEN sp.type IS NULL THEN '—' ELSE initcap(replace(sp.type, '_', ' ')) END,
+          t.payment_method,
+          COALESCE(t.bank_reference, t.transaction_code),
+          sub.plan_name,
+          sub.cycle_start,
+          sub.cycle_end,
+          COALESCE(t.occurred_at, t.received_at, t.created_at),
+          to_char(COALESCE(t.occurred_at, t.received_at, t.created_at) AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS'),
+          t.notes
+        FROM payment_tracking_transactions t
+        LEFT JOIN customers c ON c.id=t.customer_id
+        LEFT JOIN service_providers sp ON sp.id=t.provider_id
+        LEFT JOIN LATERAL (
+          SELECT p.plan_name,
+                 to_char(ps.start_date AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS cycle_start,
+                 to_char(ps.expiry_date AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS') AS cycle_end
+          FROM provider_subscriptions ps
+          JOIN subscription_plans p ON p.id=ps.plan_id
+          WHERE ps.provider_id=t.provider_id
+            AND ps.start_date <= COALESCE(t.occurred_at, t.created_at)
+            AND ps.expiry_date > COALESCE(t.occurred_at, t.created_at)
+          ORDER BY ps.start_date DESC, ps.id DESC
+          LIMIT 1
+        ) sub ON TRUE
+        WHERE t.booking_id IS NULL
+           OR t.transaction_type NOT IN ('ride_fare', 'household_service')
+      )
+      SELECT * FROM records
+      WHERE ($1='all' OR status=$1)
+        AND (
+          $2='' OR concat_ws(' ', record_id, payment_type, customer_name, customer_phone,
+            provider_code, provider_name, provider_phone, professional_field, payment_method,
+            reference, plan_name, notes) ILIKE '%' || $2 || '%'
+        )
+      ORDER BY occurred_at DESC NULLS LAST, record_id DESC
+      LIMIT $3`,
+      [requestedStatus, search, limit]
+    );
+    const transactions = result.rows;
+    const approvedAmount = transactions
+      .filter((row) => row.status === 'approved' && row.payment_flow !== 'Gofixo → Recipient')
+      .reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      timezone: 'Asia/Kolkata',
+      status: requestedStatus,
+      count: transactions.length,
+      limit,
+      approved_amount_inr: Number(approvedAmount.toFixed(2)),
+      transactions,
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
