@@ -25,8 +25,7 @@ export default function Topups() {
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [paymentConfig, setPaymentConfig] = useState({ upi_id: '', payee_name: 'Gofixo', has_qr: false, configured: false });
-  const [upiId, setUpiId] = useState('');
+  const [paymentConfig, setPaymentConfig] = useState({ payee_name: 'Gofixo', has_qr: false, configured: false });
   const [payeeName, setPayeeName] = useState('Gofixo');
   const [qrFile, setQrFile] = useState(null);
   const [savingConfig, setSavingConfig] = useState(false);
@@ -49,7 +48,6 @@ export default function Topups() {
     try {
       const data = await apiGet('/wallet/admin/topup-config');
       setPaymentConfig(data);
-      setUpiId(data.upi_id || '');
       setPayeeName(data.payee_name || 'Gofixo');
     } catch (err) {
       setError(err.message || 'Could not load UPI payment settings.');
@@ -65,10 +63,6 @@ export default function Topups() {
 
   async function saveConfig(event) {
     event.preventDefault();
-    if (!/^[A-Za-z0-9._-]{2,200}@[A-Za-z0-9.-]{2,100}$/.test(upiId.trim())) {
-      setError('Enter Gofixo’s valid receiving UPI ID (example: name@bank).');
-      return;
-    }
     if (!payeeName.trim()) {
       setError('Payee name is required.');
       return;
@@ -82,13 +76,12 @@ export default function Topups() {
     setNotice('');
     try {
       const form = new FormData();
-      form.append('upi_id', upiId.trim());
       form.append('payee_name', payeeName.trim());
       if (qrFile) form.append('qr_image', qrFile);
       await apiUpload('/wallet/admin/topup-config', form);
       setQrFile(null);
       setFileInputKey((key) => key + 1);
-      setNotice('UPI payment settings saved. Customers can now see the official QR.');
+      setNotice('QR payment settings saved. Customers will use only the official QR.');
       await loadConfig();
     } catch (err) {
       setError(err.message || 'Could not save UPI payment settings.');
@@ -161,8 +154,8 @@ export default function Topups() {
     <section>
       <div className="page-head-row">
         <div>
-          <h2>UPI Wallet Top-ups</h2>
-          <p className="page-subtitle">Review each UPI claim within 24 hours. Match the UTR and exact amount against the actual bank record before crediting the wallet.</p>
+          <h2>QR Wallet Top-ups</h2>
+          <p className="page-subtitle">Review each QR payment claim within 24 hours. Match the UTR and exact amount against the actual bank record before crediting the wallet.</p>
         </div>
         <button className="btn btn-approve" type="button" onClick={load} disabled={loading}>
           {loading ? 'Refreshing…' : 'Refresh'}
@@ -172,17 +165,13 @@ export default function Topups() {
       <div className="topup-config-card">
         <div>
           <h3>Customer payment QR settings</h3>
-          <p className="page-subtitle">Store the official QR securely in the backend database. It is sent only to signed-in customers, not published as a repository asset.</p>
+          <p className="page-subtitle">Store the official receiving QR securely in the backend database. No UPI ID is needed in the app; the QR is sent only to signed-in customers.</p>
         </div>
         <div className={paymentConfig.configured ? 'topup-config-status is-ready' : 'topup-config-status'}>
           {paymentConfig.configured ? 'QR configured' : 'Setup required'}
           {paymentConfig.updated_at_ist && <span>Updated {paymentConfig.updated_at_ist} IST</span>}
         </div>
         <form className="topup-config-form" onSubmit={saveConfig}>
-          <label>
-            Gofixo receiving UPI ID (required)
-            <input value={upiId} onChange={(event) => setUpiId(event.target.value)} placeholder="name@bank" autoComplete="off" required />
-          </label>
           <label>
             Payee name
             <input value={payeeName} onChange={(event) => setPayeeName(event.target.value)} placeholder="Gofixo" maxLength={120} required />
