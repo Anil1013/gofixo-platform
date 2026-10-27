@@ -1,7 +1,7 @@
 {
-  "version": "1.0.37",
-  "buildNumber": 1000037,
-  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.37.apk",
-  "notes": "Gofixo v1.0.37: QR-only wallet top-up. Customer app no longer displays the receiving UPI ID or offers a UPI deep-link button. Admin config requires the official QR, and wallet credit still requires bank verification of the submitted UTR.",
+  "version": "1.0.38",
+  "buildNumber": 1000038,
+  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.38.apk",
+  "notes": "Gofixo v1.0.38: shared map improvements for ride and home services, service-address coordinates, nearby partner matching, and partner navigation.",
   "forceUpdate": false
 }
