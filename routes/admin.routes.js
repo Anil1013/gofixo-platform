@@ -149,4 +149,62 @@ router.get('/payouts', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+
+// Record manual bank/UPI settlement for a partner payout. Mark a payout paid only
+// after the transfer is visible in the bank/UPI account; the reference is required.
+router.patch('/payouts/:id/status', async (req, res, next) => {
+  const id = Number.parseInt(req.params.id, 10);
+  const status = String(req.body?.status || '').trim().toLowerCase();
+  const providerReference = String(req.body?.provider_reference || '').trim().slice(0, 120);
+  const failureReason = String(req.body?.failure_reason || '').trim().slice(0, 1000);
+
+  if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: 'Invalid payout ID' });
+  if (!['processing', 'paid', 'failed'].includes(status)) {
+    return res.status(400).json({ error: 'Status must be processing, paid or failed' });
+  }
+  if (status === 'paid' && !providerReference) {
+    return res.status(400).json({ error: 'Bank/UPI transfer reference is required before marking a payout paid' });
+  }
+  if (status === 'failed' && !failureReason) {
+    return res.status(400).json({ error: 'A reason is required when marking a payout failed' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const found = await client.query(
+      'SELECT id, payout_status FROM partner_payouts WHERE id = $1 FOR UPDATE',
+      [id]
+    );
+    if (!found.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Partner payout not found' });
+    }
+    const existing = found.rows[0];
+    if (existing.payout_status === 'paid') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'A paid payout cannot be changed; contact support if a correction is needed' });
+    }
+
+    const updated = await client.query(
+      `UPDATE partner_payouts
+       SET payout_status = $1,
+           provider_reference = CASE WHEN $1 = 'paid' THEN $2 WHEN $2 <> '' THEN $2 ELSE provider_reference END,
+           failure_reason = CASE WHEN $1 = 'failed' THEN $3 ELSE NULL END,
+           paid_at = CASE WHEN $1 = 'paid' THEN NOW() ELSE NULL END
+       WHERE id = $4
+       RETURNING id, booking_id, provider_id, gross_amount, platform_fee, payout_amount,
+                 payout_method, payout_status, provider_reference, failure_reason, created_at, paid_at`,
+      [status, providerReference, failureReason, id]
+    );
+    await client.query('COMMIT');
+    return res.json({ payout: updated.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    next(err);
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;
