@@ -9,6 +9,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'api_service.dart';
 import 'push_service.dart';
@@ -1330,8 +1331,8 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
       pickup:pickup,
       drop:address,
       lat:pickupPoint!.latitude,
-      destinationLat:isService?null:destinationPoint?.latitude,
-      destinationLng:isService?null:destinationPoint?.longitude,
+      destinationLat:destinationPoint?.latitude,
+      destinationLng:destinationPoint?.longitude,
       lng:pickupPoint!.longitude,
       fare:isService?null:fare,
       distanceKm:isService?null:km,
@@ -1828,6 +1829,26 @@ class _Active extends StatefulWidget{
 class _ActiveState extends State<_Active>{
  final pin=TextEditingController(); bool submitting=false;
  @override void dispose(){pin.dispose();super.dispose();}
+ Future<void> _navigateToTarget() async {
+    final isService=widget.b['service_type']=='services';
+    final ongoing=widget.b['status']=='ongoing';
+    final useDrop=isService||ongoing;
+    final lat=double.tryParse((useDrop?(widget.b['drop_lat']??widget.b['drop_latitude']):(widget.b['pickup_lat']??widget.b['pickup_latitude']))?.toString()??'');
+    final lng=double.tryParse((useDrop?(widget.b['drop_lng']??widget.b['drop_longitude']):(widget.b['pickup_lng']??widget.b['pickup_longitude']))?.toString()??'');
+    final address=(useDrop?widget.b['drop_or_service_address']:widget.b['pickup_location'])?.toString().trim()??'';
+    final destination=(lat!=null&&lng!=null)?'$lat,$lng':address;
+    if(destination.isEmpty){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Customer address coordinates are not available yet. Refresh the booking and try again.')));
+      return;
+    }
+    final uri=Uri.https('www.google.com','/maps/dir/',{'api':'1','destination':destination,'travelmode':'driving'});
+    try {
+      final opened=await launchUrl(uri,mode:LaunchMode.externalApplication);
+      if(!opened&&mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Could not open navigation. Please check that a maps app is installed.')));
+    } catch (_) {
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Could not open navigation. Please try again.')));
+    }
+  }
  @override Widget build(BuildContext c){
   final id=int.tryParse(widget.b['id']?.toString()??'')??0;
   final status=widget.b['status']?.toString()??'';
@@ -1874,7 +1895,15 @@ class _ActiveState extends State<_Active>{
    const SizedBox(height:10),
    _Route('Pickup',widget.b['pickup_location']?.toString()??''),
    if(widget.b['drop_or_service_address']!=null&&widget.b['drop_or_service_address'].toString().trim().isNotEmpty)
-     _Route('Drop',widget.b['drop_or_service_address']?.toString()??''),
+     _Route(widget.b['service_type']=='services'?'Service address':'Drop',widget.b['drop_or_service_address']?.toString()??''),
+   if(accepted||arrived||ongoing)...[
+     const SizedBox(height:8),
+     SizedBox(width:double.infinity,child:OutlinedButton.icon(
+       onPressed:submitting?null:_navigateToTarget,
+       icon:const Icon(Icons.navigation_rounded),
+       label:Text(widget.b['service_type']=='services'?'Navigate to customer home':ongoing?'Navigate to destination':'Navigate to pickup'),
+     )),
+   ],
 
    if(accepted)...[
     const SizedBox(height:4),
@@ -2314,7 +2343,8 @@ class _LiveTrackingPageState extends State<LiveTrackingPage>{
     // road route instead of returning early (which left the customer map blank).
     final p=providerPoint ?? pickupPoint;
     if(p==null)return;
-    final target = status=='ongoing'
+    final isService=widget.booking['service_type']=='services';
+    final target = (status=='ongoing'||isService)
       ? destinationPoint
       : (providerPoint!=null ? pickupPoint : (destinationPoint ?? pickupPoint));
     if(target==null)return;
