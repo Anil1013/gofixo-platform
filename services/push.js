@@ -76,6 +76,30 @@ async function sendProviderFcm(token, payload, { cancelled = false } = {}) {
   }
 }
 
+async function sendCustomerFcm(token, payload) {
+  if (!token) return false;
+  const admin = getFirebaseAdmin();
+  if (!admin) return false;
+  const message = {
+    token,
+    notification: {
+      title: String(payload.title || 'Gofixo booking update'),
+      body: String(payload.body || 'Your booking status has changed.'),
+    },
+    data: Object.fromEntries(Object.entries(payload).map(([key, value]) => [key, String(value ?? '')])),
+    android: { priority: 'high', notification: { channelId: 'gofixo_requests', sound: 'default' } },
+  };
+  try {
+    await admin.messaging().send(message);
+    return true;
+  } catch (err) {
+    if (err.code === 'messaging/registration-token-not-registered' ||
+        err.code === 'messaging/invalid-registration-token') return { expired: true };
+    console.error('Customer FCM error:', err.message);
+    return false;
+  }
+}
+
 async function sendProviderPush(subscription, payload) {
   if (!subscription) return false;
   try {
@@ -91,5 +115,6 @@ async function sendProviderPush(subscription, payload) {
 module.exports = {
   sendProviderPush,
   sendProviderFcm,
+  sendCustomerFcm,
   getVapidPublicKey: () => keys.publicKey,
 };
