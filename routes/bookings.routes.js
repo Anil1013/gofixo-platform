@@ -179,6 +179,46 @@ const waitingExpiryTimer = setInterval(() => {
 }, 15000);
 if (typeof waitingExpiryTimer.unref === 'function') waitingExpiryTimer.unref();
 
+// Unaccepted requests expire 15 minutes after they are offered. This sweep runs
+// on the backend (not on a phone), locks rows across server instances, and
+// releases any reserved home-service wallet amount exactly once.
+async function expireUnacceptedBookings() {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const expired = await client.query(
+      `SELECT id, customer_id, service_type, fare_amount
+         FROM bookings
+        WHERE status = 'requested'
+          AND COALESCE(offered_at, created_at) <= NOW() - INTERVAL '15 minutes'
+        ORDER BY COALESCE(offered_at, created_at)
+        FOR UPDATE SKIP LOCKED
+        LIMIT 100`
+    );
+    for (const row of expired.rows) {
+      if (row.service_type === 'services') {
+        await releaseServiceWallet(client, row.id, row.customer_id, Number(row.fare_amount), 'partner_response_timeout');
+      }
+      await client.query(
+        `UPDATE bookings
+            SET status = 'no_provider', offered_at = NULL, start_pin = NULL
+          WHERE id = $1 AND status = 'requested'`,
+        [row.id]
+      );
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+const unacceptedExpiryTimer = setInterval(() => {
+  expireUnacceptedBookings().catch((err) => console.error('[Gofixo booking policy] 15-minute request expiry failed:', err.message));
+}, 15000);
+if (typeof unacceptedExpiryTimer.unref === 'function') unacceptedExpiryTimer.unref();
+
 // List all bookings (admin panel only — contains customer phone numbers and PINs)
 router.get('/', requireAdmin, async (req, res, next) => {
   try {
@@ -673,6 +713,62 @@ router.post('/:id/cancel', requireAuth(['customer']), async (req, res, next) => 
     client.release();
   }
 });
+// Provider may cancel an accepted/arrived booking before the customer PIN starts the job.
+router.post('/:id/provider-cancel', requireAuth(['provider']), async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `SELECT id, customer_id, provider_id, service_type, fare_amount, status
+         FROM bookings WHERE id = $1 FOR UPDATE`,
+      [req.params.id]
+    );
+    if (!result.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+    const current = result.rows[0];
+    if (Number(current.provider_id) !== Number(req.user.id)) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'This booking does not belong to you' });
+    }
+    if (!['accepted', 'arrived'].includes(current.status)) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'A booking can only be cancelled by the partner before the job starts' });
+    }
+    if (current.service_type === 'services') {
+      await releaseServiceWallet(client, current.id, current.customer_id, Number(current.fare_amount), 'partner_cancelled');
+    }
+    await client.query(
+      `UPDATE bookings
+          SET status = 'cancelled', offered_at = NULL, start_pin = NULL,
+              waiting_fee_amount = 0, waiting_fee_status = 'not_applicable'
+        WHERE id = $1`,
+      [current.id]
+    );
+    const eligible = await client.query(
+      `SELECT 1 FROM service_providers sp
+        WHERE sp.id = $1 AND sp.kyc_status = 'approved'
+          AND EXISTS (SELECT 1 FROM provider_subscriptions ps
+                       WHERE ps.provider_id = sp.id AND ps.status = 'active' AND ps.expiry_date > NOW())
+          AND NOT EXISTS (SELECT 1 FROM bookings b
+                           WHERE b.provider_id = sp.id AND b.status IN ('accepted','arrived','ongoing') AND b.id <> $2)`,
+      [req.user.id, current.id]
+    );
+    await client.query(
+      'UPDATE service_providers SET is_available = $1 WHERE id = $2',
+      [eligible.rows.length > 0, req.user.id]
+    );
+    await client.query('COMMIT');
+    return res.json({ message: 'Booking cancelled by partner', booking_id: Number(current.id), status: 'cancelled' });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    next(err);
+  } finally {
+    client.release();
+  }
+});
+
 // Provider accepts the request that is buzzing on their phone.
 // Re-check subscription/KYC and active-booking ownership atomically so an offer
 // cannot be accepted after the provider becomes ineligible or gets another job.
