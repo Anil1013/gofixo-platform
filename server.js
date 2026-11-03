@@ -379,7 +379,8 @@ async function ensureRuntimeSchema() {
   await pool.query(`
     ALTER TABLE customers
       ADD COLUMN IF NOT EXISTS profile_photo_url TEXT,
-      ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP DEFAULT NOW()
+      ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP DEFAULT NOW(),
+      ADD COLUMN IF NOT EXISTS fcm_token TEXT
   `);
 
   // Customer forgot-password requests. Create this on startup so an older production
