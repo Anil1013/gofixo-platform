@@ -1,7 +1,7 @@
 {
-  "version": "1.0.39",
-  "buildNumber": 1000039,
-  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.39.apk",
-  "notes": "Gofixo v1.0.39: secure ride subscription payments with UTR submission and admin bank verification; Home Services partners are not blocked by ride subscriptions; ride commission remains 0% and Home Services commission stays separate.",
+  "version": "1.0.40",
+  "buildNumber": 1000040,
+  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.40.apk",
+  "notes": "Gofixo v1.0.40: ride subscription payments require UTR submission and admin bank verification; only ride partners need subscriptions; Home Services partners use the separate service commission; ride per-booking commission remains 0%.",
   "forceUpdate": false
 }
