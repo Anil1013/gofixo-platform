@@ -1038,7 +1038,8 @@ class _ProviderServicesTab extends StatefulWidget{
 }
 class _ProviderServicesTabState extends State<_ProviderServicesTab>{
   List<Map<String,dynamic>> plans=[];
-  Map<String,dynamic>? subscription;
+  List<Map<String,dynamic>> paymentRequests=[];
+  Map<String,dynamic>? subscription, paymentConfig;
   bool loading=true,working=false;
   @override void initState(){super.initState();_load();}
   Future<void> _load()async{
@@ -1047,9 +1048,15 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
       final type=widget.me['type']?.toString()??'';
       final id=int.tryParse(widget.me['id']?.toString()??'')??0;
       final current=await ApiService.subscription(widget.session.token,id);
+      Map<String,dynamic>? config;
+      List<Map<String,dynamic>> requests=[];
+      try{config=await ApiService.subscriptionPaymentConfig(widget.session.token);}catch(_){}
+      try{requests=await ApiService.mySubscriptionPayments(widget.session.token);}catch(_){}
       if(mounted)setState((){
         plans=all.where((p)=>p['provider_type']?.toString()==type).toList();
         subscription=current;
+        paymentConfig=config;
+        paymentRequests=requests;
         loading=false;
       });
     }catch(_){if(mounted)setState(()=>loading=false);}
@@ -1057,11 +1064,39 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
   Future<void> _subscribe(Map<String,dynamic> plan)async{
     final id=int.tryParse(plan['id']?.toString()??'');
     if(id==null||working)return;
+    final utrController=TextEditingController();
+    final config=paymentConfig;
+    final configured=config?['configured']==true;
+    final image64=config?['qrImageBase64']?.toString()??'';
+    final imageUrl=config?['qrImageUrl']?.toString()??'';
+    final utr=await showDialog<String>(context:context,builder:(dialogContext)=>AlertDialog(
+      title:Text('Pay ₹${plan['fee']} for ${plan['plan_name']??'plan'}'),
+      content:SizedBox(width:360,child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text('Payee: ${config?['payeeName']??'Gofixo'}',style:const TextStyle(fontWeight:FontWeight.w800)),
+        const SizedBox(height:10),
+        if(image64.isNotEmpty)Image.memory(base64Decode(image64),height:190,fit:BoxFit.contain)
+        else if(imageUrl.isNotEmpty)Image.network(imageUrl,height:190,fit:BoxFit.contain)
+        else const Text('Official payment QR is not configured. Please contact Gofixo support.'),
+        const SizedBox(height:10),
+        const Text('Pay the exact amount using the official QR. Enter your UTR below. Your plan will remain pending until Gofixo verifies the actual bank credit.',style:TextStyle(fontSize:12,color:gfMuted)),
+        const SizedBox(height:12),
+        TextField(controller:utrController,decoration:const InputDecoration(labelText:'UPI UTR / transaction reference',border:OutlineInputBorder()),textCapitalization:TextCapitalization.characters),
+      ]))),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('Cancel')),
+        FilledButton(onPressed:configured?()=>Navigator.pop(dialogContext,utrController.text.trim()):null,child:const Text('Submit UTR')),
+      ],
+    ));
+    if(utr==null)return;
+    if(utr.replaceAll(RegExp(r'\\s+'),'').length<8){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Enter a valid UTR/reference (at least 8 characters).')));
+      return;
+    }
     setState(()=>working=true);
     try{
-      await ApiService.subscribe(widget.session.token,id);
+      await ApiService.submitSubscriptionPayment(widget.session.token,id,utr);
       await _load();
-      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Plan activated. You can now go online.')));
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Payment claim submitted. Subscription activates after bank verification.')));
     }catch(e){
       if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception:','').trim())));
     }finally{if(mounted)setState(()=>working=false);}
@@ -1093,6 +1128,7 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
     final uploaded=((widget.me['documents'] as List?)??const[]).whereType<Map>().map((x)=>x['doc_type']?.toString()).whereType<String>().toSet();
     final worker=type=='general_worker'||type=='skilled_worker';
     final driver=type=='bike'||type=='auto'||type=='car';
+    final pending=paymentRequests.where((r)=>r['status']=='pending_verification').toList();
     return ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
       const _PageHeading(title:'Services',subtitle:'Manage your Gofixo work, verification and earning plan.'),
       _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -1115,60 +1151,53 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
         const SizedBox(height:6),
         Text(uploaded.isEmpty?'Upload the documents requested by Gofixo.':'Uploaded: '+uploaded.map((x)=>x.replaceAll('_',' ')).join(', '),style:const TextStyle(fontSize:11,color:gfMuted)),
         const SizedBox(height:10),
-        Row(children:[
-          _docButton('aadhar_front','Aadhaar front',uploaded),
-          const SizedBox(width:7),
-          _docButton('aadhar_back','Aadhaar back',uploaded),
-        ]),
+        Row(children:[_docButton('aadhar_front','Aadhaar front',uploaded),const SizedBox(width:7),_docButton('aadhar_back','Aadhaar back',uploaded)]),
         const SizedBox(height:7),
         Row(children:[
-          if(driver)...[
-            _docButton('driving_license','Driving licence',uploaded),
-            const SizedBox(width:7),
-            _docButton('vehicle_rc','Vehicle RC',uploaded),
-          ]else
-            _docButton('police_verification','Police verification',uploaded),
-          const SizedBox(width:7),
-          _docButton('profile_photo','Profile photo',uploaded),
+          if(driver)...[_docButton('driving_license','Driving licence',uploaded),const SizedBox(width:7),_docButton('vehicle_rc','Vehicle RC',uploaded)]
+          else _docButton('police_verification','Police verification',uploaded),
+          const SizedBox(width:7),_docButton('profile_photo','Profile photo',uploaded),
         ]),
-        if(driver)...[
-          const SizedBox(height:7),
-          Row(children:[
-            _docButton('vehicle_photo_front','Vehicle front',uploaded),
-            const SizedBox(width:7),
-            _docButton('vehicle_photo_back','Vehicle back',uploaded),
-          ]),
-        ],
+        if(driver)...[const SizedBox(height:7),Row(children:[_docButton('vehicle_photo_front','Vehicle front',uploaded),const SizedBox(width:7),_docButton('vehicle_photo_back','Vehicle back',uploaded)])],
       ])),
       const SizedBox(height:12),
       _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        const Text('EARNING PLAN',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
+        const Text('RIDE EARNING SUBSCRIPTION',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
         const SizedBox(height:6),
         if(loading)const LinearProgressIndicator(minHeight:2),
         if(!loading&&subscription!=null)...[
           Text(subscription!['plan_name']?.toString()??'Active plan',style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy)),
           const SizedBox(height:4),
-          Text('Earned ₹'+(subscription!['total_earned_this_cycle']??0).toString()+' · Cap ₹'+(subscription!['earning_cap']??'—').toString(),style:const TextStyle(fontSize:11,color:gfMuted)),
-          Text('Expires '+(subscription!['expiry_date']?.toString().split('T').first??'—'),style:const TextStyle(fontSize:10,color:gfMuted)),
+          Text('Earned ₹${subscription!['total_earned_this_cycle']??0} · Cap ₹${subscription!['earning_cap']??'—'}',style:const TextStyle(fontSize:11,color:gfMuted)),
+          Text('Expires ${subscription!['expiry_date']?.toString().split('T').first??'—'}',style:const TextStyle(fontSize:10,color:gfMuted)),
         ] else if(!loading)...[
-          const Text('Choose a plan to start receiving jobs.',style:TextStyle(fontSize:11,color:gfMuted)),
+          const Text('Choose a plan. Pay the exact fee and submit UTR; Gofixo will activate it after bank verification.',style:TextStyle(fontSize:11,color:gfMuted)),
           const SizedBox(height:8),
           ...plans.map((p)=>Container(
-            margin:const EdgeInsets.only(bottom:7),
-            padding:const EdgeInsets.all(11),
+            margin:const EdgeInsets.only(bottom:7),padding:const EdgeInsets.all(11),
             decoration:BoxDecoration(color:gfBg,borderRadius:BorderRadius.circular(15)),
             child:Row(children:[
               Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                 Text(p['plan_name']?.toString()??'Plan',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
-                Text('₹'+(p['fee']??0).toString()+' · '+(p['validity_days']??0).toString()+' days · earning cap ₹'+(p['earning_cap']??'—').toString(),style:const TextStyle(fontSize:10,color:gfMuted)),
+                Text('₹${p['fee']??0} · ${p['validity_days']??0} days · earning cap ₹${p['earning_cap']??'—'}',style:const TextStyle(fontSize:10,color:gfMuted)),
               ])),
-              FilledButton(onPressed:working?null:()=>_subscribe(p),style:FilledButton.styleFrom(backgroundColor:gfGreen),child:const Text('Activate')),
+              FilledButton(onPressed:working||paymentConfig?['configured']!=true?null:()=>_subscribe(p),style:FilledButton.styleFrom(backgroundColor:gfGreen),child:const Text('Pay & submit')),
             ]),
           )),
         ],
+        if(pending.isNotEmpty)...[
+          const Divider(height:18),
+          const Text('PAYMENT UNDER REVIEW',style:TextStyle(fontSize:10,fontWeight:FontWeight.w900,color:gfNavy)),
+          ...pending.map((r)=>Padding(padding:const EdgeInsets.only(top:6),child:Text('${r['plan_name']} · ₹${r['amount']} · UTR ${r['utr']} · Pending verification',style:const TextStyle(fontSize:11,color:gfMuted)))),
+        ],
+        if(paymentRequests.where((r)=>r['status']=='rejected').isNotEmpty)...[
+          const Divider(height:18),
+          ...paymentRequests.where((r)=>r['status']=='rejected').take(2).map((r)=>Text('Payment rejected: ${r['admin_note']??'Contact support'}',style:const TextStyle(fontSize:11,color:Colors.red))),
+        ],
+        Align(alignment:Alignment.centerRight,child:TextButton.icon(onPressed:loading?null:_load,icon:const Icon(Icons.refresh,size:16),label:const Text('Refresh status'))),
       ])),
       const SizedBox(height:10),
-      const _Box(child:Text('KYC approval + an active earning plan + fresh location are required before Gofixo can match nearby jobs.',style:TextStyle(fontSize:11,color:gfMuted))),
+      const _Box(child:Text('Ride fare commission: 0%. Ride earnings are covered by your subscription. Home Services commission remains separate. KYC approval + an active earning plan + fresh location are required before matching.',style:TextStyle(fontSize:11,color:gfMuted))),
     ]);
   }
 }
