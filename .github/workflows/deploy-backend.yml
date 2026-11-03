@@ -52,7 +52,7 @@ jobs:
 
             # Persist the deployment secret for the backend and keep the file private.
             touch .env
-            grep -v '^GOOGLE_MAPS_API_KEY=' .env > .env.tmp || true
+            grep -v -E '^(GOOGLE_MAPS_API_KEY|CASHFREE_)' .env > .env.tmp || true
             printf 'GOOGLE_MAPS_API_KEY=%s\n' "$GOOGLE_MAPS_API_KEY" >> .env.tmp
             mv .env.tmp .env
             chmod 600 .env
