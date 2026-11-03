@@ -71,6 +71,7 @@ class ApiService {
   static Future<Map<String,dynamic>> subscribe(String token,int planId)async=>Map<String,dynamic>.from(await _request('POST','/subscriptions/subscribe',token:token,body:{'plan_id':planId}) as Map);
   static Future<Map<String,dynamic>> acceptBooking(String token,int id)async=>Map<String,dynamic>.from(await _request('POST','/bookings/'+id.toString()+'/accept',token:token) as Map);
   static Future<void> declineBooking(String token,int id)=>_request('POST','/bookings/'+id.toString()+'/decline',token:token);
+  static Future<void> providerCancelBooking(String token,int id)=>_request('POST','/bookings/'+id.toString()+'/provider-cancel',token:token);
   static Future<Map<String,dynamic>> startBooking(String token,int id,String pin)async=>Map<String,dynamic>.from(await _request('POST','/bookings/'+id.toString()+'/start',token:token,body:{'pin':pin}) as Map);
   static Future<Map<String,dynamic>> markArrived(String token,int id)async=>Map<String,dynamic>.from(await _request('POST','/bookings/'+id.toString()+'/arrived',token:token) as Map);
   static Future<Map<String,dynamic>> confirmWaitingFee(String token,int id)async=>Map<String,dynamic>.from(await _request('POST','/bookings/'+id.toString()+'/confirm-waiting-fee',token:token) as Map);
