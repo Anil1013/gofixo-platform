@@ -577,75 +577,9 @@ ensureRuntimeSchema()
     process.exit(1);
   });
 
-// Ride-request timeout: close an unclaimed broadcast request after OFFER_TIMEOUT_SECONDS.
-const OFFER_TIMEOUT_SECONDS = 60;
-const STALE_LOCATION_SECONDS = 5 * 60;
-setInterval(async () => {
-  try {
-    // Broadcast requests stay visible/buzzing for 60 seconds. Do not take
-    // any provider offline on timeout; they remain online for future requests.
-    const expired = await pool.query(
-      `UPDATE bookings
-       SET status = 'no_provider', offered_at = NULL
-       WHERE status = 'requested'
-         AND provider_id IS NULL
-         AND offered_at IS NOT NULL
-         AND offered_at < NOW() - ($1 || ' seconds')::interval
-       RETURNING id`,
-      [String(OFFER_TIMEOUT_SECONDS)]
-    );
-    if (expired.rowCount) {
-      for (const row of expired.rows) {
-        const client = await pool.connect();
-        try {
-          await client.query('BEGIN');
-          const tx = await client.query(
-            `SELECT wt.*, w.available_balance, w.reserved_balance
-             FROM wallet_transactions wt
-             JOIN wallets w ON w.id = wt.wallet_id
-             WHERE wt.booking_id = $1
-               AND wt.type = 'BOOKING_RESERVE'
-               AND wt.status = 'success'
-             FOR UPDATE`,
-            [row.id]
-          );
-          if (tx.rows.length) {
-            const t = tx.rows[0];
-            const amount = Number(t.amount);
-            const before = Number(t.available_balance);
-            const reservedBefore = Number(t.reserved_balance);
-            const after = Number((before + amount).toFixed(2));
-            const reservedAfter = Number(Math.max(0, reservedBefore - amount).toFixed(2));
-            await client.query(
-              'UPDATE wallets SET available_balance=$1, reserved_balance=$2, updated_at=NOW() WHERE id=$3',
-              [after, reservedAfter, t.wallet_id]
-            );
-            await client.query(
-              `INSERT INTO wallet_transactions
-                (wallet_id, customer_id, booking_id, type, amount, balance_before, balance_after,
-                 reserved_before, reserved_after, status, reference_id, metadata)
-               VALUES ($1,$2,$3,'BOOKING_RELEASE',$4,$5,$6,$7,$8,'success',$9,$10)
-               ON CONFLICT (type, reference_id) DO NOTHING`,
-              [t.wallet_id, t.customer_id, row.id, amount, before, after, reservedBefore, reservedAfter,
-                'BOOKING_RELEASE_' + row.id,
-                JSON.stringify({ reason: 'provider_timeout' })]
-            );
-            await client.query("UPDATE wallet_transactions SET status='released' WHERE id=$1", [t.id]);
-          }
-          await client.query('COMMIT');
-        } catch (releaseErr) {
-          await client.query('ROLLBACK').catch(() => {});
-          console.error('Wallet reservation release failed:', releaseErr.message);
-        } finally {
-          client.release();
-        }
-      }
-      console.log(`Closed ${expired.rowCount} expired broadcast booking(s)`);
-    }
-  } catch (err) {
-    console.error('Offer timeout sweeper error:', err.message);
-  }
-}, 5000);
+// Unaccepted booking expiry is owned by routes/bookings.routes.js. Its single
+// transactional sweeper waits 15 minutes, locks each booking, and releases any
+// reserved home-service wallet funds atomically. Do not add a second server timer.
 
 // Provider availability is controlled by the provider. Do not force Offline
 // just because a sleeping phone stopped sending GPS updates. Matching still requires
