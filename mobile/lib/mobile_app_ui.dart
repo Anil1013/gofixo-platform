@@ -1181,7 +1181,7 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
                 Text(p['plan_name']?.toString()??'Plan',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
                 Text('₹${p['fee']??0} · ${p['validity_days']??0} days · earning cap ₹${p['earning_cap']??'—'}',style:const TextStyle(fontSize:10,color:gfMuted)),
               ])),
-              FilledButton(onPressed:working||paymentConfig?['configured']!=true?null:()=>_subscribe(p),style:FilledButton.styleFrom(backgroundColor:gfGreen),child:const Text('Pay & submit')),
+              FilledButton(onPressed:(working||paymentConfig?['configured']!=true)?null:()=>_subscribe(p),style:FilledButton.styleFrom(backgroundColor:gfGreen),child:const Text('Pay & submit')),
             ]),
           )),
         ],
