@@ -149,6 +149,7 @@ router.get('/', requireAdmin, async (req, res, next) => {
   try {
     const result = await pool.query(`
       SELECT sp.id, sp.generated_id, sp.name, sp.phone, sp.type, sp.service_categories, sp.kyc_status, sp.kyc_review_note, sp.bank_upi_id,
+        COALESCE(sk.skills, '[]'::json) AS skills,
         sp.avg_rating, sp.is_available, sp.created_at, sp.current_lat, sp.current_lng,
         sub.plan_name,
         sub.earning_cap,
@@ -167,6 +168,12 @@ router.get('/', requireAdmin, async (req, res, next) => {
           AND ps.expiry_date > NOW()
         ORDER BY ps.start_date DESC LIMIT 1
       ) sub ON true
+      LEFT JOIN LATERAL (
+        SELECT json_agg(json_build_object('skill_key', skill_key, 'service_type', service_type,
+          'kyc_status', kyc_status, 'is_available', is_available, 'review_note', review_note)
+          ORDER BY service_type, skill_key) AS skills
+        FROM provider_skills WHERE provider_id = sp.id
+      ) sk ON true
       LEFT JOIN LATERAL (
         SELECT json_agg(json_build_object('id', id, 'doc_type', doc_type) ORDER BY uploaded_at DESC) AS documents
         FROM provider_documents pd WHERE pd.provider_id = sp.id
@@ -313,6 +320,98 @@ const REQUIRED_DOCS = {
   general_worker: ['aadhar_front', 'aadhar_back', 'profile_photo', 'police_verification'],
   skilled_worker: ['aadhar_front', 'aadhar_back', 'profile_photo', 'police_verification'],
 };
+
+// Provider skill list. New skills always start pending and offline until admin approval.
+router.get('/me/skills', requireAuth(['provider']), async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT skill_key, service_type, kyc_status, is_available, review_note
+       FROM provider_skills WHERE provider_id = $1 ORDER BY service_type, skill_key`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) { next(err); }
+});
+
+router.put('/me/skills', requireAuth(['provider']), async (req, res, next) => {
+  try {
+    const skills = Array.isArray(req.body?.skills) ? req.body.skills : [];
+    if (!skills.length || skills.length > 30) {
+      return res.status(400).json({ error: 'Provide between 1 and 30 skills' });
+    }
+    const normalized = [];
+    for (const item of skills) {
+      const skillKey = String(item?.skill_key || '').trim().toLowerCase();
+      const serviceType = item?.service_type;
+      const validRide = serviceType === 'ride' && ['bike', 'auto', 'car'].includes(skillKey);
+      const validService = serviceType === 'services' && normalizeServiceCategories([skillKey]).includes(skillKey);
+      if (!validRide && !validService) {
+        return res.status(400).json({ error: `Invalid skill: ${skillKey}` });
+      }
+      if (!normalized.some((x) => x.skill_key === skillKey)) normalized.push({ skill_key: skillKey, service_type: serviceType });
+    }
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const skill of normalized) {
+        await client.query(
+          `INSERT INTO provider_skills (provider_id, skill_key, service_type, kyc_status, is_available)
+           VALUES ($1, $2, $3, 'pending', false)
+           ON CONFLICT (provider_id, skill_key) DO NOTHING`,
+          [req.user.id, skill.skill_key, skill.service_type]
+        );
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally { client.release(); }
+    const result = await pool.query(
+      `SELECT skill_key, service_type, kyc_status, is_available, review_note
+       FROM provider_skills WHERE provider_id = $1 ORDER BY service_type, skill_key`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) { next(err); }
+});
+
+// Admin controls approval/rejection for one partner skill without changing account KYC.
+router.patch('/:id/skills/:skillKey/kyc', requireAdmin, async (req, res, next) => {
+  try {
+    const status = req.body?.status;
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim().slice(0, 500) : '';
+    if (!['approved', 'rejected', 'pending'].includes(status)) {
+      return res.status(400).json({ error: 'status must be approved, rejected, or pending' });
+    }
+    const result = await pool.query(
+      `UPDATE provider_skills SET kyc_status = $1, review_note = $2,
+         is_available = CASE WHEN $1 = 'approved' THEN is_available ELSE false END,
+         updated_at = NOW()
+       WHERE provider_id = $3 AND skill_key = $4
+       RETURNING provider_id, skill_key, service_type, kyc_status, is_available, review_note`,
+      [status, reason || null, req.params.id, req.params.skillKey]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Partner skill not found' });
+    res.json(result.rows[0]);
+  } catch (err) { next(err); }
+});
+
+// Partner enables/disables an already-approved individual skill.
+router.patch('/me/skills/:skillKey/availability', requireAuth(['provider']), async (req, res, next) => {
+  try {
+    const enabled = req.body?.is_available;
+    if (typeof enabled !== 'boolean') return res.status(400).json({ error: 'is_available must be a boolean' });
+    const result = await pool.query(
+      `UPDATE provider_skills SET is_available = $1, updated_at = NOW()
+       WHERE provider_id = $2 AND skill_key = $3 AND kyc_status = 'approved'
+         AND ($1 = false OR (SELECT is_available FROM service_providers WHERE id = $2) = true)
+       RETURNING skill_key, service_type, kyc_status, is_available`,
+      [enabled, req.user.id, req.params.skillKey]
+    );
+    if (!result.rows.length) return res.status(409).json({ error: 'Skill is not approved or partner account is offline' });
+    res.json(result.rows[0]);
+  } catch (err) { next(err); }
+});
 
 // Update KYC status (admin approve/reject)
 router.patch('/:id/kyc', requireAdmin, async (req, res, next) => {
