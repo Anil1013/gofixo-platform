@@ -1,7 +1,7 @@
 {
-  "version": "1.0.38",
-  "buildNumber": 1000038,
-  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.38.apk",
-  "notes": "Gofixo v1.0.38: shared map improvements for ride and home services, service-address coordinates, nearby partner matching, and partner navigation.",
+  "version": "1.0.39",
+  "buildNumber": 1000039,
+  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.39.apk",
+  "notes": "Gofixo v1.0.39: partner ride subscription payments now require UTR submission and admin bank verification before activation. Ride per-booking commission remains 0%; Home Services commission is unchanged.",
   "forceUpdate": false
 }
