@@ -143,29 +143,24 @@ function ensureWaitingSchema() {
 async function expireWaitingBookings() {
   await ensureWaitingSchema();
   await pool.query(`
-    UPDATE bookings
-       SET status = 'cancelled',
-           waiting_fee_amount = LEAST($1, GREATEST(0,
-             CEIL(EXTRACT(EPOCH FROM (NOW() - arrived_at)) / 60) * $2)),
-           waiting_fee_status = 'due',
-           start_pin = NULL,
-           offered_at = NULL
-     WHERE service_type = 'ride'
-       AND status = 'arrived'
-       AND arrived_at IS NOT NULL
-       AND arrived_at <= NOW() - ($3 * INTERVAL '1 minute')
-  `, [WAITING_RATE_PER_MINUTE * WAITING_LIMIT_MINUTES, WAITING_RATE_PER_MINUTE, WAITING_LIMIT_MINUTES]);
-  await pool.query(`
+    WITH expired AS (
+      UPDATE bookings
+         SET status = 'cancelled',
+             waiting_fee_amount = LEAST($1, GREATEST(0,
+               CEIL(EXTRACT(EPOCH FROM (NOW() - arrived_at)) / 60) * $2)),
+             waiting_fee_status = 'due',
+             start_pin = NULL,
+             offered_at = NULL
+       WHERE service_type = 'ride'
+         AND status = 'arrived'
+         AND arrived_at IS NOT NULL
+         AND arrived_at <= NOW() - ($3 * INTERVAL '1 minute')
+       RETURNING provider_id
+    )
     UPDATE service_providers sp
        SET is_available = true
      WHERE sp.is_available = false
-       AND EXISTS (
-         SELECT 1 FROM bookings expired
-          WHERE expired.provider_id = sp.id
-            AND expired.status = 'cancelled'
-            AND expired.waiting_fee_status = 'due'
-            AND expired.arrived_at <= NOW() - ($1 * INTERVAL '1 minute')
-       )
+       AND sp.id IN (SELECT DISTINCT provider_id FROM expired WHERE provider_id IS NOT NULL)
        AND NOT EXISTS (
          SELECT 1 FROM bookings active
           WHERE active.provider_id = sp.id
@@ -176,7 +171,7 @@ async function expireWaitingBookings() {
          SELECT 1 FROM provider_subscriptions ps
           WHERE ps.provider_id = sp.id AND ps.status = 'active' AND ps.expiry_date > NOW()
        ))
-  `, [WAITING_LIMIT_MINUTES]);
+  `, [WAITING_RATE_PER_MINUTE * WAITING_LIMIT_MINUTES, WAITING_RATE_PER_MINUTE, WAITING_LIMIT_MINUTES]);
 }
 const waitingExpiryTimer = setInterval(() => {
   expireWaitingBookings().catch((err) => console.error('[Gofixo waiting policy] Expiry sweep failed:', err.message));
