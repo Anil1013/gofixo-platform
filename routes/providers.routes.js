@@ -379,7 +379,7 @@ router.patch('/:id/availability', requireAuth(['provider']), async (req, res, ne
         [req.params.id]
       );
       const sub = await pool.query(
-        `SELECT sp.kyc_status, sp.current_lat, sp.current_lng, sp.location_updated_at,
+        `SELECT sp.type, sp.kyc_status, sp.current_lat, sp.current_lng, sp.location_updated_at,
                 ps.status, ps.expiry_date
          FROM service_providers sp
          LEFT JOIN provider_subscriptions ps
