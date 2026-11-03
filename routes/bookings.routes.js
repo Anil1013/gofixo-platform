@@ -1005,9 +1005,9 @@ router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) =>
          )
          AND (6371 * acos(
            LEAST(1, GREATEST(-1,
-             cos(radians(b.pickup_lat)) * cos(radians(sp.current_lat)) *
-             cos(radians(sp.current_lng) - radians(b.pickup_lng)) +
-             sin(radians(b.pickup_lat)) * sin(radians(sp.current_lat))
+             cos(radians(CASE WHEN b.service_type = 'services' THEN COALESCE(b.drop_lat, b.pickup_lat) ELSE b.pickup_lat END)) * cos(radians(sp.current_lat)) *
+             cos(radians(sp.current_lng) - radians(CASE WHEN b.service_type = 'services' THEN COALESCE(b.drop_lng, b.pickup_lng) ELSE b.pickup_lng END)) +
+             sin(radians(CASE WHEN b.service_type = 'services' THEN COALESCE(b.drop_lat, b.pickup_lat) ELSE b.pickup_lat END)) * sin(radians(sp.current_lat))
            ))
          )) <= 10
        LIMIT 1`,
