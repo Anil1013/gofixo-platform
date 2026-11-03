@@ -38,6 +38,7 @@ class PushService {
   PushService._();
   static bool _initialized = false;
   static String? _lastRegisteredProvider;
+  static String? _lastRegisteredCustomer;
 
   static Future<void> initialize() async {
     if (defaultTargetPlatform != TargetPlatform.android || _initialized) return;
@@ -72,10 +73,11 @@ class PushService {
     });
     FirebaseMessaging.instance.onTokenRefresh.listen((_) async {
       _lastRegisteredProvider = null;
+      _lastRegisteredCustomer = null;
       final session = await ApiService.loadSession();
-      if (session != null && session.role == 'provider') {
-        await syncProviderToken(session);
-      }
+      if (session == null) return;
+      if (session.role == 'provider') await syncProviderToken(session);
+      if (session.role == 'customer') await syncCustomerToken(session);
     });
   }
 
@@ -85,7 +87,25 @@ class PushService {
       await _localNotifications.cancel(id);
       return;
     }
-    // Native Android FirebaseMessagingService owns booking request sound,
+    final title = message.notification?.title ?? 'Gofixo booking update';
+    final body = message.notification?.body ?? 'Your booking status has changed.';
+    await _localNotifications.show(
+      id,
+      title,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _requestChannel.id,
+          _requestChannel.name,
+          channelDescription: _requestChannel.description,
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+        ),
+      ),
+      payload: message.data['booking_id']?.toString(),
+    );
+    // Native Android FirebaseMessagingService owns provider request sound,
     // vibration, and the ongoing notification in foreground and background.
   }
 
@@ -97,6 +117,20 @@ class PushService {
       });
     } catch (error) {
       debugPrint('Could not stop native booking alert: $error');
+    }
+  }
+
+  static Future<void> syncCustomerToken(Session session) async {
+    if (defaultTargetPlatform != TargetPlatform.android || session.role != 'customer') return;
+    final key = '${session.userId}:${session.token}';
+    if (_lastRegisteredCustomer == key) return;
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token == null || token.isEmpty) return;
+      await ApiService.registerCustomerFcmToken(token, session.token);
+      _lastRegisteredCustomer = key;
+    } catch (error) {
+      debugPrint('Gofixo customer FCM token registration failed: $error');
     }
   }
 
