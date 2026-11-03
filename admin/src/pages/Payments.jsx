@@ -63,7 +63,7 @@ export default function Payments() {
 
   const totals = useMemo(() => {
     const approved = rows.filter((row) => row.status === 'approved');
-    const received = approved.filter((row) => row.payment_flow !== 'Gofixo → Recipient');
+    const received = approved.filter((row) => !['Gofixo → Recipient', 'Customer → Partner'].includes(row.payment_flow));
     const paidOut = approved.filter((row) => row.payment_flow === 'Gofixo → Recipient');
     return {
       count: approved.length,
