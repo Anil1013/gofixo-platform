@@ -130,6 +130,24 @@ router.post('/register', async (req, res, next) => {
         [generatedId, name, normalizedPhone, type, passwordHash, serviceCategories]
       );
 
+      if (['bike', 'auto', 'car'].includes(type)) {
+        await client.query(
+          `INSERT INTO provider_skills (provider_id, skill_key, service_type, kyc_status, is_available)
+           VALUES ($1, $2, 'ride', 'pending', false)
+           ON CONFLICT (provider_id, skill_key) DO NOTHING`,
+          [result.rows[0].id, type]
+        );
+      } else {
+        for (const category of serviceCategories) {
+          await client.query(
+            `INSERT INTO provider_skills (provider_id, skill_key, service_type, kyc_status, is_available)
+             VALUES ($1, $2, 'services', 'pending', false)
+             ON CONFLICT (provider_id, skill_key) DO NOTHING`,
+            [result.rows[0].id, category]
+          );
+        }
+      }
+
       await client.query('COMMIT');
       inTransaction = false;
       res.status(201).json(result.rows[0]);
@@ -536,6 +554,12 @@ router.patch('/:id/availability', requireAuth(['provider']), async (req, res, ne
       );
       if (result.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
     }
+    await pool.query(
+      `UPDATE provider_skills
+       SET is_available = $1, updated_at = NOW()
+       WHERE provider_id = $2 AND kyc_status = 'approved'`,
+      [is_available, req.params.id]
+    );
     res.json(result.rows[0]);
   } catch (err) {
     next(err);
