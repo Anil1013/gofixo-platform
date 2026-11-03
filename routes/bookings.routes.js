@@ -393,6 +393,9 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
 
     const routeDistance = route_distance_km === undefined || route_distance_km === null || route_distance_km === '' ? null : Number(route_distance_km);
     const clientEstimatedFare = estimated_fare === undefined || estimated_fare === null || estimated_fare === '' ? null : Number(estimated_fare);
+    // Ride matching uses pickup; home-service matching uses the service address.
+    const matchingLatitude = service_type === 'services' && destinationLatitude !== null ? destinationLatitude : pickupLatitude;
+    const matchingLongitude = service_type === 'services' && destinationLongitude !== null ? destinationLongitude : pickupLongitude;
     let calculatedFare = null;
 
     if (service_type === 'services') {
@@ -462,7 +465,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
            ))
          )) <= 10
        LIMIT 1`,
-      [provider_type, pickupLatitude, pickupLongitude, serviceCategory]
+      [provider_type, matchingLatitude, matchingLongitude, serviceCategory]
     );
     if (nearby.rows.length === 0) {
       await client.query('ROLLBACK');
@@ -534,12 +537,12 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
              sin(radians($2)) * sin(radians(p.current_lat))
            ))
          )) <= 10)`,
-      [provider_type, pickupLatitude, pickupLongitude, serviceCategory, result.rows[0].id]
+      [provider_type, matchingLatitude, matchingLongitude, serviceCategory, result.rows[0].id]
     ).then(async (pushRows) => {
       for (const row of pushRows.rows) {
         const payload = {
           title: 'Gofixo — New service request',
-          body: `Pickup: ${pickup_location || 'Customer location'}`,
+          body: `${service_type === 'services' ? 'Service address' : 'Pickup'}: ${service_type === 'services' ? (drop_or_service_address || pickup_location || 'Customer location') : (pickup_location || 'Customer location')}`,
           tag: `gofixo-booking-${result.rows[0].id}`,
           booking_id: result.rows[0].id,
           url: '/?provider=request'
@@ -808,9 +811,9 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
              )
              AND (6371 * acos(
                LEAST(1, GREATEST(-1,
-                 cos(radians(b.pickup_lat)) * cos(radians(sp.current_lat)) *
-                 cos(radians(sp.current_lng) - radians(b.pickup_lng)) +
-                 sin(radians(b.pickup_lat)) * sin(radians(sp.current_lat))
+                 cos(radians(CASE WHEN b.service_type = 'services' THEN COALESCE(b.drop_lat, b.pickup_lat) ELSE b.pickup_lat END)) * cos(radians(sp.current_lat)) *
+                 cos(radians(sp.current_lng) - radians(CASE WHEN b.service_type = 'services' THEN COALESCE(b.drop_lng, b.pickup_lng) ELSE b.pickup_lng END)) +
+                 sin(radians(CASE WHEN b.service_type = 'services' THEN COALESCE(b.drop_lat, b.pickup_lat) ELSE b.pickup_lat END)) * sin(radians(sp.current_lat))
                ))
              )) <= 10
          )
