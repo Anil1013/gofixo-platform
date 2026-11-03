@@ -82,8 +82,14 @@ class PushService {
   }
 
   static Future<void> _handleForegroundMessage(RemoteMessage message) async {
+    final type = message.data['type'];
+    // The native Android foreground service owns the repeating ringtone,
+    // vibration and persistent notification for partner booking requests.
+    // Avoid showing a second Flutter notification for the same incoming call.
+    if (type == 'booking_request') return;
+
     final id = _notificationId(message);
-    if (message.data['type'] == 'booking_cancelled') {
+    if (type == 'booking_cancelled') {
       await _localNotifications.cancel(id);
       return;
     }
