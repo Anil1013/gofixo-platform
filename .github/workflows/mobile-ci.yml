@@ -48,6 +48,19 @@ jobs:
       - name: Test
         run: flutter test
 
+      - name: Free runner disk space
+        working-directory: .
+        run: |
+          set -euo pipefail
+          echo "Disk space before cleanup:"
+          df -h /
+          # These preinstalled toolchains are not needed by this Flutter Android job.
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost
+          sudo rm -rf /usr/local/lib/android/sdk/system-images
+          sudo apt-get clean
+          echo "Disk space after cleanup:"
+          df -h /
+
       - name: Build debug APK
         env:
           GOFIXO_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
