@@ -52,6 +52,16 @@ router.post('/customer/register', async (req, res, next) => {
   }
 });
 
+// Register or refresh the authenticated customer's Android FCM token.
+router.post('/customer/fcm-token', requireAuth(['customer']), async (req, res, next) => {
+  try {
+    const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+    if (!token || token.length > 4096) return res.status(400).json({ error: 'A valid FCM token is required' });
+    await pool.query('UPDATE customers SET fcm_token = $1 WHERE id = $2', [token, req.user.id]);
+    return res.json({ registered: true });
+  } catch (err) { next(err); }
+});
+
 // Customer profile photo upload and authenticated image access.
 router.post('/customer/profile-photo', requireAuth(['customer']), profileUpload.single('file'), async (req, res, next) => {
   try {
