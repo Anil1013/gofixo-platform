@@ -1161,7 +1161,7 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
         if(driver)...[const SizedBox(height:7),Row(children:[_docButton('vehicle_photo_front','Vehicle front',uploaded),const SizedBox(width:7),_docButton('vehicle_photo_back','Vehicle back',uploaded)])],
       ])),
       const SizedBox(height:12),
-      _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      if(driver) _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         const Text('RIDE EARNING SUBSCRIPTION',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
         const SizedBox(height:6),
         if(loading)const LinearProgressIndicator(minHeight:2),
