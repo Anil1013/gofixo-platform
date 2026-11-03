@@ -3,6 +3,7 @@ package com.gofixo.app
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -49,11 +50,6 @@ class GofixoBookingAlertService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_STOP -> {
-                val target = intent.getStringExtra(EXTRA_BOOKING_ID).orEmpty()
-                if (bookingId.isEmpty() || target.isEmpty() || target == bookingId) stopSelf()
-                return START_NOT_STICKY
-            }
             ACTION_START -> {
                 bookingId = intent.getStringExtra(EXTRA_BOOKING_ID).orEmpty()
                 if (bookingId.isEmpty()) {
@@ -125,6 +121,17 @@ class GofixoBookingAlertService : Service() {
             .setContentTitle(title)
             .setContentText(body)
             .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(
+                PendingIntent.getActivity(
+                    this,
+                    0,
+                    Intent(this, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    },
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+            )
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -157,7 +164,6 @@ class GofixoBookingAlertService : Service() {
         private const val NOTIFICATION_ID = 73104
         private const val MAX_ALERT_MS = 120_000L
         private const val ACTION_START = "com.gofixo.app.BOOKING_ALERT_START"
-        private const val ACTION_STOP = "com.gofixo.app.BOOKING_ALERT_STOP"
         private const val EXTRA_BOOKING_ID = "booking_id"
         private const val EXTRA_TITLE = "title"
         private const val EXTRA_BODY = "body"
@@ -177,11 +183,9 @@ class GofixoBookingAlertService : Service() {
         }
 
         fun stop(context: Context, bookingId: String? = null) {
-            val intent = Intent(context, GofixoBookingAlertService::class.java).apply {
-                action = ACTION_STOP
-                putExtra(EXTRA_BOOKING_ID, bookingId)
-            }
-            context.startService(intent)
+            // stopService is safe from the background; startService(ACTION_STOP)
+            // can be rejected by Android's background-service restrictions.
+            context.stopService(Intent(context, GofixoBookingAlertService::class.java))
         }
     }
 }
