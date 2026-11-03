@@ -106,6 +106,7 @@ router.post('/payment-requests', requireAuth(['provider']), async (req, res, nex
     if (!plan.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Plan not found' }); }
     const provider = await client.query('SELECT type FROM service_providers WHERE id=$1', [req.user.id]);
     if (!provider.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Partner not found' }); }
+    if (!['bike','auto','car'].includes(provider.rows[0].type)) { await client.query('ROLLBACK'); return res.status(403).json({ error: 'Subscription plans are for ride partners only. Home Services use the separate service commission.' }); }
     if (provider.rows[0].type !== plan.rows[0].provider_type) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'This plan is not available for your partner type' }); }
     const qr = await client.query('SELECT qr_image FROM wallet_payment_settings WHERE id=1');
     const envUrl = String(process.env.GOFIXO_UPI_QR_IMAGE_URL || '').trim();
