@@ -295,12 +295,12 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
              WHERE active_b.provider_id = target_sp.id
                AND active_b.status IN ('accepted', 'arrived', 'ongoing')
            )
-           AND EXISTS (
+           AND (b.service_type = 'services' OR EXISTS (
              SELECT 1 FROM provider_subscriptions ps
              WHERE ps.provider_id = target_sp.id
                AND ps.status = 'active'
                AND ps.expiry_date > NOW()
-           )
+           ))
            AND (6371 * acos(
                LEAST(1, GREATEST(-1,
                  cos(radians(CASE WHEN b.service_type = 'services' THEN COALESCE(b.drop_lat, b.pickup_lat) ELSE b.pickup_lat END)) * cos(radians(target_sp.current_lat)) *
@@ -451,12 +451,12 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
          AND sp.is_available = true
          AND sp.kyc_status = 'approved'
          AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
-         AND EXISTS (
+         AND ($1 NOT IN ('bike','auto','car') OR EXISTS (
            SELECT 1 FROM provider_subscriptions ps
            WHERE ps.provider_id = sp.id
              AND ps.status = 'active'
              AND ps.expiry_date > NOW()
-         )
+         ))
          AND (6371 * acos(
            LEAST(1, GREATEST(-1,
              cos(radians($2)) * cos(radians(sp.current_lat)) *
@@ -514,12 +514,12 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
          AND p.kyc_status = 'approved'
          AND p.current_lat IS NOT NULL AND p.current_lng IS NOT NULL
          AND (pps.endpoint IS NOT NULL OR p.fcm_token IS NOT NULL)
-         AND EXISTS (
+         AND ($1 NOT IN ('bike','auto','car') OR EXISTS (
            SELECT 1 FROM provider_subscriptions ps
            WHERE ps.provider_id = p.id
              AND ps.status = 'active'
              AND ps.expiry_date > NOW()
-         )
+         ))
          AND NOT EXISTS (
            SELECT 1 FROM bookings active_b
            WHERE active_b.provider_id = p.id
@@ -642,12 +642,12 @@ router.post('/:id/cancel', requireAuth(['customer']), async (req, res, next) => 
                AND b.status IN ('requested', 'accepted', 'arrived', 'ongoing')
                AND b.id <> $2
            )
-           AND EXISTS (
+           AND (sp.type NOT IN ('bike','auto','car') OR EXISTS (
              SELECT 1 FROM provider_subscriptions ps
              WHERE ps.provider_id = sp.id
                AND ps.status = 'active'
                AND ps.expiry_date > NOW()
-           )`,
+           ))`,
         [current.provider_id, id]
       );
       await client.query(
@@ -752,8 +752,8 @@ router.post('/:id/provider-cancel', requireAuth(['provider']), async (req, res, 
     const eligible = await client.query(
       `SELECT 1 FROM service_providers sp
         WHERE sp.id = $1 AND sp.kyc_status = 'approved'
-          AND EXISTS (SELECT 1 FROM provider_subscriptions ps
-                       WHERE ps.provider_id = sp.id AND ps.status = 'active' AND ps.expiry_date > NOW())
+          AND (sp.type NOT IN ('bike','auto','car') OR EXISTS (SELECT 1 FROM provider_subscriptions ps
+                       WHERE ps.provider_id = sp.id AND ps.status = 'active' AND ps.expiry_date > NOW()))
           AND NOT EXISTS (SELECT 1 FROM bookings b
                            WHERE b.provider_id = sp.id AND b.status IN ('accepted','arrived','ongoing') AND b.id <> $2)`,
       [req.user.id, current.id]
@@ -802,13 +802,13 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
              AND (b.service_type <> 'services' OR b.service_category = ANY(sp.service_categories))
              AND sp.kyc_status = 'approved'
              AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
-             AND EXISTS (
+             AND (b.service_type = 'services' OR EXISTS (
                SELECT 1
                FROM provider_subscriptions ps
                WHERE ps.provider_id = sp.id
                  AND ps.status = 'active'
                  AND ps.expiry_date > NOW()
-             )
+             ))
              AND (6371 * acos(
                LEAST(1, GREATEST(-1,
                  cos(radians(CASE WHEN b.service_type = 'services' THEN COALESCE(b.drop_lat, b.pickup_lat) ELSE b.pickup_lat END)) * cos(radians(sp.current_lat)) *
@@ -997,12 +997,12 @@ router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) =>
          AND sp.kyc_status = 'approved'
          AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
          AND NOT (sp.id = ANY(COALESCE(b.declined_providers, '{}')))
-         AND EXISTS (
+         AND (b.service_type = 'services' OR EXISTS (
            SELECT 1 FROM provider_subscriptions ps
            WHERE ps.provider_id = sp.id
              AND ps.status = 'active'
              AND ps.expiry_date > NOW()
-         )
+         ))
          AND (6371 * acos(
            LEAST(1, GREATEST(-1,
              cos(radians(CASE WHEN b.service_type = 'services' THEN COALESCE(b.drop_lat, b.pickup_lat) ELSE b.pickup_lat END)) * cos(radians(sp.current_lat)) *
