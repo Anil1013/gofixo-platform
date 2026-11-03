@@ -192,8 +192,8 @@ async function expireUnacceptedBookings() {
         WHERE status = 'requested'
           AND COALESCE(offered_at, created_at) <= NOW() - INTERVAL '15 minutes'
         ORDER BY COALESCE(offered_at, created_at)
-        FOR UPDATE SKIP LOCKED
-        LIMIT 100`
+        LIMIT 100
+        FOR UPDATE SKIP LOCKED`
     );
     for (const row of expired.rows) {
       if (row.service_type === 'services') {
