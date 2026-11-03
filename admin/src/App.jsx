@@ -6,12 +6,14 @@ import Customers from './pages/Customers';
 import Topups from './pages/Topups';
 import Payments from './pages/Payments';
 import Payouts from './pages/Payouts';
+import SubscriptionPayments from './pages/SubscriptionPayments';
 import './App.css';
 
 const TABS = {
   providers: { label: 'Providers', component: Providers },
   bookings: { label: 'Bookings', component: Bookings },
   plans: { label: 'Plans', component: Plans },
+  subscriptionPayments: { label: 'Ride subscription payments', component: SubscriptionPayments },
   customers: { label: 'Customers', component: Customers },
   topups: { label: 'Wallet top-ups', component: Topups },
   payments: { label: 'All payments', component: Payments },
