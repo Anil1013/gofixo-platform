@@ -295,8 +295,14 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
          OR (
            b.status = 'requested'
            AND b.provider_id IS NULL
-           AND b.provider_type = target_sp.type
-           AND (b.service_type <> 'services' OR b.service_category = ANY(target_sp.service_categories))
+           AND EXISTS (
+             SELECT 1 FROM provider_skills ps
+             WHERE ps.provider_id = target_sp.id
+               AND ps.skill_key = CASE WHEN b.service_type = 'ride' THEN b.provider_type ELSE b.service_category END
+               AND ps.service_type = b.service_type
+               AND ps.kyc_status = 'approved'
+               AND ps.is_available = true
+           )
            AND target_sp.is_available = true
            AND target_sp.kyc_status = 'approved'
            AND target_sp.current_lat IS NOT NULL
