@@ -1863,6 +1863,29 @@ class _ActiveState extends State<_Active>{
       (arrivedAt==null?0.0:(waitingMinutes*0.50).clamp(0,7.50).toDouble());
   final waitingSecondsLeft=(900-waitingSeconds).clamp(0,900);
 
+  Future<void>cancelBookingAsPartner()async{
+   if(submitting)return;
+   final confirmed=await showDialog<bool>(
+    context:c,
+    builder:(dialogContext)=>AlertDialog(
+     title:const Text('Cancel this booking?'),
+     content:const Text('The customer will see that you cancelled. Any reserved home-service wallet amount will be released.'),
+     actions:[
+      TextButton(onPressed:()=>Navigator.pop(dialogContext,false),child:const Text('Keep booking')),
+      FilledButton(onPressed:()=>Navigator.pop(dialogContext,true),child:const Text('Cancel booking')),
+     ],
+    ),
+   );
+   if(confirmed!=true||!mounted)return;
+   setState(()=>submitting=true);
+   try{
+    await ApiService.providerCancelBooking(widget.session.token,id);
+    await widget.changed();
+   }catch(e){
+    if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));
+   }finally{if(mounted)setState(()=>submitting=false);}
+  }
+
   Future<void>markArrived()async{
    if(submitting)return;
    setState(()=>submitting=true);
@@ -1984,6 +2007,13 @@ class _ActiveState extends State<_Active>{
    ],
 
    const SizedBox(height:6),
+   if(accepted||arrived)
+     SizedBox(width:double.infinity,child:OutlinedButton.icon(
+      onPressed:submitting?null:cancelBookingAsPartner,
+      icon:const Icon(Icons.cancel_outlined),
+      label:const Text('Cancel booking'),
+      style:OutlinedButton.styleFrom(foregroundColor:Colors.red),
+     )),
    if(accepted||arrived||ongoing)
      OutlinedButton.icon(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>LiveTrackingPage(session:widget.session,booking:widget.b,isProvider:true))),icon:const Icon(Icons.map_outlined),label:const Text('Open live map')),
   ]));
