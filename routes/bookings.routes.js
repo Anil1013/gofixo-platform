@@ -4,7 +4,7 @@ const pool = require('../config/db');
 const crypto = require('crypto');
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
-const { sendProviderPush, sendProviderFcm } = require('../services/push');
+const { sendProviderPush, sendProviderFcm, sendCustomerFcm } = require('../services/push');
 const { normalizeServiceCategory, getServiceBaseFare } = require('../services/catalog');
 const { calculateRideFare } = require('../services/ride-pricing');
 
@@ -172,6 +172,10 @@ async function expireWaitingBookings() {
             AND active.status IN ('accepted', 'arrived', 'ongoing')
        )
        AND sp.kyc_status = 'approved'
+       AND (sp.type NOT IN ('bike','auto','car') OR EXISTS (
+         SELECT 1 FROM provider_subscriptions ps
+          WHERE ps.provider_id = sp.id AND ps.status = 'active' AND ps.expiry_date > NOW()
+       ))
   `, [WAITING_LIMIT_MINUTES]);
 }
 const waitingExpiryTimer = setInterval(() => {
@@ -187,13 +191,14 @@ async function expireUnacceptedBookings() {
   try {
     await client.query('BEGIN');
     const expired = await client.query(
-      `SELECT id, customer_id, service_type, fare_amount
-         FROM bookings
-        WHERE status = 'requested'
-          AND COALESCE(offered_at, created_at) <= NOW() - INTERVAL '15 minutes'
-        ORDER BY COALESCE(offered_at, created_at)
+      `SELECT b.id, b.customer_id, b.service_type, b.fare_amount, c.fcm_token
+         FROM bookings b
+         LEFT JOIN customers c ON c.id = b.customer_id
+        WHERE b.status = 'requested'
+          AND COALESCE(b.offered_at, b.created_at) <= NOW() - INTERVAL '15 minutes'
+        ORDER BY COALESCE(b.offered_at, b.created_at)
         LIMIT 100
-        FOR UPDATE SKIP LOCKED`
+        FOR UPDATE OF b SKIP LOCKED`
     );
     for (const row of expired.rows) {
       if (row.service_type === 'services') {
@@ -207,6 +212,18 @@ async function expireUnacceptedBookings() {
       );
     }
     await client.query('COMMIT');
+    for (const row of expired.rows) {
+      if (!row.fcm_token) continue;
+      const sent = await sendCustomerFcm(row.fcm_token, {
+        type: 'booking_expired',
+        title: 'Gofixo — Request expired',
+        body: 'No partner accepted your request within 15 minutes. Any reserved service-wallet amount has been released.',
+        booking_id: row.id,
+      });
+      if (sent && sent.expired) {
+        await pool.query('UPDATE customers SET fcm_token = NULL WHERE id = $1 AND fcm_token = $2', [row.customer_id, row.fcm_token]);
+      }
+    }
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     throw err;
@@ -763,6 +780,21 @@ router.post('/:id/provider-cancel', requireAuth(['provider']), async (req, res, 
       [eligible.rows.length > 0, req.user.id]
     );
     await client.query('COMMIT');
+    pool.query('SELECT fcm_token FROM customers WHERE id = $1', [current.customer_id])
+      .then(async (customer) => {
+        const token = customer.rows[0]?.fcm_token;
+        if (!token) return;
+        const sent = await sendCustomerFcm(token, {
+          type: 'booking_cancelled',
+          title: 'Gofixo — Partner cancelled',
+          body: 'Your partner cancelled this booking. You can place a new request.',
+          booking_id: current.id,
+        });
+        if (sent && sent.expired) {
+          await pool.query('UPDATE customers SET fcm_token = NULL WHERE id = $1 AND fcm_token = $2', [current.customer_id, token]);
+        }
+      })
+      .catch((pushError) => console.error('Customer cancellation notification failed:', pushError.message));
     return res.json({ message: 'Booking cancelled by partner', booking_id: Number(current.id), status: 'cancelled' });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
