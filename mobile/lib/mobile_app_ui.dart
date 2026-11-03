@@ -1165,7 +1165,7 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
         const Text('RIDE EARNING SUBSCRIPTION',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
         const SizedBox(height:6),
         if(loading)const LinearProgressIndicator(minHeight:2),
-        if(!loading&&subscription!=null)...[
+        if(!loading&&subscription!=null&&subscription!['status']=='active')...[
           Text(subscription!['plan_name']?.toString()??'Active plan',style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy)),
           const SizedBox(height:4),
           Text('Earned ₹${subscription!['total_earned_this_cycle']??0} · Cap ₹${subscription!['earning_cap']??'—'}',style:const TextStyle(fontSize:11,color:gfMuted)),
@@ -1181,7 +1181,7 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
                 Text(p['plan_name']?.toString()??'Plan',style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
                 Text('₹${p['fee']??0} · ${p['validity_days']??0} days · earning cap ₹${p['earning_cap']??'—'}',style:const TextStyle(fontSize:10,color:gfMuted)),
               ])),
-              FilledButton(onPressed:(working||paymentConfig?['configured']!=true)?null:()=>_subscribe(p),style:FilledButton.styleFrom(backgroundColor:gfGreen),child:const Text('Pay & submit')),
+              FilledButton(onPressed:(working||pending.isNotEmpty||paymentConfig?['configured']!=true)?null:()=>_subscribe(p),style:FilledButton.styleFrom(backgroundColor:gfGreen),child:Text(pending.isNotEmpty?'Under review':'Pay & submit')),
             ]),
           )),
         ],
