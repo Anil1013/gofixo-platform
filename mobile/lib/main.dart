@@ -53,6 +53,7 @@ class _GateState extends State<Gate>{
       final x=s.data;
       if(x==null)return RoleScreen(onLogin:refresh);
       if(x.role=='provider') WidgetsBinding.instance.addPostFrameCallback((_) => PushService.syncProviderToken(x));
+      if(x.role=='customer') WidgetsBinding.instance.addPostFrameCallback((_) => PushService.syncCustomerToken(x));
       return x.role=='provider'
         ?ReferenceProviderHome(session:x,onLogout:()async{await ApiService.clearSession();refresh();})
         :ReferenceCustomerHome(session:x,onLogout:()async{await ApiService.clearSession();refresh();});
