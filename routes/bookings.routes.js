@@ -785,7 +785,7 @@ router.post('/:id/provider-cancel', requireAuth(['provider']), async (req, res, 
         const token = customer.rows[0]?.fcm_token;
         if (!token) return;
         const sent = await sendCustomerFcm(token, {
-          type: 'booking_cancelled',
+          type: 'customer_booking_cancelled',
           title: 'Gofixo — Partner cancelled',
           body: 'Your partner cancelled this booking. You can place a new request.',
           booking_id: current.id,
