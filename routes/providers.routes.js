@@ -397,8 +397,9 @@ router.patch('/:id/availability', requireAuth(['provider']), async (req, res, ne
       if (sub.rows[0].kyc_status !== 'approved') {
         return res.status(403).json({ error: 'KYC approval is required before going available' });
       }
-      if (!sub.rows[0].status || !sub.rows[0].expiry_date) {
-        return res.status(403).json({ error: 'No active subscription — renew your plan to go available' });
+      const ridePartner = ['bike', 'auto', 'car'].includes(sub.rows[0].type);
+      if (ridePartner && (!sub.rows[0].status || !sub.rows[0].expiry_date)) {
+        return res.status(403).json({ error: 'No active ride subscription — submit payment and wait for verification' });
       }
       if (sub.rows[0].current_lat === null || sub.rows[0].current_lng === null || !sub.rows[0].location_updated_at) {
         return res.status(400).json({ error: 'Share your current location before going available' });
