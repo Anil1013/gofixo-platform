@@ -413,8 +413,8 @@ async function ensureRuntimeSchema() {
     )
   `);
 
-  // Customer wallet ledger foundation. Real-money credits will only be created
-  // by a verified payment-provider webhook; the app never writes wallet balances directly.
+  // Customer wallet ledger foundation. Real-money credits are created only by
+  // the admin after matching a submitted UPI UTR to the actual bank statement.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS wallets (
       id SERIAL PRIMARY KEY,
