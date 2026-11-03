@@ -1306,47 +1306,41 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
       );
     }
 
-    // Close expired cycles first, then lock exactly one valid active cycle.
-    await client.query(
-      `UPDATE provider_subscriptions
-       SET status = 'expired'
-       WHERE provider_id = $1 AND status = 'active' AND expiry_date <= NOW()`,
-      [req.user.id]
-    );
-
-    const sub = await client.query(
-      `SELECT ps.id, ps.total_earned_this_cycle, sp.earning_cap AS cap
-       FROM provider_subscriptions ps
-       JOIN subscription_plans sp ON sp.id = ps.plan_id
-       WHERE ps.provider_id = $1
-         AND ps.status = 'active'
-         AND ps.expiry_date > NOW()
-       ORDER BY ps.start_date DESC, ps.id DESC
-       LIMIT 1
-       FOR UPDATE`,
-      [req.user.id]
-    );
-
-    let providerAvailable = false;
-    if (sub.rows.length > 0) {
-      const currentEarned = Number(sub.rows[0].total_earned_this_cycle || 0);
-      const earningCap = Number(sub.rows[0].cap);
-
-      if (Number.isFinite(earningCap) && earningCap > 0) {
-        const newTotal = Number((currentEarned + providerAmount).toFixed(2));
-        await client.query(
-          `UPDATE provider_subscriptions
-           SET total_earned_this_cycle = $1::numeric,
-               status = CASE WHEN $1::numeric >= $2::numeric THEN 'exhausted' ELSE 'active' END
-           WHERE id = $3`,
-          [newTotal, earningCap, sub.rows[0].id]
-        );
-        providerAvailable = newTotal < earningCap;
-      } else {
-        await client.query(
-          'UPDATE provider_subscriptions SET status = \'exhausted\' WHERE id = $1',
-          [sub.rows[0].id]
-        );
+    // Ride partners use subscription earning caps; Home Services partners
+    // use the separate service commission and are not restricted by ride plans.
+    let providerAvailable = booking.rows[0].service_type === 'services';
+    if (booking.rows[0].service_type === 'ride') {
+      await client.query(
+        `UPDATE provider_subscriptions
+         SET status = 'expired'
+         WHERE provider_id = $1 AND status = 'active' AND expiry_date <= NOW()`,
+        [req.user.id]
+      );
+      const sub = await client.query(
+        `SELECT ps.id, ps.total_earned_this_cycle, sp.earning_cap AS cap
+         FROM provider_subscriptions ps
+         JOIN subscription_plans sp ON sp.id = ps.plan_id
+         WHERE ps.provider_id = $1 AND ps.status = 'active' AND ps.expiry_date > NOW()
+         ORDER BY ps.start_date DESC, ps.id DESC LIMIT 1 FOR UPDATE`,
+        [req.user.id]
+      );
+      providerAvailable = false;
+      if (sub.rows.length > 0) {
+        const currentEarned = Number(sub.rows[0].total_earned_this_cycle || 0);
+        const earningCap = Number(sub.rows[0].cap);
+        if (Number.isFinite(earningCap) && earningCap > 0) {
+          const newTotal = Number((currentEarned + providerAmount).toFixed(2));
+          await client.query(
+            `UPDATE provider_subscriptions
+             SET total_earned_this_cycle = $1::numeric,
+                 status = CASE WHEN $1::numeric >= $2::numeric THEN 'exhausted' ELSE 'active' END
+             WHERE id = $3`,
+            [newTotal, earningCap, sub.rows[0].id]
+          );
+          providerAvailable = newTotal < earningCap;
+        } else {
+          await client.query('UPDATE provider_subscriptions SET status = \'exhausted\' WHERE id = $1', [sub.rows[0].id]);
+        }
       }
     }
 
