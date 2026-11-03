@@ -33,6 +33,7 @@ function ensureSchema() {
       await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS provider_subscription_payment_utr_unique ON provider_subscription_payments (UPPER(BTRIM(utr)))`);
       await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS provider_subscription_payment_bank_ref_unique ON provider_subscription_payments (UPPER(BTRIM(bank_reference))) WHERE status='verified' AND bank_reference IS NOT NULL`);
       await pool.query(`CREATE INDEX IF NOT EXISTS provider_subscription_payment_provider_idx ON provider_subscription_payments (provider_id, created_at DESC)`);
+      await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS provider_subscription_one_pending_per_provider ON provider_subscription_payments (provider_id) WHERE status='pending_verification'`);
       await pool.query(`
         CREATE TABLE IF NOT EXISTS provider_subscription_payment_audit (
           id BIGSERIAL PRIMARY KEY,
