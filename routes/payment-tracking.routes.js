@@ -241,6 +241,29 @@ router.get('/records', async (req, res, next) => {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
+    // Ride subscription UPI claims are part of the same finance ledger as wallet top-ups.
+    // Keep this additive schema here too, so the admin ledger works before a partner opens the subscription screen.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS provider_subscription_payments (
+        id BIGSERIAL PRIMARY KEY,
+        provider_id INTEGER NOT NULL REFERENCES service_providers(id) ON DELETE CASCADE,
+        plan_id INTEGER NOT NULL REFERENCES subscription_plans(id),
+        plan_name VARCHAR(160) NOT NULL,
+        amount NUMERIC(12,2) NOT NULL CHECK (amount > 0),
+        earning_cap NUMERIC(12,2) NOT NULL,
+        validity_days INTEGER NOT NULL CHECK (validity_days > 0),
+        utr VARCHAR(120) NOT NULL,
+        status VARCHAR(24) NOT NULL DEFAULT 'pending_verification'
+          CHECK (status IN ('pending_verification','verified','rejected')),
+        bank_reference VARCHAR(120),
+        admin_note TEXT,
+        verified_by TEXT,
+        verified_at TIMESTAMPTZ,
+        subscription_id INTEGER REFERENCES provider_subscriptions(id),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
     const requestedStatus = String(req.query.status || 'approved').trim().toLowerCase();
     const allowedStatuses = new Set(['approved', 'all', 'pending_verification', 'rejected', 'failed', 'refunded', 'payout_pending']);
     if (!allowedStatuses.has(requestedStatus)) return res.status(400).json({ error: 'Invalid payment status filter' });
@@ -274,6 +297,36 @@ router.get('/records', async (req, res, next) => {
           r.admin_note AS notes
         FROM wallet_topup_requests r
         LEFT JOIN customers c ON c.id=r.customer_id
+
+        UNION ALL
+
+        SELECT
+          'SUBSCRIPTION-' || r.id::text,
+          'ride_subscription'::text,
+          'Ride subscription'::text,
+          'Partner → Gofixo'::text,
+          CASE WHEN r.status='verified' THEN 'approved' ELSE r.status END::text,
+          r.amount::numeric,
+          'INR'::text,
+          NULL::integer,
+          NULL::text,
+          NULL::text,
+          r.provider_id,
+          sp.generated_id,
+          sp.name,
+          sp.phone,
+          initcap(replace(sp.type, '_', ' ')),
+          'UPI QR'::text,
+          COALESCE(r.bank_reference, r.utr)::text,
+          r.plan_name,
+          to_char(ps.start_date AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS'),
+          to_char(ps.expiry_date AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS'),
+          COALESCE(r.verified_at, r.created_at),
+          to_char(COALESCE(r.verified_at, r.created_at) AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI:SS'),
+          COALESCE(r.admin_note, 'Ride subscription payment claim')
+        FROM provider_subscription_payments r
+        JOIN service_providers sp ON sp.id=r.provider_id
+        LEFT JOIN provider_subscriptions ps ON ps.id=r.subscription_id
 
         UNION ALL
 
@@ -378,7 +431,7 @@ router.get('/records', async (req, res, next) => {
     );
     const transactions = result.rows;
     const approvedAmount = transactions
-      .filter((row) => row.status === 'approved' && row.payment_flow !== 'Gofixo → Recipient')
+      .filter((row) => row.status === 'approved' && !['Gofixo → Recipient', 'Customer → Partner'].includes(row.payment_flow))
       .reduce((sum, row) => sum + Number(row.amount || 0), 0);
     res.set('Cache-Control', 'no-store');
     res.json({
