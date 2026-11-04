@@ -1,0 +1,26 @@
+/* Gofixo professional green brand system for admin console. */
+:root{
+ --plum:#087f4b;--plum-soft:#0b9658;--paper:#f5faf7;--paper-card:#fff;
+ --line:#e2eee7;--text:#142a20;--text-dim:#64776c;--violet:#0b9658;
+ --rose:#16a36a;--teal:#0b9b70;--prism:linear-gradient(120deg,#087f4b 0%,#0b9658 55%,#19b879 100%);
+ --teal-bg:#e7f7ee;
+}
+body{background:#f2f8f4;color:#142a20}
+.sidebar{background:linear-gradient(180deg,#075f3b 0%,#087f4b 55%,#0b9658 100%)}
+.nav-item.active{border-left-color:#8be0b0;background:rgba(255,255,255,.13)}
+.brand-mark{background:linear-gradient(135deg,#16a36a,#32c783)}
+.data-table{box-shadow:0 8px 24px rgba(16,42,30,.045)}
+.login-box,.data-table{border-color:#e2eee7}
+.login-box button{background:linear-gradient(120deg,#087f4b,#0b9658 60%,#19b879)}
+.btn-approve{background:#0b9658}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(11,150,88,.28);outline-offset:2px}
+@media(max-width:760px){
+ .admin-layout{min-height:100dvh}
+ .sidebar{width:100%;padding:14px 12px;position:sticky;top:0;z-index:50}
+ .brand{padding:0 6px 12px;margin-bottom:10px}
+ .sidebar nav{display:flex;flex-direction:row;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+ .sidebar nav .nav-item{width:auto;flex:0 0 auto;white-space:nowrap;border:1px solid rgba(255,255,255,.13);border-radius:10px;padding:9px 11px;font-size:12px}
+ .sidebar nav .nav-item.active{border-color:rgba(255,255,255,.38)}
+ .nav-item.logout{position:static;width:auto;align-self:flex-end;margin-top:8px;padding:7px 10px}
+ .content{min-width:0;padding:20px 14px}
+}
