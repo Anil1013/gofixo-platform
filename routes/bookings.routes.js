@@ -180,7 +180,7 @@ async function expireWaitingBookings() {
     }
 
     const providerIds = [...new Set(
-      expired.rows.map((row) => Number(row.provider_id)).filter(Number.isInteger)
+      expired.rows.filter((row) => row.provider_id !== null && row.provider_id !== undefined).map((row) => Number(row.provider_id)).filter(Number.isInteger)
     )];
     if (providerIds.length) {
       await client.query(
