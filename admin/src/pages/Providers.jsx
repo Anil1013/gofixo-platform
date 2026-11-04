@@ -187,9 +187,9 @@ export default function Providers() {
                         key={d.id}
                         type="button"
                         className="btn"
-                        onClick={() => viewDocument(p.id, d.id, DOC_LABELS[d.doc_type] || d.doc_type)}
+                        onClick={() => viewDocument(p.id, d.id, `${DOC_LABELS[d.doc_type] || d.doc_type}${d.skill_key ? ` · ${d.skill_key.replaceAll('_', ' ')}` : ' · Account'}`)}
                       >
-                        {DOC_LABELS[d.doc_type] || d.doc_type}
+                        {DOC_LABELS[d.doc_type] || d.doc_type}{d.skill_key ? ` · ${d.skill_key.replaceAll('_', ' ')}` : ' · Account'}
                       </button>
                     ))}
                   </div>
