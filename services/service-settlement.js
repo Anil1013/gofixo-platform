@@ -23,8 +23,8 @@ function calculateServiceSettlement({
   const floor = money(minimumPartnerServiceEarning, 'minimumPartnerServiceEarning');
   const share = Number(partnerPercent);
 
-  if (!Number.isFinite(share) || share < 0 || share > 100) {
-    throw new TypeError('partnerPercent must be between 0 and 100');
+  if (!Number.isFinite(share) || share < 0 || share > 80) {
+    throw new TypeError('partnerPercent must be between 0 and 80 to preserve the minimum 20% platform commission');
   }
 
   const partnerServiceEarning = Math.round((service * share / 100 + Number.EPSILON) * 100) / 100;
