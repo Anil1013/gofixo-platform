@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Providers from './pages/Providers';
+import ServiceCatalog from './pages/ServiceCatalog';
 import Plans from './pages/Plans';
 import Bookings from './pages/Bookings';
 import Customers from './pages/Customers';
@@ -12,6 +13,7 @@ import './gofixo-professional.css';
 
 const TABS = {
   providers: { label: 'Providers', component: Providers },
+  services: { label: 'Service catalog', component: ServiceCatalog },
   bookings: { label: 'Bookings', component: Bookings },
   plans: { label: 'Plans', component: Plans },
   subscriptionPayments: { label: 'Ride subscription payments', component: SubscriptionPayments },
