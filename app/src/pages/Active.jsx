@@ -5,8 +5,9 @@ import ProfilePhoto from '../components/ProfilePhoto';
 import { navigateToCoords, getRoute, formatDistance } from '../utils/geo';
 
 const STEPS = [
-  { key: 'requested', label: 'Finding driver', icon: '🔍' },
+  { key: 'requested', label: 'Finding partner', icon: '🔍' },
   { key: 'accepted', label: 'On the way', icon: '🚖' },
+  { key: 'arrived', label: 'Partner arrived', icon: '📍' },
   { key: 'ongoing', label: 'In progress', icon: '🚦' },
   { key: 'completed', label: 'Completed', icon: '✅' },
 ];
@@ -260,9 +261,9 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
         </button>
       )}
 
-      {booking.status === 'accepted' && booking.start_pin && (
+      {['accepted', 'arrived'].includes(booking.status) && booking.start_pin && (
         <div className="pin-card" onClick={copyPin}>
-          <p className="pin-label">Share this PIN with your provider on arrival</p>
+          <p className="pin-label">Share this PIN with your partner to start the booking</p>
           <p className="pin-value">{booking.start_pin}</p>
           <p className="pin-hint">{copied ? 'Copied ✓' : 'Tap to copy'}</p>
         </div>
