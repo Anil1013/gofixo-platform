@@ -1728,7 +1728,8 @@ class _ServicesState extends State<_Services>{
   Future<void> _load()async{
     try{
       final remote=await ApiService.serviceCatalog();
-      if(mounted)setState(()=>items=remote.isEmpty?List<Map<String,dynamic>>.from(_Services._fallback):remote);
+      // An empty successful response means every service is intentionally hidden.
+      if(mounted)setState(()=>items=remote);
     }catch(_){
       if(mounted)setState(()=>items=List<Map<String,dynamic>>.from(_Services._fallback));
     }
@@ -1746,6 +1747,12 @@ class _ServicesState extends State<_Services>{
     for (final item in items) {
       final key = item['key']?.toString() ?? 'other';
       grouped.putIfAbsent(_groupFor(key), () => []).add(item);
+    }
+    if (items.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 18),
+        child: Center(child: Text('No services are available right now. Please check again soon.', textAlign: TextAlign.center)),
+      );
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: grouped.entries.map((group) =>
       Padding(
@@ -1767,7 +1774,8 @@ class _ServicesState extends State<_Services>{
               final key = item['key']?.toString() ?? 'other';
               final label = item['label']?.toString() ?? key;
               final baseFare = double.tryParse(item['baseFare']?.toString() ?? '')?.round();
-              return _Service(key, label, baseFare, () => widget.onTap(type, key, label));
+              final imageUrl = item['imageUrl']?.toString() ?? '';
+              return _Service(key, label, baseFare, imageUrl, () => widget.onTap(type, key, label));
             }).toList(),
           ),
         ]),
@@ -1779,8 +1787,9 @@ class _Service extends StatelessWidget {
   final String keyName;
   final String label;
   final int? baseFare;
+  final String imageUrl;
   final VoidCallback tap;
-  const _Service(this.keyName, this.label, this.baseFare, this.tap);
+  const _Service(this.keyName, this.label, this.baseFare, this.imageUrl, this.tap);
 
   IconData get _serviceIcon {
     switch (keyName) {
@@ -1833,7 +1842,17 @@ class _Service extends StatelessWidget {
                   color: const Color(0xFFEAFBF2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(_serviceIcon, color: gfGreen, size: 31),
+                child: imageUrl.startsWith('https://')
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          errorBuilder: (_, __, ___) => Icon(_serviceIcon, color: gfGreen, size: 31),
+                        ),
+                      )
+                    : Icon(_serviceIcon, color: gfGreen, size: 31),
               ),
             ),
             const SizedBox(height: 6),
