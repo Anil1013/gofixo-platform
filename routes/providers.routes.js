@@ -554,12 +554,8 @@ router.patch('/:id/availability', requireAuth(['provider']), async (req, res, ne
       );
       if (result.rows.length === 0) return res.status(404).json({ error: 'Provider not found' });
     }
-    await pool.query(
-      `UPDATE provider_skills
-       SET is_available = $1, updated_at = NOW()
-       WHERE provider_id = $2 AND kyc_status = 'approved'`,
-      [is_available, req.params.id]
-    );
+    // Keep each skill's independent on/off preference. Account-level availability
+    // gates matching globally; toggling the account offline must not erase skill choices.
     res.json(result.rows[0]);
   } catch (err) {
     next(err);
