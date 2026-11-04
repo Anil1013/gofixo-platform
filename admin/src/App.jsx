@@ -8,6 +8,7 @@ import Payments from './pages/Payments';
 import Payouts from './pages/Payouts';
 import SubscriptionPayments from './pages/SubscriptionPayments';
 import './App.css';
+import './gofixo-professional.css';
 
 const TABS = {
   providers: { label: 'Providers', component: Providers },
