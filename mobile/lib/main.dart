@@ -65,8 +65,6 @@ class RoleScreen extends StatelessWidget {
   final VoidCallback onLogin;
   const RoleScreen({super.key, required this.onLogin});
 
-  static const _heroImage =
-      'https://images.unsplash.com/photo-1647539989255-ac2634cc8c92?auto=format&fit=crop&w=1400&q=82';
   static const _customerImage =
       'https://images.unsplash.com/photo-1662499840736-0178ce197a70?auto=format&fit=crop&w=1200&q=82';
   static const _partnerImage =
@@ -220,97 +218,6 @@ class _LandingServiceGroup extends StatelessWidget {
   );
 }
 
-class _PhotoHero extends StatelessWidget {
-  final String imageUrl;
-  final String title;
-  final String subtitle;
-  final String button;
-  final VoidCallback onTap;
-
-  const _PhotoHero({
-    required this.imageUrl,
-    required this.title,
-    required this.subtitle,
-    required this.button,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext c) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(26),
-      child: SizedBox(
-        height: 245,
-        width: double.infinity,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            _NetworkPhoto(imageUrl: imageUrl, icon: Icons.directions_car_filled),
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xDD061B2E), Color(0x5212B85F), Color(0xAA061B2E)],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  const Text(
-                    'GOFIXO',
-                    style: TextStyle(
-                      color: Color(0xFF7CFFB1),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      height: 1.05,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      height: 1.3,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: orange,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                    ),
-                    onPressed: onTap,
-                    child: Text(button, style: const TextStyle(fontWeight: FontWeight.w900)),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _RolePhotoCard extends StatelessWidget {
   final String imageUrl;
