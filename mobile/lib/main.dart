@@ -116,7 +116,7 @@ class RoleScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Please choose how you want to continue',
+                    'Choose your Gofixo experience',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14, color: muted),
                   ),
@@ -124,7 +124,8 @@ class RoleScreen extends StatelessWidget {
                   _RolePhotoCard(
                     imageUrl: _customerImage,
                     title: 'I am a Customer',
-                    subtitle: 'Book a ride or find trusted home & lifestyle services.',
+                    subtitle: 'Book bike, auto or car rides, or find reliable professionals for everyday home needs.',
+                    highlights: 'RIDES  •  Electrician  •  Plumber  •  AC repair  •  Cleaning',
                     button: 'CUSTOMER LOGIN  →',
                     icon: Icons.person_rounded,
                     onTap: () => _openAuth(context, 'customer'),
@@ -133,14 +134,15 @@ class RoleScreen extends StatelessWidget {
                   _RolePhotoCard(
                     imageUrl: _partnerImage,
                     title: 'I am a Partner',
-                    subtitle: 'Login to receive bookings and earn with Gofixo.',
+                    subtitle: 'Join as a driver or service professional. Get booking requests, serve customers and grow your earnings.',
+                    highlights: 'DRIVER  •  Electrician  •  Plumber  •  Cleaner  •  Beauty & more',
                     button: 'PARTNER LOGIN  →',
                     icon: Icons.handshake_rounded,
                     onTap: () => _openAuth(context, 'provider'),
                   ),
                   const SizedBox(height: 18),
                   const Text(
-                    'One app • Rides • Home & Lifestyle Services',
+                    'One app for rides, home services and earning opportunities',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 12, color: muted, fontWeight: FontWeight.w600),
                   ),
@@ -159,6 +161,7 @@ class _RolePhotoCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final String button;
+  final String highlights;
   final IconData icon;
   final VoidCallback onTap;
 
@@ -167,6 +170,7 @@ class _RolePhotoCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.button,
+    required this.highlights,
     required this.icon,
     required this.onTap,
   });
@@ -180,7 +184,7 @@ class _RolePhotoCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: SizedBox(
-          height: 166,
+          height: 202,
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -224,7 +228,7 @@ class _RolePhotoCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 6),
                     Text(
                       subtitle,
                       maxLines: 2,
@@ -234,6 +238,18 @@ class _RolePhotoCard extends StatelessWidget {
                         fontSize: 11,
                         height: 1.25,
                         fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      highlights,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFE5FFF0),
+                        fontSize: 10,
+                        height: 1.25,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 8),
