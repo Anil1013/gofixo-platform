@@ -42,7 +42,8 @@ function calculateServicePrice(rule, selection = {}) {
       total: visitFee,
       estimatedMinutes,
       requiresQuote: true,
-      quoteMessage: 'Final repair price requires an itemised diagnosis and customer approval.',
+      visitFeeCreditedOnApproval: rule.creditVisitFeeOnApprovedRepair === true,
+      quoteMessage: 'If you decline the repair, only the disclosed visit fee is payable. If you approve the repair during this visit, the visit fee is credited against labour. Parts and extra work require your approval.',
     });
   }
 
