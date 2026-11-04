@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { apiGet, apiPatch, apiPost, apiPut } from '../api';
+import { apiGet, apiPatch, apiPost, apiPut, apiUpload } from '../api';
 import MapView from '../components/MapView';
 import { getRoute } from '../utils/geo';
 import { startBuzzer, stopBuzzer } from '../utils/buzzer';
@@ -7,6 +7,16 @@ import ProfilePhoto from '../components/ProfilePhoto';
 
 const TYPE_ICON = { bike: '🏍', auto: '🛺', car: '🚗', general_worker: '🧹', skilled_worker: '🔧' };
 const OFFER_SECONDS = 60;
+const SKILL_REQUIRED_DOCS = {
+  bike: ['aadhar_front', 'aadhar_back', 'driving_license', 'vehicle_rc', 'vehicle_photo_front', 'vehicle_photo_back'],
+  auto: ['aadhar_front', 'aadhar_back', 'driving_license', 'vehicle_rc', 'vehicle_photo_front', 'vehicle_photo_back'],
+  car: ['aadhar_front', 'aadhar_back', 'driving_license', 'vehicle_rc', 'vehicle_photo_front', 'vehicle_photo_back'],
+};
+const SKILL_DOC_LABELS = {
+  aadhar_front: 'Aadhaar front', aadhar_back: 'Aadhaar back', driving_license: 'Driving licence',
+  vehicle_rc: 'Vehicle RC', vehicle_photo_front: 'Vehicle front photo', vehicle_photo_back: 'Vehicle back photo',
+  profile_photo: 'Profile photo', police_verification: 'Police verification',
+};
 
 const PARTNER_SKILL_OPTIONS = [
   { key: 'bike', label: 'Bike Ride', service_type: 'ride' },
@@ -275,6 +285,25 @@ export default function ProviderHome({ onLogout }) {
     }
   }
 
+  async function uploadSkillDocument(skill, docType, file) {
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    form.append('doc_type', docType);
+    form.append('skill_key', skill.skill_key);
+    setSkillsBusy(true);
+    setError('');
+    try {
+      await apiUpload(`/providers/${profile.id}/documents`, form, true);
+      const updated = await apiGet('/providers/me/skills', true);
+      setSkills(updated);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSkillsBusy(false);
+    }
+  }
+
   async function toggleSkillAvailability(skill) {
     setSkillsBusy(true);
     setError('');
@@ -472,6 +501,18 @@ export default function ProviderHome({ onLogout }) {
                 <small style={{ color: skill.kyc_status === 'approved' ? '#15803D' : skill.kyc_status === 'rejected' ? '#B91C1C' : '#A16207' }}>
                   {skill.service_type} · {skill.kyc_status}{skill.review_note ? ` · ${skill.review_note}` : ''}
                 </small>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6, marginTop: 8 }}>
+                  {(SKILL_REQUIRED_DOCS[skill.skill_key] || ['aadhar_front', 'aadhar_back', 'profile_photo', 'police_verification']).map((docType) => (
+                    <label key={docType} style={{ fontSize: 11, color: '#475569' }}>
+                      {SKILL_DOC_LABELS[docType]}
+                      <input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" disabled={skillsBusy} onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) uploadSkillDocument(skill, docType, file);
+                        event.target.value = '';
+                      }} style={{ display: 'block', width: '100%', fontSize: 10, marginTop: 3 }} />
+                    </label>
+                  ))}
+                </div>
               </div>
               <button
                 type="button"
