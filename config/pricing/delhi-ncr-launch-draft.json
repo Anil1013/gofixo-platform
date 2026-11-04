@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-delhi-ncr-draft-2",
+  "version": "2026-11-delhi-ncr-draft-3",
   "status": "proposed_not_live",
   "currency": "INR",
   "market": [
@@ -28,13 +28,20 @@
     "payout_target": "within 4 hours after customer completion confirmation and fraud/quality checks; admin-managed UPI/bank payout; disputes and failed transfers are held",
     "partner_net_display": "show gross labour, commission, approved reimbursable materials, adjustments and estimated net before partner accepts",
     "minimum_partner_earning": "admin-configured floor by service, skill, zone and duration; reject or reprice jobs below floor",
-    "customer_extra_charge": "never without itemised quote and customer approval",
+    "customer_extra_charge": "No extra labour, visit, travel, material, urgency or add-on charge without an itemised in-app quote and explicit customer approval.",
     "prices_include_gst": false,
     "customer_payment": "prepaid Gofixo wallet; reserve at booking; capture only after verified completion; refund/release on eligible cancellation",
     "partner_payout": "create one idempotent payout record per completed home-service booking; payout to verified partner UPI/bank details; store transfer UTR; never mark paid without confirmed bank/provider transfer",
-    "material_policy": "customer supplies repair parts by default; partner-sourced materials require itemised bill and prior customer approval; approved actual-cost pass-through has 0% commission",
+    "material_policy": "Across every category: customer-supplied parts/materials are the default for repair/replacement jobs. Partner must specify exact part/model/quantity. If customer asks partner to procure, partner submits itemised bill/photo and customer approves before purchase. Approved actual cost is passed through at cost with 0% commission. Consumables included in fixed packages must be disclosed; any extra consumable/material needs prior approval.",
     "cash_policy": "home services are prepaid through Gofixo wallet; no off-platform cash settlement; exceptions require admin-reviewed incident handling",
-    "dispute_policy": "hold partner payout while a customer complaint, refund request, completion mismatch or suspected booking bypass is under review"
+    "dispute_policy": "hold partner payout while a customer complaint, refund request, completion mismatch or suspected booking bypass is under review",
+    "visit_fee_policy": {
+      "repair_inspection": "Electrician, plumber and carpenter ₹149; AC, refrigerator, washing machine and appliance diagnosis ₹199; RO diagnosis ₹149. Customer pays this fee if they decline repair after diagnosis.",
+      "credit_on_repair": "If customer approves the quoted repair during the same visit, credit 100% of the visit fee against the approved labour amount. Never charge the visit fee twice.",
+      "no_repair_without_approval": "Partner must submit itemised labour/parts quote; customer may decline without pressure. No repair or part purchase before explicit in-app approval.",
+      "other_services": "Fixed-price cleaning, laundry, caregiving, gardening, pest-control packages and scheduled services show the full price upfront; no surprise inspection/visit fee. Quote-only work shows any assessment fee before booking.",
+      "cancel_before_visit": "No visit fee if partner has not arrived and no inspection was performed, subject to the displayed cancellation policy."
+    }
   },
   "services": [
     {
@@ -211,15 +218,16 @@
         {
           "key": "electrician_visit",
           "label": "Electrician inspection/visit",
-          "mode": "fixed",
+          "mode": "inspection_quote",
           "unit": "visit",
-          "price": 149,
           "partnerPercent": 80,
           "durationMinutes": [
             20,
             40
           ],
-          "includes": "Diagnosis only; repair labour and parts quoted separately"
+          "includes": "On-site fault diagnosis; if customer declines repair, only this visit fee is payable; if customer approves repair during the same visit, credit this fee against the approved labour bill.",
+          "visitFee": 149,
+          "creditVisitFeeOnApprovedRepair": true
         },
         {
           "key": "switch_socket",
@@ -269,14 +277,16 @@
         {
           "key": "plumber_visit",
           "label": "Plumber inspection/visit",
-          "mode": "fixed",
+          "mode": "inspection_quote",
           "unit": "visit",
-          "price": 149,
           "partnerPercent": 80,
           "durationMinutes": [
             20,
             40
-          ]
+          ],
+          "visitFee": 149,
+          "creditVisitFeeOnApprovedRepair": true,
+          "includes": "On-site leak/blockage diagnosis; if customer declines repair, only this visit fee is payable; if customer approves repair during the same visit, credit this fee against the approved labour bill."
         },
         {
           "key": "tap_leak",
@@ -384,7 +394,8 @@
             60
           ],
           "creditVisitFeeOnApprovedRepair": true,
-          "requiresLeakTestBeforeGasQuote": true
+          "requiresLeakTestBeforeGasQuote": true,
+          "includes": "Inspection and diagnosis only; if customer declines repair, only the visit fee is payable; if customer approves repair during the same visit, credit this fee against the approved labour bill. Parts are separate."
         }
       ]
     },
@@ -404,7 +415,8 @@
             60
           ],
           "creditVisitFeeOnApprovedRepair": true,
-          "partsSeparate": true
+          "partsSeparate": true,
+          "includes": "Inspection and diagnosis only; if customer declines repair, only the visit fee is payable; if customer approves repair during the same visit, credit this fee against the approved labour bill. Parts are separate."
         }
       ]
     },
@@ -650,14 +662,16 @@
         {
           "key": "carpenter_visit",
           "label": "Carpenter inspection/visit",
-          "mode": "fixed",
+          "mode": "inspection_quote",
           "unit": "visit",
-          "price": 199,
           "partnerPercent": 80,
           "durationMinutes": [
             20,
-            45
-          ]
+            40
+          ],
+          "visitFee": 149,
+          "creditVisitFeeOnApprovedRepair": true,
+          "includes": "On-site furniture/door diagnosis; if customer declines repair, only this visit fee is payable; if customer approves repair during the same visit, credit this fee against the approved labour bill."
         },
         {
           "key": "hinge_repair",
@@ -702,7 +716,9 @@
             30,
             60
           ],
-          "partsSeparate": true
+          "partsSeparate": true,
+          "creditVisitFeeOnApprovedRepair": true,
+          "includes": "Inspection and diagnosis only; if customer declines repair, only the visit fee is payable; if customer approves repair during the same visit, credit this fee against the approved labour bill. Parts are separate."
         }
       ]
     },
@@ -721,7 +737,9 @@
             30,
             60
           ],
-          "partsSeparate": true
+          "partsSeparate": true,
+          "creditVisitFeeOnApprovedRepair": true,
+          "includes": "Inspection and diagnosis only; if customer declines repair, only the visit fee is payable; if customer approves repair during the same visit, credit this fee against the approved labour bill. Parts are separate."
         }
       ]
     },
@@ -740,7 +758,9 @@
             30,
             60
           ],
-          "filtersAndPartsSeparate": true
+          "filtersAndPartsSeparate": true,
+          "creditVisitFeeOnApprovedRepair": true,
+          "includes": "Inspection and diagnosis only; if customer declines repair, only the visit fee is payable; if customer approves repair during the same visit, credit this fee against the approved labour bill. Parts are separate."
         }
       ]
     },
