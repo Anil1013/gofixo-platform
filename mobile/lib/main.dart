@@ -109,14 +109,7 @@ class RoleScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _PhotoHero(
-                imageUrl: _heroImage,
-                title: 'Move. Live. Get things done.',
-                subtitle: 'Rides and trusted home services, right when you need them.',
-                button: 'Book a ride',
-                onTap: () => _openAuth(c, 'customer'),
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
               const Text(
                 'What do you need today?',
                 style: TextStyle(
@@ -134,7 +127,7 @@ class RoleScreen extends StatelessWidget {
               _RolePhotoCard(
                 imageUrl: _customerImage,
                 title: 'Book rides & services',
-                subtitle: 'Bike, Auto, Car and reliable home services.',
+                subtitle: 'Bike, Auto, Car and trusted home & lifestyle services.',
                 button: 'Continue as Customer',
                 icon: Icons.directions_car_rounded,
                 onTap: () => _openAuth(c, 'customer'),
@@ -150,7 +143,7 @@ class RoleScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               const Text(
-                'Home services',
+                'Home & Lifestyle Services',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
@@ -163,24 +156,28 @@ class RoleScreen extends StatelessWidget {
                 onTap: () => _openAuth(c, 'customer'),
               ),
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  'Electrician',
-                  'Plumber',
-                  'AC service',
-                  'Cleaning',
-                  'Painter',
-                  'Carpenter',
-                ]
-                    .map(
-                      (x) => Chip(
-                        avatar: const Icon(Icons.handyman_outlined, size: 17),
-                        label: Text(x),
-                      ),
-                    )
-                    .toList(),
+              _LandingServiceGroup(
+                title: 'Home Repair & Appliances',
+                icon: Icons.home_repair_service_rounded,
+                services: const ['Electrician', 'Plumber', 'AC Service', 'Refrigerator', 'Washing Machine', 'RO & Water Purifier', 'Appliance Repair', 'Carpenter', 'Painter'],
+              ),
+              const SizedBox(height: 12),
+              _LandingServiceGroup(
+                title: 'Cleaning & Maintenance',
+                icon: Icons.cleaning_services_rounded,
+                services: const ['Cleaning', 'Pest Control', 'Gardener'],
+              ),
+              const SizedBox(height: 12),
+              _LandingServiceGroup(
+                title: 'Personal & Lifestyle',
+                icon: Icons.spa_rounded,
+                services: const ['Salon & Beauty', 'Cook', 'Laundry', 'Personal Driver', 'Tutor', 'Babysitter', 'Elder Care'],
+              ),
+              const SizedBox(height: 12),
+              _LandingServiceGroup(
+                title: 'Moving, Security & Other',
+                icon: Icons.local_shipping_rounded,
+                services: const ['Packers & Movers', 'CCTV & Security', 'Internet & Wi-Fi', 'Other Services'],
               ),
             ],
           ),
@@ -188,6 +185,39 @@ class RoleScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class _LandingServiceGroup extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final List<String> services;
+  const _LandingServiceGroup({required this.title, required this.icon, required this.services});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: const Color(0xFFE4EAF1)),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Icon(icon, color: orange, size: 19),
+        const SizedBox(width: 7),
+        Expanded(child: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: navy))),
+      ]),
+      const SizedBox(height: 8),
+      Wrap(spacing: 7, runSpacing: 7, children: services.map((service) => Chip(
+        visualDensity: VisualDensity.compact,
+        avatar: Icon(icon, size: 14, color: orange),
+        label: Text(service, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+        backgroundColor: const Color(0xFFF5F8FA),
+        side: BorderSide.none,
+      )).toList()),
+    ]),
+  );
 }
 
 class _PhotoHero extends StatelessWidget {
