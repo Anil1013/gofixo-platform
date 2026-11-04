@@ -41,3 +41,25 @@ test('category commission agrees with partner share on all listed items', () => 
 test('materials are explicitly excluded from commission', () => {
   assert.equal(rateCard.commercial_rules.material_pass_through_commission_percent, 0);
 });
+
+test('all home-service categories enforce at least 20 percent commission', () => {
+  for (const category of rateCard.services) {
+    const commission = rateCard.commercial_rules.commission_rates_percent[category.commissionKey];
+    assert.ok(commission >= 20, `commission below 20 percent for ${category.category}`);
+    for (const item of category.items) assert.ok(item.partnerPercent <= 80, `partner share exceeds 80 percent for ${item.key}`);
+  }
+});
+
+test('repair diagnosis charges are transparent and credited on accepted same-visit repair', () => {
+  const repairKeys = new Set(['electrician_visit','plumber_visit','carpenter_visit','ac_diagnosis','appliance_diagnosis','fridge_diagnosis','washer_diagnosis','ro_diagnosis']);
+  for (const category of rateCard.services) {
+    for (const item of category.items) {
+      if (!repairKeys.has(item.key)) continue;
+      assert.equal(item.mode, 'inspection_quote');
+      assert.ok(item.visitFee > 0);
+      assert.equal(item.creditVisitFeeOnApprovedRepair, true);
+    }
+  }
+  assert.match(rateCard.commercial_rules.visit_fee_policy.repair_inspection, /declines repair/);
+  assert.match(rateCard.commercial_rules.material_policy, /customer-supplied parts\/materials are the default/);
+});
