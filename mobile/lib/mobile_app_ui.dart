@@ -142,7 +142,7 @@ class _CustomerHomeTab extends StatelessWidget{
  @override Widget build(BuildContext c){
   final active=bookings.where((b){final s=b['status']?.toString();return s=='requested'||s=='accepted'||s=='arrived'||s=='ongoing';}).toList();
   return RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.only(bottom:18),children:[
-   _CustomerHeader(onProfile:()=>onTab(4)),const SizedBox(height:6),_CustomerHero(session:session,onChanged:onChanged),const SizedBox(height:18),
+   _CustomerHeader(onProfile:()=>onTab(4)),const SizedBox(height:6),const _CustomerHero(),const SizedBox(height:18),
    _SectionTitle(title:'Book a Ride',onSeeAll:()=>onTab(2)),const SizedBox(height:8),_RideTypeShowcase(session:session,onChanged:onChanged),const SizedBox(height:20),
    _SectionTitle(title:'Home & Lifestyle Services',onSeeAll:()=>onTab(2)),const SizedBox(height:8),_Services(onTap:(type,category,label)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:type,serviceCategory:category,serviceDescription:label,onChanged:onChanged)))),
    const SizedBox(height:14),_CustomerPromo(onTap:()=>onTab(2)),const SizedBox(height:18),
@@ -1763,7 +1763,7 @@ class _ServicesState extends State<_Services>{
               final label = item['label']?.toString() ?? key;
               final url = item['imageUrl']?.toString() ?? '';
               final baseFare = double.tryParse(item['baseFare']?.toString() ?? '')?.round();
-              return _Service(url, label, baseFare, () => widget.onTap(type, key, label));
+              return _Service(key, label, baseFare, () => widget.onTap(type, key, label));
             }).toList(),
           ),
         ]),
@@ -1772,18 +1772,48 @@ class _ServicesState extends State<_Services>{
   }
 }
 class _Service extends StatelessWidget {
-  final String url;
+  final String keyName;
   final String label;
   final int? baseFare;
   final VoidCallback tap;
-  const _Service(this.url, this.label, this.baseFare, this.tap);
+  const _Service(this.keyName, this.label, this.baseFare, this.tap);
+
+  IconData get _serviceIcon {
+    switch (keyName) {
+      case 'electrician': return Icons.electrical_services_rounded;
+      case 'plumber': return Icons.plumbing_rounded;
+      case 'ac_service': return Icons.ac_unit_rounded;
+      case 'cleaning': return Icons.cleaning_services_rounded;
+      case 'painter': return Icons.format_paint_rounded;
+      case 'carpenter': return Icons.handyman_rounded;
+      case 'appliance_repair': return Icons.build_circle_rounded;
+      case 'refrigerator_repair': return Icons.kitchen_rounded;
+      case 'washing_machine_repair': return Icons.local_laundry_service_rounded;
+      case 'ro_water_purifier': return Icons.water_drop_rounded;
+      case 'cctv_security': return Icons.videocam_rounded;
+      case 'internet_wifi': return Icons.wifi_rounded;
+      case 'geyser_repair': return Icons.hot_tub_rounded;
+      case 'pest_control': return Icons.pest_control_rounded;
+      case 'packers_movers': return Icons.local_shipping_rounded;
+      case 'salon_beauty': return Icons.content_cut_rounded;
+      case 'cook': return Icons.restaurant_rounded;
+      case 'gardener': return Icons.yard_rounded;
+      case 'laundry': return Icons.dry_cleaning_rounded;
+      case 'driver': return Icons.directions_car_rounded;
+      case 'tutor': return Icons.school_rounded;
+      case 'babysitter': return Icons.child_care_rounded;
+      case 'elder_care': return Icons.accessibility_new_rounded;
+      default: return Icons.miscellaneous_services_rounded;
+    }
+  }
+
   @override
   Widget build(BuildContext c) {
     return InkWell(
       onTap: tap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(5),
+        padding: const EdgeInsets.all(7),
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border.all(color: gfLine),
@@ -1793,20 +1823,16 @@ class _Service extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  url,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  errorBuilder: (_, __, ___) => const ColoredBox(
-                    color: Color(0xFFE8EEF5),
-                    child: Icon(Icons.handyman_outlined),
-                  ),
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAFBF2),
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                child: Icon(_serviceIcon, color: gfGreen, size: 31),
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               label,
               textAlign: TextAlign.center,
@@ -1814,7 +1840,7 @@ class _Service extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: gfNavy),
             ),
-            if(baseFare!=null)
+            if (baseFare != null)
               Text(
                 'From ₹$baseFare',
                 style: const TextStyle(fontSize: 7, fontWeight: FontWeight.w800, color: gfGreen),
