@@ -165,72 +165,77 @@ class _CustomerHeader extends StatelessWidget{
  ]));
 }
 
-class _CustomerHero extends StatelessWidget{
- final Session session; final Future<void> Function({bool silent}) onChanged;
- const _CustomerHero({required this.session,required this.onChanged});
- @override Widget build(BuildContext c){
-  return Padding(
-   padding:const EdgeInsets.symmetric(horizontal:12),
-   child:Column(children:[
-    ClipRRect(
-     borderRadius:BorderRadius.circular(24),
-     child:SizedBox(
-      height:245,width:double.infinity,
-      child:Stack(fit:StackFit.expand,children:[
-       Image.network('https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=1200&q=88',fit:BoxFit.cover,errorBuilder:(context,error,stack)=>const ColoredBox(color:Color(0xFFDCEBFF))),
-       DecoratedBox(decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[Colors.transparent,gfNavy.withValues(alpha:.78)]))),
-       const Positioned(left:18,top:18,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Text('Your City',style:TextStyle(color:Colors.white,fontSize:27,fontWeight:FontWeight.w900)),
-        Text('Your Services',style:TextStyle(color:Color(0xFFFFB03A),fontSize:27,fontWeight:FontWeight.w900)),
-        SizedBox(height:4),
-        Text('Rides, Home & Lifestyle Services\nand more — All in One App',style:TextStyle(color:Colors.white,fontSize:12,fontWeight:FontWeight.w600,height:1.25))
-       ])),
-       Positioned(left:12,right:12,bottom:12,child:Row(children:[
-        _HeroRide('Bike','https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=700&q=88',session,onChanged),
-        _HeroRide('Auto','https://images.unsplash.com/photo-1626149637281-4e227308da18?auto=format&fit=crop&w=700&q=88',session,onChanged),
-        _HeroRide('Car','https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=700&q=88',session,onChanged),
-       ])),
-      ]),
-     ),
-    ),
-    const SizedBox(height:10),
-    InkWell(
-     onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,onChanged:onChanged))),
-     borderRadius:BorderRadius.circular(28),
-     child:Container(
-      padding:const EdgeInsets.symmetric(horizontal:15,vertical:13),
-      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(28),boxShadow:const[BoxShadow(color:Color(0x18000000),blurRadius:14,offset:Offset(0,5))]),
-      child:Row(children:[
-       Container(width:37,height:37,decoration:const BoxDecoration(color:Color(0xFFEAFBF2),shape:BoxShape.circle),child:const Icon(Icons.location_on_rounded,color:gfGreen,size:20)),
-       const SizedBox(width:10),
-       const Expanded(child:Text('Where are you going?',style:TextStyle(fontSize:14,fontWeight:FontWeight.w800,color:gfMuted))),
-       Container(width:37,height:37,decoration:const BoxDecoration(color:gfNavy,shape:BoxShape.circle),child:const Icon(Icons.my_location_rounded,color:Colors.white,size:18)),
-      ]),
-     ),
-    ),
-   ]),
-  );
- }
-}
-class _HeroRide extends StatelessWidget{
- final String label,url; final Session session; final Future<void> Function({bool silent}) onChanged;
- const _HeroRide(this.label,this.url,this.session,this.onChanged);
- @override Widget build(BuildContext c){
-  return Expanded(child:Padding(
-   padding:const EdgeInsets.symmetric(horizontal:4),
-   child:InkWell(
-    onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:label.toLowerCase(),onChanged:onChanged))),
-    child:Container(
-     height:70,
-     decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(16),boxShadow:const[BoxShadow(color:Color(0x30000000),blurRadius:8)]),
-     child:Stack(children:[
-      ClipRRect(borderRadius:BorderRadius.circular(16),child:Image.network(url,fit:BoxFit.cover,width:double.infinity,height:70,errorBuilder:(context,error,stack)=>const ColoredBox(color:Color(0xFFE8EEF5)))),
-      Positioned(left:0,right:0,bottom:0,child:Container(height:24,decoration:BoxDecoration(color:Colors.white.withValues(alpha:.94),borderRadius:const BorderRadius.vertical(bottom:Radius.circular(16))),child:Center(child:Text(label,style:const TextStyle(fontWeight:FontWeight.w900,color:gfNavy,fontSize:11))))),
-     ]),
-    ),
-   ),
-  ));
- }
+class _CustomerHero extends StatelessWidget {
+  const _CustomerHero();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: SizedBox(
+          height: 205,
+          width: double.infinity,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.network(
+                'https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=1200&q=88',
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) =>
+                    const ColoredBox(color: Color(0xFFDCEBFF)),
+              ),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, gfNavy.withValues(alpha: .78)],
+                  ),
+                ),
+              ),
+              const Positioned(
+                left: 18,
+                top: 18,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Your City',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 27,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      'Your Services',
+                      style: TextStyle(
+                        color: Color(0xFFFFB03A),
+                        fontSize: 27,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Rides, Home & Lifestyle Services\\nand more — All in One App',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _SectionTitle extends StatelessWidget{
