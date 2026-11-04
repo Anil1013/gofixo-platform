@@ -694,12 +694,18 @@ router.post('/:id/cancel', requireAuth(['customer']), async (req, res, next) => 
     pool.query(
       `SELECT p.id AS provider_id, p.fcm_token, pps.endpoint, pps.p256dh, pps.auth
        FROM bookings b
-       JOIN service_providers p
-         ON p.type = b.provider_type
-        AND (b.service_type <> 'services' OR b.service_category = ANY(p.service_categories))
+       JOIN service_providers p ON true
        LEFT JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
        WHERE b.id = $1
          AND (p.fcm_token IS NOT NULL OR pps.endpoint IS NOT NULL)
+         AND EXISTS (
+           SELECT 1 FROM provider_skills skill
+           WHERE skill.provider_id = p.id
+             AND skill.skill_key = CASE WHEN b.service_type = 'ride' THEN b.provider_type ELSE b.service_category END
+             AND skill.service_type = b.service_type
+             AND skill.kyc_status = 'approved'
+             AND skill.is_available = true
+         )
          AND NOT (p.id = ANY(COALESCE(b.declined_providers, '{}')))`,
       [id]
     ).then(async (pushRows) => {
@@ -906,8 +912,14 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
        LEFT JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
        JOIN bookings b ON b.id = $1
        WHERE p.id <> $2
-         AND p.type = b.provider_type
-         AND (b.service_type <> 'services' OR b.service_category = ANY(p.service_categories))
+         AND EXISTS (
+           SELECT 1 FROM provider_skills skill
+           WHERE skill.provider_id = p.id
+             AND skill.skill_key = CASE WHEN b.service_type = 'ride' THEN b.provider_type ELSE b.service_category END
+             AND skill.service_type = b.service_type
+             AND skill.kyc_status = 'approved'
+             AND skill.is_available = true
+         )
          AND (pps.endpoint IS NOT NULL OR p.fcm_token IS NOT NULL)
          AND NOT (p.id = ANY(COALESCE(b.declined_providers, '{}')))`,
       [acceptedBooking.id, req.user.id]
