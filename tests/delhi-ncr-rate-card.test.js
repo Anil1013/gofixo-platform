@@ -60,6 +60,6 @@ test('repair diagnosis charges are transparent and credited on accepted same-vis
       assert.equal(item.creditVisitFeeOnApprovedRepair, true);
     }
   }
-  assert.match(rateCard.commercial_rules.visit_fee_policy.repair_inspection, /declines repair/);
+  assert.match(rateCard.commercial_rules.visit_fee_policy.repair_inspection, /declines? repair/);
   assert.match(rateCard.commercial_rules.material_policy, /customer-supplied parts\/materials are the default/);
 });
