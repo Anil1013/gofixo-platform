@@ -1,169 +1,160 @@
-# Delhi NCR Launch Rate Card — Draft for Pilot
+# Gofixo Delhi NCR Home-Service Rate Card — Pilot Draft
 
-**Status: proposed only; not live in the app. Minimum Gofixo commission assumption: 20% on approved service/labour/visit charges.**  
-Version: 2026-11-delhi-ncr-draft-1  
-Coverage for pilot: Delhi, Gurugram, Noida, Faridabad and Ghaziabad.
+**Status: proposed only; not live in the app.**  
+**Market:** Delhi, Gurugram, Noida, Faridabad and Ghaziabad.  
+**Commercial assumption:** minimum 20% Gofixo commission on approved labour/service/visit charges; partner receives up to 80%. Approved actual-cost parts/materials carry 0% commission.
 
-This is a customer-friendly opening rate card designed to be competitive without underpaying service professionals. It is a commercial proposal, not a claim that every local provider charges exactly these rates. Validate it with partner cost sheets and a 2–4 week pilot before activating it in production.
+These are competitive opening prices, not guaranteed market averages. The listed prices should be validated with local partners before activation. Keep a price snapshot on every booking so later price changes never alter an existing customer's quote.
 
-## Commercial model
+## Repair visit and diagnosis policy
 
-- Commission is category-specific and charged on the approved service/labour/visit amount.
-- Approved material and parts reimbursements are itemised separately and passed through at cost; no platform commission on those amounts.
-- The partner's estimated net service earning and the platform's gross commission must be visible before partner acceptance.
-- The platform commission shown below is **gross platform revenue**, not net profit. Payment processing, support, refunds, insurance, marketing, tax and operating expenses still need to be paid from it.
-- No extra charge after booking unless the customer sees and approves an itemised quote.
-- Do not reduce partner payout to fund coupons. Fund promotions from a separately budgeted marketing pool.
-- Daily payout is the target after completion and reconciliation; instant payout only where the payment provider supports it and the fee is disclosed.
-- These draft prices are before final GST/accounting review. Confirm whether each displayed price must be GST-inclusive and configure invoices correctly before launch.
+A customer may pay only for the diagnosis and decide not to repair. The visit fee is then the only amount payable for that visit:
 
-## Suggested category commission
+| Service | Visit / diagnosis fee |
+|---|---:|
+| Electrician | ₹149 |
+| Plumber | ₹149 |
+| Carpenter | ₹149 |
+| AC diagnosis | ₹199 |
+| Refrigerator diagnosis | ₹199 |
+| Washing machine diagnosis | ₹199 |
+| Other appliance diagnosis | ₹199 |
+| RO / water purifier diagnosis | ₹149 |
 
-| Category | Partner share of service fee | Gofixo gross commission |
-|---|---:|---:|
-| Cleaning | 80% | 20% |
-| Electrician / Plumber / Carpenter | 80% | 20% |
-| AC and appliance repair | 80% | 20% |
-| Laundry | 80% | 20% |
-| Senior & disability care (non-clinical) | 80% | 20% |
-| General pest control | 80% | 20% |
-| Gardening | 80% | 20% |
-| Painting / moving | 80% | 20% |
+- The fee covers arrival and diagnosis, not spare parts or repair labour.
+- If the customer declines repair, charge only the disclosed visit fee. Do not force a repair.
+- If the customer approves the repair during the same visit, credit 100% of the visit fee against the approved labour bill. Never collect it twice.
+- Partner must show fault, recommended fix, labour, each part, quantity, price and optional photos in an in-app quote.
+- Customer can accept or decline the quote. No work or part purchase before approval.
+- If the partner has not arrived and has not performed an inspection, no visit fee is due, subject to the displayed cancellation terms.
 
-Partner share applies to the service fee, not reimbursable materials. A service must not go live if its configured price fails the admin-set minimum partner earning for the expected duration, travel zone and skill level.
-
-## Customer-facing opening prices
+## Indicative customer prices
 
 ### Cleaning
 
-| Booking option | Customer price | Partner share (88%) | Gofixo commission (12%) | Expected time |
-|---|---:|---:|---:|---|
-| Single room refresh | ₹349 | ₹307.12 | ₹41.88 | 45–75 min |
-| Kitchen refresh | ₹699 | ₹615.12 | ₹83.88 | 60–90 min |
-| Kitchen deep clean | ₹1,199 | ₹1,055.12 | ₹143.88 | 2–3 hours |
-| Bathroom deep clean | ₹449 each | ₹395.12 | ₹53.88 | 45–75 min |
-| 1RK home refresh | ₹999 | ₹879.12 | ₹119.88 | 1.5–2 hours |
-| 1BHK home refresh | ₹1,299 | ₹1,143.12 | ₹155.88 | 2–2.5 hours |
-| 2BHK home refresh | ₹1,599 | ₹1,407.12 | ₹191.88 | 2–3 hours |
-| 3BHK home refresh | ₹2,099 | ₹1,847.12 | ₹251.88 | 3–4 hours |
-| 1RK deep clean | ₹2,299 | ₹2,023.12 | ₹275.88 | 4–5 hours |
-| 1BHK deep clean | ₹2,899 | ₹2,551.12 | ₹347.88 | 4–6 hours |
-| 2BHK deep clean | ₹3,699 | ₹3,255.12 | ₹443.88 | 5–7 hours |
-| 3BHK deep clean | ₹4,599 | ₹4,047.12 | ₹551.88 | 6–8 hours |
-| Fabric sofa cleaning | ₹179/seat, min 3 | 80% | 20% | 15–25 min/seat |
-
-Scope must be explicit. A room refresh is not a deep clean. Kitchen refresh excludes cabinet interiors; deep cleaning includes the listed degreasing scope. Extra bathrooms, balconies, cabinet interiors, appliances and heavy/post-renovation cleaning are separately priced and customer-approved. Team size must be visible for full-home jobs.
+| Service | Customer price |
+|---|---:|
+| Single room refresh | ₹349 |
+| Kitchen refresh | ₹699 |
+| Kitchen deep cleaning | ₹1,199 |
+| Bathroom deep cleaning | ₹449 each |
+| 1RK home refresh | ₹999 |
+| 1BHK home refresh | ₹1,299 |
+| 2BHK home refresh | ₹1,599 |
+| 3BHK home refresh | ₹2,099 |
+| 1RK deep clean | ₹2,299 |
+| 1BHK deep clean | ₹2,899 |
+| 2BHK deep clean | ₹3,699 |
+| 3BHK deep clean | ₹4,599 |
+| Fabric sofa cleaning | ₹179/seat (minimum 3 seats) |
 
 ### Electrician
 
-| Task | Customer price | Partner share | Gofixo commission |
-|---|---:|---:|---:|
-| Inspection / visit | ₹149 | ₹131.12 | ₹17.88 |
-| Switch/socket replacement labour | ₹149 per point | 80% | 20% |
-| Ceiling fan installation labour | ₹299 per fan | 80% | 20% |
-| MCB replacement labour | ₹299 per unit | 80% | 20% |
-
-Wires, switches, MCBs, fan brackets and other parts are separate, itemised at cost. Complex wiring, concealed faults and safety work require a written quote before work begins.
+| Service | Customer price |
+|---|---:|
+| Inspection / visit | ₹149 |
+| Switch/socket replacement labour | ₹149/point |
+| Ceiling fan installation labour | ₹299/fan |
+| MCB replacement labour | ₹299/unit |
 
 ### Plumber
 
-| Task | Customer price | Partner share | Gofixo commission |
-|---|---:|---:|---:|
-| Inspection / visit | ₹149 | ₹131.12 | ₹17.88 |
-| Tap leak repair labour | ₹199 | 80% | 20% |
-| Tap installation labour | ₹249 per tap | 80% | 20% |
-| Basic drain unclogging | ₹349 | 80% | 20% |
+| Service | Customer price |
+|---|---:|
+| Inspection / visit | ₹149 |
+| Tap leak repair labour | ₹199 |
+| Tap installation labour | ₹249/tap |
+| Basic drain unclogging | ₹349 |
 
-Fixtures, valves, pipes and other materials are separate. Concealed pipeline, wall breaking and machine jetting require a quote.
+### AC service
 
-### AC service and repair
-
-| Task | Customer price | Partner share | Gofixo commission | Expected time |
-|---|---:|---:|---:|---|
-| Window AC basic service | ₹499/unit | ₹439.12 | ₹59.88 | 45–75 min |
-| Split AC basic service | ₹599/unit | ₹527.12 | ₹71.88 | 60–90 min |
-| Split AC deep/jet clean | ₹999/unit | ₹879.12 | ₹119.88 | 1.5–2.5 hours |
-| Split AC installation labour | ₹1,599/unit | ₹1,407.12 | ₹191.88 | 2–3 hours |
-| AC diagnosis / visit | ₹199 | ₹175.12 | ₹23.88 | 30–60 min |
-
-Installation excludes copper pipe, stand, core cutting and electrical materials. Gas refill must never be auto-sold from a symptom alone: first require diagnosis and leak test, then show refrigerant type, quantity, leak repair, labour and parts as separate quote lines. Visit fee can be credited against an approved repair if admin policy enables it.
+| Service | Customer price |
+|---|---:|
+| Window AC basic service | ₹499/unit |
+| Split AC basic service | ₹599/unit |
+| Split AC deep/jet cleaning | ₹999/unit |
+| Split AC installation labour | ₹1,599/unit |
+| AC diagnosis / visit | ₹199 |
 
 ### Laundry
 
-| Service | Customer price | Minimum order | Partner share | Gofixo commission |
-|---|---:|---:|---:|---:|
-| Wash & fold | ₹79/kg | 4 kg | ₹69.52/kg | ₹9.48/kg |
-| Wash & iron | ₹119/kg | 4 kg | ₹104.72/kg | ₹14.28/kg |
-| Premium laundry | ₹179/kg | 3 kg | ₹157.52/kg | ₹21.48/kg |
-| Ironing | ₹18/piece | 10 pieces | ₹15.84/piece | ₹2.16/piece |
-| Dry cleaning | Itemised quote | Per garment | 80% | 20% |
+| Service | Customer price |
+|---|---:|
+| Wash & fold | ₹79/kg (minimum 4 kg) |
+| Wash & iron | ₹119/kg (minimum 4 kg) |
+| Premium laundry | ₹179/kg (minimum 3 kg) |
+| Ironing | ₹18/piece (minimum 10 pieces) |
+| Dry cleaning | Itemised quote before processing |
 
-At pickup, partner records weight on a digital scale and uploads the weight slip. Customer approves any increase before processing. App shows minimum order, pickup/delivery window, turnaround time, stain-treatment limits and damage/loss claims policy. Never describe a flat ₹300 order without a clear kg/piece count.
+At pickup, record actual weight/count and customer approval for any increase.
 
-### Senior & disability care — non-clinical only
+### Senior & disability care — non-clinical
 
-| Shift | Customer price | Partner share (90%) | Gofixo commission (10%) |
-|---|---:|---:|---:|
-| 2 hours | ₹499 | ₹449.10 | ₹49.90 |
-| 4 hours | ₹899 | ₹809.10 | ₹89.90 |
-| 8 hours | ₹1,599 | ₹1,439.10 | ₹159.90 |
-| 12 hours | ₹2,299 | ₹2,069.10 | ₹229.90 |
-| 24-hour plan | Assessed quote | 80% | 20% |
+| Shift | Customer price |
+|---|---:|
+| 2 hours | ₹499 |
+| 4 hours | ₹899 |
+| 8 hours | ₹1,599 |
+| 12 hours | ₹2,299 |
+| 24-hour care | Assessed quote with caregiver roster |
 
-These are pilot assumptions, not a verified market average. Validate with caregivers and families before launch. A 24-hour plan requires a roster and handover; never imply one caregiver works continuously for 24 hours. Nursing, injections, wound care and other clinical tasks must be separate, appropriately credentialed services.
+Do not market clinical nursing or medical procedures unless qualified personnel and applicable compliance are verified. A 24-hour booking must use shifts/handovers, not one person working continuously.
 
-### Pest control, gardening and other work
+### Pest control and gardening
 
-| Service | Customer starting price | Partner share | Gofixo commission |
-|---|---:|---:|---:|
-| General pest treatment 1BHK | ₹899 | 80% | 20% |
-| General pest treatment 2BHK | ₹1,199 | 80% | 20% |
-| General pest treatment 3BHK | ₹1,499 | 80% | 20% |
-| Garden maintenance, 45 min | ₹299 | 80% | 20% |
-| Garden maintenance, 2 hours | ₹499 | 80% | 20% |
-| Painting | Inspection / sq-ft quote | 80% | 20% |
-| Termite treatment | Inspection / quote | 80% | 20% |
-| Refrigerator / washing machine / RO repair | Visit + approved quote | 80% | 20% |
-| Carpenter visit | ₹199 | 80% | 20% |
-| Hinge labour | ₹149/hinge | 80% | 20% |
-| Door lock installation labour | ₹299 | 80% | 20% |
+| Service | Customer price |
+|---|---:|
+| General pest treatment 1BHK | ₹899 |
+| General pest treatment 2BHK | ₹1,199 |
+| General pest treatment 3BHK | ₹1,499 |
+| Garden maintenance, 45 minutes | ₹299 |
+| Garden maintenance, 2 hours | ₹499 |
+| Termite treatment | Site inspection and itemised quote |
 
-Pest control requires chemical disclosure, safety instructions, re-entry time and qualified partners. Termite and specialised treatments need specialist verification. Painting, large repairs and moving jobs need measurement/photos and a quote.
+Pest jobs must disclose chemicals, safety precautions and re-entry time before payment.
 
-## How to protect partner earnings and Gofixo margin
+### Other repair and project work
 
-Example: 2BHK deep cleaning at ₹3,699.
+| Service | Customer price |
+|---|---:|
+| Carpenter inspection | ₹149 |
+| Hinge adjustment/replacement labour | ₹149/hinge |
+| Door lock installation labour | ₹299/job |
+| Refrigerator / washing machine / appliance repair | Visit fee above + approved labour quote |
+| RO repair | ₹149 diagnosis + approved labour quote |
+| Painting / large repair / moving | Measurement-based quote before booking |
 
-- Customer sees and approves: ₹3,699 for the stated scope.
-- Partner share at 88%: ₹3,255.12.
-- Gofixo gross commission at 12%: ₹443.88.
-- If separately approved materials cost ₹300, customer total before tax becomes ₹3,999; the full ₹300 is passed through to the partner with no commission.
-- Gofixo's ₹443.88 is gross commission, not net profit.
+## Parts, materials and consumables — common rule for every service
 
-For a ₹599 split AC basic service:
-- Partner receives ₹527.12.
-- Gofixo gross commission is ₹71.88.
+1. For repair/replacement jobs, customer supplies the part by default. Partner must provide exact specification, model/size and quantity so the customer can buy the correct item.
+2. If customer asks the partner to procure it, partner uploads an itemised bill and photo; customer approves the actual amount before purchase.
+3. Approved material reimbursement is passed through at actual cost with 0% Gofixo commission. No hidden markup.
+4. For cleaning, pest control, salon, gardening and other package services, state which standard consumables are included. Any extra product, chemical, tool rental or material must be shown and approved first.
+5. Labour, visit fee, parts and materials appear as separate invoice lines.
 
-For a ₹1,599 eight-hour care shift:
-- Partner receives ₹1,439.10.
-- Gofixo gross commission is ₹159.90.
+## Fair commission and partner payout
 
-If a partner's expected travel, materials, helper wages and time make the minimum earning unviable, increase the price, change the service radius/slot, or do not offer that job. Do not silently reduce the partner share.
+- Minimum Gofixo commission: 20% of approved labour/service/visit charges; partner share: at most 80%.
+- No commission on approved actual-cost materials.
+- Display the customer's total and partner's estimated net before partner accepts.
+- Customer prepays through the approved Gofixo wallet/payment-provider flow. Reserve funds at booking; capture only after verified completion. Refund/release unused reserves on eligible cancellation.
+- Target partner payout is within 4 hours after customer completion verification and required checks, to a verified partner UPI/bank account. Admin can hold a disputed payout; mark paid only after provider/bank confirmation and UTR.
+- Do not accept a quote or extra amount via off-app cash as a normal workflow. Any exception must be recorded and reviewed.
 
-## Booking UX rules
+## Customer booking safeguards for all categories
 
-1. Ask only service-specific questions: area/quantity, condition, photos if helpful, slot and address.
-2. Show included scope, exclusions, estimated duration, team size, unit price and total.
-3. For uncertain repairs, show visit fee and clearly state that repair needs a quote.
-4. Partner quote must itemise labour, materials, reason and optional photos.
-5. Customer approves or declines in-app; no response means no extra work.
-6. Lock the approved quote and wallet reserve before OTP job start.
-7. At completion, show the same approved total, receipt, warranty/guarantee terms and rating.
+- Show exact scope, exclusions, quantity, estimated duration, visit fee, materials policy, cancellation terms and total before confirmation.
+- Partner arrival and work-start are separate status events. Start only after customer OTP/confirmation.
+- For variable work, partner sends a written itemised quote; customer accepts or declines in-app.
+- Customer can decline repair after diagnosis; only the disclosed visit fee applies.
+- No price changes after approval unless a new quote is accepted.
+- Completion requires partner declaration and customer confirmation; disputes hold payout and route to admin review.
+- Save a booking-time price snapshot, quote history, approvals, photos where relevant, invoice and payout references.
 
-## Pilot validation before production
+## Launch checks before activating prices
 
-- Interview at least 10 active providers in each high-volume category across Gurgaon, Noida and Delhi.
-- Capture partner time, travel, consumables, helper costs, minimum take-home and peak/off-peak differences.
-- Run 30–50 paid pilot jobs per category; compare quote acceptance, completion, complaints, repeat booking and partner effective hourly earnings.
-- Review rates weekly for the first month; change prices only with a new effective date so existing bookings keep their original price snapshot.
-- Have a CA review GST, invoice display, platform fee, withholding and payout treatment before launch.
+- Validate rates with local partners and customer pilot jobs; review partner effective hourly earnings after travel and platform commission.
+- Have a qualified Indian tax professional review GST, invoicing, TDS and payment settlement.
+- Confirm the payment provider supports the intended wallet/pre-authorisation, refunds, split/partner settlement and payout timing.
+- Run customer-to-partner-to-admin staging tests for cancellation, declined repair, part approval, partial refund, disputes, failed payout and duplicate webhook delivery.
+- These are draft rates and policies. Do not switch them on in production until backend and Flutter/admin integration, payment-provider approval and CI tests pass.
