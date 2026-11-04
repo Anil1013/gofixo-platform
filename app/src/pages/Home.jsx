@@ -271,7 +271,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
     // Booking must always be created from an authenticated customer session.
     // Keep this guard here as a second layer in addition to App.jsx routing.
     if (!getToken() || getRole() !== 'customer' || !getUser()) {
-      setError('Please log in first to request a ride or home service.');
+      setError('Please log in first to request a ride or home & lifestyle service.');
       return;
     }
     if (category === 'services' && !work.trim()) {
@@ -363,7 +363,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
       <header className="customer-app-header">
         <div className="customer-logo">
           <span className="customer-logo-pin" />
-          <div><strong>Gofi<span>xo</span></strong><small>Ride · Delivery · Home Services</small></div>
+          <div><strong>Gofi<span>xo</span></strong><small>Ride · Delivery · Home & Lifestyle Services</small></div>
         </div>
         <div className="customer-header-actions">
           <button type="button" className="customer-notification" aria-label="Notifications">●<i /></button>
@@ -377,7 +377,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
         <div className="customer-hero-copy">
           <h1>Your City</h1>
           <h1 className="orange">Your Services</h1>
-          <p>Rides, Home Services<br />and more — All in One App</p>
+          <p>Rides, Home & Lifestyle Services<br />and more — All in One App</p>
         </div>
         <div className="reference-vehicle-strip">
           {RIDE_TYPES.map((t) => {
@@ -486,7 +486,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
 
       <section className="reference-home-section services-reference-section">
         <div className="reference-section-title">
-          <h2>Home Services</h2>
+          <h2>Home & Lifestyle Services</h2>
           <button type="button" onClick={() => { setCategory('services'); setProviderType('general_worker'); setServiceCategory('other'); setWork(''); setShowBooking(true); }}>See all →</button>
         </div>
         <div className="reference-service-cards">
@@ -507,7 +507,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
 
       <section className="trusted-professionals-banner">
         <div>
-          <span>GOFIXO HOME SERVICES</span>
+          <span>GOFIXO HOME & LIFESTYLE SERVICES</span>
           <h2>Trusted Professionals<br />for Your Home</h2>
           <p><b>✓</b> Verified &nbsp; <b>✓</b> Affordable &nbsp; <b>✓</b> On-Time</p>
           <button type="button" onClick={() => { setCategory('services'); setProviderType('general_worker'); setServiceCategory('other'); setWork(''); setShowBooking(true); }}>Book Now →</button>
@@ -690,7 +690,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
           {error && <p className="auth-error">{error}</p>}
 
           <button className="cta home-cta reference-book-cta" onClick={book} disabled={loading || (category === 'services' && !work.trim())}>
-            <span>{loading ? 'Finding the nearest provider…' : category === 'ride' ? 'Book a Ride' : 'Book Home Service'}</span>
+            <span>{loading ? 'Finding the nearest provider…' : category === 'ride' ? 'Book a Ride' : 'Book Home & Lifestyle Service'}</span>
             {!loading && <span>→</span>}
           </button>
           <p className="booking-note">No hassle · Verified partners · Support when you need it</p>
