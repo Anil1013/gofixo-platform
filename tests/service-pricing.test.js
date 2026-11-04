@@ -58,6 +58,20 @@ test('inspection-first repair displays visit fee and requires an approved quote'
 
   assert.equal(result.total, 199);
   assert.equal(result.requiresQuote, true);
+  assert.equal(result.visitFeeCreditedOnApproval, false);
+});
+
+test('repair visit fee is credited when customer approves repair in the same visit', () => {
+  const result = calculateServicePrice({
+    pricingMode: 'inspection_quote',
+    unitLabel: 'visit',
+    visitFee: 149,
+    creditVisitFeeOnApprovedRepair: true,
+  });
+  assert.equal(result.total, 149);
+  assert.equal(result.requiresQuote, true);
+  assert.equal(result.visitFeeCreditedOnApproval, true);
+  assert.match(result.quoteMessage, /only the disclosed visit fee/);
 });
 
 test('rejects invalid quantities and unknown add-ons', () => {
