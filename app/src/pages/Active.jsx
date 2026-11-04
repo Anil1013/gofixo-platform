@@ -32,7 +32,7 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
   // while the ride/service is active. The backend only exposes that location to
   // this authenticated customer.
   useEffect(() => {
-    if (booking.status === 'completed' || booking.status === 'no_provider') return;
+    if (['completed', 'no_provider', 'cancelled'].includes(booking.status)) return;
     onRefresh();
     const interval = setInterval(onRefresh, 15 * 1000);
     return () => clearInterval(interval);
@@ -42,7 +42,7 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
   // so the map still recovers automatically if the realtime connection drops.
   useEffect(() => {
     setLiveProvider(null);
-    if (booking.status === 'completed' || booking.status === 'no_provider') return undefined;
+    if (['completed', 'no_provider', 'cancelled'].includes(booking.status)) return undefined;
 
     const token = getToken();
     if (!token || !('WebSocket' in window)) return undefined;
@@ -165,6 +165,22 @@ export default function Active({ booking, onRefresh, onDismiss, onDone }) {
     navigator.clipboard?.writeText(booking.start_pin);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  }
+
+  if (booking.status === 'cancelled') {
+    return (
+      <div className="screen">
+        <div className="thanks-card" style={{ background: 'var(--red-bg)', color: 'var(--red)' }}>
+          <p>Booking cancelled</p>
+          <small style={{ display: 'block', marginTop: 8, opacity: .85 }}>
+            {booking.service_type === 'services'
+              ? 'Your reserved Gofixo Wallet amount has been released. You can place a new request.'
+              : 'Your partner could not continue this booking. You can place a new request.'}
+          </small>
+        </div>
+        <button className="cta" onClick={() => { onDismiss(); onDone(); }}>Back to Home</button>
+      </div>
+    );
   }
 
   if (booking.status === 'no_provider') {
