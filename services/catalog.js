@@ -21,7 +21,7 @@ const HOME_SERVICE_CATALOG = Object.freeze([
   { key: 'driver', label: 'Personal Driver', providerType: 'general_worker', imageUrl: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=700&q=82' },
   { key: 'tutor', label: 'Tutor', providerType: 'general_worker', imageUrl: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=700&q=82' },
   { key: 'babysitter', label: 'Babysitter', providerType: 'general_worker', imageUrl: 'https://images.unsplash.com/photo-1491013516836-7db643ee125a?auto=format&fit=crop&w=700&q=82' },
-  { key: 'elder_care', label: 'Elder Care', providerType: 'general_worker', imageUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=700&q=82' },
+  { key: 'elder_care', label: 'Senior & Disability Care', providerType: 'general_worker', imageUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=700&q=82' },
   { key: 'other', label: 'Other Service', providerType: 'general_worker', imageUrl: 'https://images.unsplash.com/photo-1521791055366-0d553872125f?auto=format&fit=crop&w=700&q=82' },
 ]);
 
