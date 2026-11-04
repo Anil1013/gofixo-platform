@@ -12,6 +12,7 @@ import Wallet from './pages/Wallet';
 import { apiGet, getToken, getUser, getRole, clearSession } from './api';
 import './App.css';
 import './gofixo-reference.css';
+import './gofixo-professional.css';
 
 // Bookings the customer has finished looking at (rated / dismissed) — kept so a page reload doesn't bring them back
 const DISMISSED_KEY = 'gofixo_dismissed_bookings';
