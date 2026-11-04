@@ -58,7 +58,7 @@ Do not publish the example prices from planning conversations as final tariffs. 
 ## Recommended commission and payout policy
 
 - Use category-specific commission configured in admin, not a single global percentage.
-- Initial planning bands only (not live defaults): skilled repair 10–15%; cleaning/laundry 12–18%; caregiving 8–12%; inspection/parts should have explicit treatment. Final percentages require unit-economics review and partner validation.
+- Minimum Gofixo commission: 20% on approved home-service labour/visit charges across all categories; partner share is at most 80%. This is a proposed commercial rule and must be shown transparently before partner acceptance and reviewed for viable partner earnings.
 - Display commission and net earning to partner before acceptance.
 - Do not charge commission on customer-approved pass-through material costs unless the policy explicitly says so and customer sees it.
 - Home-service customers prepay through the Gofixo wallet. Reserve funds at booking, capture only after customer-verified completion, and release/refund on eligible cancellation. Keep ride payment flows separate.
