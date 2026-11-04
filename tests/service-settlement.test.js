@@ -25,7 +25,7 @@ test('caregiving partner share is configurable independently', () => {
 test('rejects a price that falls below the partner minimum earning', () => {
   assert.throws(() => calculateServiceSettlement({
     serviceAmount: 149,
-    partnerPercent: 88,
+    partnerPercent: 80,
     minimumPartnerServiceEarning: 150,
   }), /minimum partner earning/);
 });
