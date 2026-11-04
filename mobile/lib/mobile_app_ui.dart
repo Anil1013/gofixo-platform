@@ -1712,7 +1712,7 @@ class _Services extends StatefulWidget{
     {'providerType':'general_worker','key':'driver','label':'Personal Driver','imageUrl':'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=700&q=82'},
     {'providerType':'general_worker','key':'tutor','label':'Tutor','imageUrl':'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=700&q=82'},
     {'providerType':'general_worker','key':'babysitter','label':'Babysitter','imageUrl':'https://images.unsplash.com/photo-1491013516836-7db643ee125a?auto=format&fit=crop&w=700&q=82'},
-    {'providerType':'general_worker','key':'elder_care','label':'Elder Care','imageUrl':'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'general_worker','key':'elder_care','label':'Senior & Disability Care','imageUrl':'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=700&q=82'},
     {'providerType':'general_worker','key':'other','label':'Other Service','imageUrl':'https://images.unsplash.com/photo-1521791055366-0d553872125f?auto=format&fit=crop&w=700&q=82'},
   ];
   @override State<_Services> createState()=>_ServicesState();
@@ -1761,7 +1761,6 @@ class _ServicesState extends State<_Services>{
               final type = item['providerType']?.toString() ?? 'general_worker';
               final key = item['key']?.toString() ?? 'other';
               final label = item['label']?.toString() ?? key;
-              final url = item['imageUrl']?.toString() ?? '';
               final baseFare = double.tryParse(item['baseFare']?.toString() ?? '')?.round();
               return _Service(key, label, baseFare, () => widget.onTap(type, key, label));
             }).toList(),
