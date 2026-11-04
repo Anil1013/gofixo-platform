@@ -352,7 +352,7 @@ class _AuthState extends State<Auth>{
   {'key':'driver','label':'Personal Driver','providerType':'general_worker'},
   {'key':'tutor','label':'Tutor','providerType':'general_worker'},
   {'key':'babysitter','label':'Babysitter','providerType':'general_worker'},
-  {'key':'elder_care','label':'Elder Care','providerType':'general_worker'},
+  {'key':'elder_care','label':'Senior & Disability Care','providerType':'general_worker'},
   {'key':'other','label':'Other Service','providerType':'general_worker'},
  ];
  bool get provider=>widget.role=='provider';
