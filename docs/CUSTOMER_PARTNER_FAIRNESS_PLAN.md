@@ -61,7 +61,10 @@ Do not publish the example prices from planning conversations as final tariffs. 
 - Initial planning bands only (not live defaults): skilled repair 10–15%; cleaning/laundry 12–18%; caregiving 8–12%; inspection/parts should have explicit treatment. Final percentages require unit-economics review and partner validation.
 - Display commission and net earning to partner before acceptance.
 - Do not charge commission on customer-approved pass-through material costs unless the policy explicitly says so and customer sees it.
-- Daily settlement batch is the default target. Instant payout is enabled only when the payment provider supports it and fees are disclosed. Never mark payout paid without a confirmed provider reference.
+- Home-service customers prepay through the Gofixo wallet. Reserve funds at booking, capture only after customer-verified completion, and release/refund on eligible cancellation. Keep ride payment flows separate.
+- Minimum platform commission is 20% of approved labour/visit charges in every home-service category; approved actual-cost materials are passed through at 0% commission. Show partner net earnings before acceptance.
+- Create exactly one idempotent partner payout per completed home-service booking. Target payout within 4 hours after completion verification and quality checks, to a verified partner UPI ID/bank account. Admin may approve, hold or retry; record UTR/provider reference and never mark paid without confirmed transfer.
+- Hold payouts during disputes, refund requests, mismatched completion evidence or suspected off-platform booking bypass. Cash/off-platform settlement is disabled for home services by default; exceptions require documented admin review.
 - Add payout ledger entries, settlement status, failure reason and reconciliation view.
 
 ## Fair cancellations and reassignment
