@@ -392,6 +392,22 @@ export default function ProviderHome({ onLogout }) {
     }
   }
 
+  async function cancelAcceptedBooking() {
+    if (!activeBooking?.id || !window.confirm('Cancel this booking? The customer will be notified.')) return;
+    setBusy(true);
+    setError('');
+    try {
+      await apiPost(`/bookings/${activeBooking.id}/provider-cancel`, {}, true);
+      setPin('');
+      await loadAll();
+    } catch (err) {
+      setError(err.message);
+      await loadAll();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function startBooking() {
     setBusy(true);
     setError('');
@@ -607,6 +623,9 @@ export default function ProviderHome({ onLogout }) {
           <label>Customer start PIN</label>
           <input className="provider-input" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0,4))} placeholder="Enter 4-digit PIN" inputMode="numeric" />
           <button className="cta provider-main-cta" onClick={startBooking} disabled={busy || pin.length < 4}>Start trip →</button>
+          <button type="button" className="reject-reference" onClick={cancelAcceptedBooking} disabled={busy} style={{ width: '100%', marginTop: 8 }}>
+            {busy ? 'Please wait…' : 'Cancel booking'}
+          </button>
         </section>
       )}
 
