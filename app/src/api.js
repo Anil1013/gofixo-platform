@@ -63,6 +63,17 @@ export async function apiPatch(path, body, auth = false) {
   return handle(res);
 }
 
+export async function apiPut(path, body, auth = false) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (auth) headers['Authorization'] = `Bearer ${getToken()}`;
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(body),
+  });
+  return handle(res);
+}
+
 export async function apiGet(path, auth = false) {
   const headers = {};
   if (auth) headers['Authorization'] = `Bearer ${getToken()}`;

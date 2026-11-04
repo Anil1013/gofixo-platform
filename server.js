@@ -488,6 +488,43 @@ async function ensureRuntimeSchema() {
       ON service_providers USING GIN (service_categories)
   `);
 
+  // Multi-skill partner model. Legacy provider rows are backfilled without
+  // changing their existing account-level KYC, availability, bookings or billing.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS provider_skills (
+      id BIGSERIAL PRIMARY KEY,
+      provider_id INT NOT NULL REFERENCES service_providers(id) ON DELETE CASCADE,
+      skill_key VARCHAR(50) NOT NULL,
+      service_type VARCHAR(20) NOT NULL CHECK (service_type IN ('ride', 'services')),
+      kyc_status VARCHAR(20) NOT NULL DEFAULT 'pending'
+        CHECK (kyc_status IN ('pending', 'approved', 'rejected')),
+      is_available BOOLEAN NOT NULL DEFAULT false,
+      review_note TEXT,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      UNIQUE (provider_id, skill_key)
+    )
+  `);
+  await pool.query(`
+    INSERT INTO provider_skills (provider_id, skill_key, service_type, kyc_status, is_available)
+    SELECT sp.id, sp.type, 'ride', sp.kyc_status, true
+    FROM service_providers sp
+    WHERE sp.type IN ('bike', 'auto', 'car')
+    ON CONFLICT (provider_id, skill_key) DO NOTHING
+  `);
+  await pool.query(`
+    INSERT INTO provider_skills (provider_id, skill_key, service_type, kyc_status, is_available)
+    SELECT sp.id, category, 'services', sp.kyc_status, true
+    FROM service_providers sp
+    CROSS JOIN LATERAL unnest(sp.service_categories) AS category
+    WHERE sp.type IN ('general_worker', 'skilled_worker')
+    ON CONFLICT (provider_id, skill_key) DO NOTHING
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS provider_skills_matching_idx
+      ON provider_skills (skill_key, service_type, kyc_status, is_available, provider_id)
+  `);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS earnings_log (
       id SERIAL PRIMARY KEY,
