@@ -1,7 +1,7 @@
 {
-  "version": "1.0.40",
-  "buildNumber": 1000040,
-  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.40.apk",
-  "notes": "Gofixo v1.0.40: ride subscription payments require UTR submission and admin bank verification; only ride partners need subscriptions; Home Services partners use the separate service commission; ride per-booking commission remains 0%.",
+  "version": "1.0.41",
+  "buildNumber": 1000041,
+  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.41.apk",
+  "notes": "Gofixo v1.0.41: customer home hero cleanup, Senior & Disability Care label, and distinct service icons.",
   "forceUpdate": false
 }
