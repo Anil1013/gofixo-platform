@@ -78,7 +78,7 @@ export default function ProviderHome({ onLogout }) {
       ]);
       setProfile(me);
       setSkills(mySkills);
-      const active = bookings.find((b) => ['requested', 'accepted', 'ongoing'].includes(b.status));
+      const active = bookings.find((b) => ['requested', 'accepted', 'arrived', 'ongoing'].includes(b.status));
       setActiveBooking(active || null);
     } catch (err) {
       setError(err.message);
@@ -350,7 +350,7 @@ export default function ProviderHome({ onLogout }) {
   // Keep an online provider's location fresh so they stop matching after a
   // prolonged disconnect instead of being treated as if they were still nearby.
   useEffect(() => {
-    const activeTrip = ['accepted', 'ongoing'].includes(activeBooking?.status);
+    const activeTrip = ['accepted', 'arrived', 'ongoing'].includes(activeBooking?.status);
     if (!profile?.is_available && !activeTrip) return undefined;
 
     // Keep GPS flowing while online and throughout an active booking. The
@@ -387,6 +387,25 @@ export default function ProviderHome({ onLogout }) {
       loadAll();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancelBooking() {
+    if (!activeBooking || !['accepted', 'arrived'].includes(activeBooking.status)) return;
+    const confirmed = window.confirm('Cancel this booking? The customer will be notified and any reserved Home Services wallet amount will be released.');
+    if (!confirmed) return;
+    setBusy(true);
+    setError('');
+    try {
+      await apiPost(`/bookings/${activeBooking.id}/provider-cancel`, {}, true);
+      stopBuzzer();
+      setPin('');
+      await loadAll();
+    } catch (err) {
+      setError(err.message);
+      await loadAll();
     } finally {
       setBusy(false);
     }
@@ -596,9 +615,9 @@ export default function ProviderHome({ onLogout }) {
         </section>
       )}
 
-      {activeBooking && activeBooking.status === 'accepted' && (
+      {activeBooking && ['accepted', 'arrived'].includes(activeBooking.status) && (
         <section className="provider-job-panel">
-          <div className="job-panel-head"><div><span className="section-kicker">{activeBooking.service_type === 'services' ? 'SERVICE' : 'PICKUP'}</span><h2>{activeBooking.service_type === 'services' ? 'On the way to service' : 'On the way'}</h2></div><span className="job-live-pill">● LIVE</span></div>
+          <div className="job-panel-head"><div><span className="section-kicker">{activeBooking.service_type === 'services' ? 'SERVICE' : 'PICKUP'}</span><h2>{activeBooking.status === 'arrived' ? 'You have arrived' : activeBooking.service_type === 'services' ? 'On the way to service' : 'On the way'}</h2></div><span className="job-live-pill">● {activeBooking.status === 'arrived' ? 'ARRIVED' : 'LIVE'}</span></div>
           <MapView markers={navigationMarkers} line={pickupRoute ? pickupRoute.line : null} height={200} />
           <div className="job-location-row"><span>📍</span><div><small>PICKUP</small><strong>{activeBooking.pickup_location}</strong></div></div>
           {pickupRoute && <div className="route-highlight"><strong>{pickupRoute.distanceKm.toFixed(1)} km</strong><span>about {pickupRoute.durationMin} min</span></div>}
@@ -607,6 +626,7 @@ export default function ProviderHome({ onLogout }) {
           <label>Customer start PIN</label>
           <input className="provider-input" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0,4))} placeholder="Enter 4-digit PIN" inputMode="numeric" />
           <button className="cta provider-main-cta" onClick={startBooking} disabled={busy || pin.length < 4}>Start trip →</button>
+          <button type="button" className="reject-reference" onClick={cancelBooking} disabled={busy} style={{ width: '100%', marginTop: 10 }}>Cancel booking</button>
         </section>
       )}
 
