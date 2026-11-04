@@ -507,14 +507,14 @@ async function ensureRuntimeSchema() {
   `);
   await pool.query(`
     INSERT INTO provider_skills (provider_id, skill_key, service_type, kyc_status, is_available)
-    SELECT sp.id, sp.type, 'ride', sp.kyc_status, sp.is_available
+    SELECT sp.id, sp.type, 'ride', sp.kyc_status, true
     FROM service_providers sp
     WHERE sp.type IN ('bike', 'auto', 'car')
     ON CONFLICT (provider_id, skill_key) DO NOTHING
   `);
   await pool.query(`
     INSERT INTO provider_skills (provider_id, skill_key, service_type, kyc_status, is_available)
-    SELECT sp.id, category, 'services', sp.kyc_status, sp.is_available
+    SELECT sp.id, category, 'services', sp.kyc_status, true
     FROM service_providers sp
     CROSS JOIN LATERAL unnest(sp.service_categories) AS category
     WHERE sp.type IN ('general_worker', 'skilled_worker')
