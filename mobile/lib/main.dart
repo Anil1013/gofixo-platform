@@ -46,8 +46,12 @@ class _GateState extends State<Gate>{
       if(!updateChecked){
         updateChecked=true;
         WidgetsBinding.instance.addPostFrameCallback((_) async {
-          final otaApplied=await OtaService.checkAndApply();
-          if(!otaApplied&&c.mounted)await UpdateService.checkAndPrompt(c);
+          // Show the full app version update first. Previously OTA ran first and
+          // could apply a patch silently, skipping the version update prompt.
+          final fullUpdateAvailable=await UpdateService.checkAndPrompt(c);
+          if(!fullUpdateAvailable&&c.mounted) {
+            await OtaService.checkAndApply();
+          }
         });
       }
       final x=s.data;
