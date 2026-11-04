@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-delhi-ncr-draft-1",
+  "version": "2026-11-delhi-ncr-draft-2",
   "status": "proposed_not_live",
   "currency": "INR",
   "market": [
@@ -15,21 +15,26 @@
     "material_pass_through_commission_percent": 0,
     "payment_gateway_fee_absorbed_by": "platform_share_until_unit_economics_review",
     "commission_rates_percent": {
-      "cleaning": 12,
-      "skilled_repairs": 12,
-      "ac_and_appliance": 12,
-      "laundry": 12,
-      "caregiving": 10,
-      "pest_control": 15,
-      "gardening": 12,
-      "painting_and_moving": 12
+      "cleaning": 20,
+      "skilled_repairs": 20,
+      "ac_and_appliance": 20,
+      "laundry": 20,
+      "caregiving": 20,
+      "pest_control": 20,
+      "gardening": 20,
+      "painting_and_moving": 20
     },
-    "partner_share_percent": "100 minus category commission on service labour/visit amount",
-    "payout_target": "daily_settlement_after_completion_and_quality_checks; instant_only_if_provider_supports_it",
+    "partner_share_percent": "80% of approved service labour/visit amount; minimum platform commission is 20%",
+    "payout_target": "within 4 hours after customer completion confirmation and fraud/quality checks; admin-managed UPI/bank payout; disputes and failed transfers are held",
     "partner_net_display": "show gross labour, commission, approved reimbursable materials, adjustments and estimated net before partner accepts",
     "minimum_partner_earning": "admin-configured floor by service, skill, zone and duration; reject or reprice jobs below floor",
     "customer_extra_charge": "never without itemised quote and customer approval",
-    "prices_include_gst": false
+    "prices_include_gst": false,
+    "customer_payment": "prepaid Gofixo wallet; reserve at booking; capture only after verified completion; refund/release on eligible cancellation",
+    "partner_payout": "create one idempotent payout record per completed home-service booking; payout to verified partner UPI/bank details; store transfer UTR; never mark paid without confirmed bank/provider transfer",
+    "material_policy": "customer supplies repair parts by default; partner-sourced materials require itemised bill and prior customer approval; approved actual-cost pass-through has 0% commission",
+    "cash_policy": "home services are prepaid through Gofixo wallet; no off-platform cash settlement; exceptions require admin-reviewed incident handling",
+    "dispute_policy": "hold partner payout while a customer complaint, refund request, completion mismatch or suspected booking bypass is under review"
   },
   "services": [
     {
@@ -42,7 +47,7 @@
           "mode": "fixed",
           "unit": "room",
           "price": 349,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             45,
             75
@@ -55,7 +60,7 @@
           "mode": "fixed",
           "unit": "kitchen",
           "price": 699,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             60,
             90
@@ -68,7 +73,7 @@
           "mode": "fixed",
           "unit": "kitchen",
           "price": 1199,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             120,
             180
@@ -81,7 +86,7 @@
           "mode": "per_unit",
           "unit": "bathroom",
           "price": 449,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             45,
             75
@@ -94,7 +99,7 @@
           "mode": "fixed",
           "unit": "home",
           "price": 999,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             90,
             120
@@ -106,7 +111,7 @@
           "mode": "fixed",
           "unit": "home",
           "price": 1299,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             120,
             150
@@ -118,7 +123,7 @@
           "mode": "fixed",
           "unit": "home",
           "price": 1599,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             120,
             180
@@ -130,7 +135,7 @@
           "mode": "fixed",
           "unit": "home",
           "price": 2099,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             180,
             240
@@ -142,7 +147,7 @@
           "mode": "fixed",
           "unit": "home",
           "price": 2299,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             240,
             300
@@ -154,7 +159,7 @@
           "mode": "fixed",
           "unit": "home",
           "price": 2899,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             240,
             360
@@ -166,7 +171,7 @@
           "mode": "fixed",
           "unit": "home",
           "price": 3699,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             300,
             420
@@ -178,7 +183,7 @@
           "mode": "fixed",
           "unit": "home",
           "price": 4599,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             360,
             480
@@ -190,7 +195,7 @@
           "mode": "per_unit",
           "unit": "seat",
           "price": 179,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             15,
             25
@@ -209,7 +214,7 @@
           "mode": "fixed",
           "unit": "visit",
           "price": 149,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             20,
             40
@@ -222,7 +227,7 @@
           "mode": "per_unit",
           "unit": "point",
           "price": 149,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             20,
             35
@@ -235,7 +240,7 @@
           "mode": "per_unit",
           "unit": "fan",
           "price": 299,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             30,
             60
@@ -248,7 +253,7 @@
           "mode": "per_unit",
           "unit": "unit",
           "price": 299,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             30,
             60
@@ -267,7 +272,7 @@
           "mode": "fixed",
           "unit": "visit",
           "price": 149,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             20,
             40
@@ -279,7 +284,7 @@
           "mode": "fixed",
           "unit": "job",
           "price": 199,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             30,
             60
@@ -292,7 +297,7 @@
           "mode": "per_unit",
           "unit": "tap",
           "price": 249,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             30,
             60
@@ -305,7 +310,7 @@
           "mode": "fixed",
           "unit": "job",
           "price": 349,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             45,
             90
@@ -324,7 +329,7 @@
           "mode": "per_unit",
           "unit": "AC",
           "price": 499,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             45,
             75
@@ -336,7 +341,7 @@
           "mode": "per_unit",
           "unit": "AC",
           "price": 599,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             60,
             90
@@ -348,7 +353,7 @@
           "mode": "per_unit",
           "unit": "AC",
           "price": 999,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             90,
             150
@@ -360,7 +365,7 @@
           "mode": "per_unit",
           "unit": "AC",
           "price": 1599,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             120,
             180
@@ -373,7 +378,7 @@
           "mode": "inspection_quote",
           "unit": "visit",
           "visitFee": 199,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             30,
             60
@@ -393,7 +398,7 @@
           "mode": "inspection_quote",
           "unit": "visit",
           "visitFee": 199,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             30,
             60
@@ -415,7 +420,7 @@
           "price": 79,
           "minimumQuantity": 4,
           "quantityStep": 0.5,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "turnaroundHours": [
             48,
             72
@@ -429,7 +434,7 @@
           "price": 119,
           "minimumQuantity": 4,
           "quantityStep": 0.5,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "turnaroundHours": [
             48,
             72
@@ -443,7 +448,7 @@
           "price": 179,
           "minimumQuantity": 3,
           "quantityStep": 0.5,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "turnaroundHours": [
             48,
             72
@@ -456,7 +461,7 @@
           "unit": "piece",
           "price": 18,
           "minimumQuantity": 10,
-          "partnerPercent": 88
+          "partnerPercent": 80
         },
         {
           "key": "dry_clean",
@@ -464,7 +469,7 @@
           "mode": "inspection_quote",
           "unit": "garment",
           "visitFee": 0,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "requiresItemisedGarmentQuote": true
         }
       ]
@@ -479,7 +484,7 @@
           "mode": "fixed",
           "unit": "2-hour shift",
           "price": 499,
-          "partnerPercent": 90,
+          "partnerPercent": 80,
           "durationMinutes": [
             120,
             120
@@ -492,7 +497,7 @@
           "mode": "fixed",
           "unit": "4-hour shift",
           "price": 899,
-          "partnerPercent": 90,
+          "partnerPercent": 80,
           "durationMinutes": [
             240,
             240
@@ -505,7 +510,7 @@
           "mode": "fixed",
           "unit": "8-hour shift",
           "price": 1599,
-          "partnerPercent": 90,
+          "partnerPercent": 80,
           "durationMinutes": [
             480,
             480
@@ -518,7 +523,7 @@
           "mode": "fixed",
           "unit": "12-hour shift",
           "price": 2299,
-          "partnerPercent": 90,
+          "partnerPercent": 80,
           "durationMinutes": [
             720,
             720
@@ -531,7 +536,7 @@
           "mode": "inspection_quote",
           "unit": "day",
           "visitFee": 0,
-          "partnerPercent": 90,
+          "partnerPercent": 80,
           "scope": "Staffed roster and handover required; never imply one person works continuously for 24 hours"
         }
       ]
@@ -546,7 +551,7 @@
           "mode": "fixed",
           "unit": "home",
           "price": 899,
-          "partnerPercent": 85,
+          "partnerPercent": 80,
           "durationMinutes": [
             45,
             75
@@ -559,7 +564,7 @@
           "mode": "fixed",
           "unit": "home",
           "price": 1199,
-          "partnerPercent": 85,
+          "partnerPercent": 80,
           "durationMinutes": [
             60,
             90
@@ -572,7 +577,7 @@
           "mode": "fixed",
           "unit": "home",
           "price": 1499,
-          "partnerPercent": 85,
+          "partnerPercent": 80,
           "durationMinutes": [
             75,
             120
@@ -585,7 +590,7 @@
           "mode": "inspection_quote",
           "unit": "area",
           "visitFee": 0,
-          "partnerPercent": 85,
+          "partnerPercent": 80,
           "requiresLicensedSpecialist": true
         }
       ]
@@ -600,7 +605,7 @@
           "mode": "fixed",
           "unit": "45-minute visit",
           "price": 299,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             45,
             45
@@ -613,7 +618,7 @@
           "mode": "fixed",
           "unit": "2-hour visit",
           "price": 499,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             120,
             120
@@ -632,7 +637,7 @@
           "mode": "inspection_quote",
           "unit": "sq ft",
           "visitFee": 0,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "requiresAreaMeasurement": true,
           "materialsItemised": true
         }
@@ -648,7 +653,7 @@
           "mode": "fixed",
           "unit": "visit",
           "price": 199,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             20,
             45
@@ -660,7 +665,7 @@
           "mode": "per_unit",
           "unit": "hinge",
           "price": 149,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             20,
             40
@@ -673,7 +678,7 @@
           "mode": "fixed",
           "unit": "job",
           "price": 299,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             30,
             60
@@ -692,7 +697,7 @@
           "mode": "inspection_quote",
           "unit": "visit",
           "visitFee": 199,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             30,
             60
@@ -711,7 +716,7 @@
           "mode": "inspection_quote",
           "unit": "visit",
           "visitFee": 199,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             30,
             60
@@ -730,7 +735,7 @@
           "mode": "inspection_quote",
           "unit": "visit",
           "visitFee": 149,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             30,
             60
@@ -749,7 +754,7 @@
           "mode": "inspection_quote",
           "unit": "visit",
           "visitFee": 149,
-          "partnerPercent": 88,
+          "partnerPercent": 80,
           "durationMinutes": [
             30,
             60
