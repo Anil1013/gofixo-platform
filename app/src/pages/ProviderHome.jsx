@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { apiGet, apiPatch, apiPost } from '../api';
+import { apiGet, apiPatch, apiPost, apiPut } from '../api';
 import MapView from '../components/MapView';
 import { getRoute } from '../utils/geo';
 import { startBuzzer, stopBuzzer } from '../utils/buzzer';
@@ -7,6 +7,36 @@ import ProfilePhoto from '../components/ProfilePhoto';
 
 const TYPE_ICON = { bike: '🏍', auto: '🛺', car: '🚗', general_worker: '🧹', skilled_worker: '🔧' };
 const OFFER_SECONDS = 60;
+
+const PARTNER_SKILL_OPTIONS = [
+  { key: 'bike', label: 'Bike Ride', service_type: 'ride' },
+  { key: 'auto', label: 'Auto Ride', service_type: 'ride' },
+  { key: 'car', label: 'Car Ride', service_type: 'ride' },
+  { key: 'electrician', label: 'Electrician' },
+  { key: 'plumber', label: 'Plumber' },
+  { key: 'ac_service', label: 'AC Service' },
+  { key: 'cleaning', label: 'Cleaning' },
+  { key: 'painter', label: 'Painter' },
+  { key: 'carpenter', label: 'Carpenter' },
+  { key: 'appliance_repair', label: 'Appliance Repair' },
+  { key: 'refrigerator_repair', label: 'Refrigerator Repair' },
+  { key: 'washing_machine_repair', label: 'Washing Machine Repair' },
+  { key: 'ro_water_purifier', label: 'RO & Water Purifier' },
+  { key: 'cctv_security', label: 'CCTV & Security' },
+  { key: 'internet_wifi', label: 'Internet & Wi-Fi' },
+  { key: 'geyser_repair', label: 'Geyser Repair' },
+  { key: 'pest_control', label: 'Pest Control' },
+  { key: 'packers_movers', label: 'Packers & Movers' },
+  { key: 'salon_beauty', label: 'Salon & Beauty' },
+  { key: 'cook', label: 'Cook' },
+  { key: 'gardener', label: 'Gardener' },
+  { key: 'laundry', label: 'Laundry' },
+  { key: 'driver', label: 'Personal Driver' },
+  { key: 'tutor', label: 'Tutor' },
+  { key: 'babysitter', label: 'Babysitter' },
+  { key: 'elder_care', label: 'Elder Care' },
+  { key: 'other', label: 'Other Service' },
+].map((item) => ({ ...item, service_type: item.service_type || 'services' }));
 
 export default function ProviderHome({ onLogout }) {
   const [profile, setProfile] = useState(null);
@@ -20,6 +50,9 @@ export default function ProviderHome({ onLogout }) {
   const [comment, setComment] = useState('');
   const [secondsLeft, setSecondsLeft] = useState(null);
   const [pickupRoute, setPickupRoute] = useState(null);
+  const [skills, setSkills] = useState([]);
+  const [selectedSkills, setSelectedSkills] = useState([]);
+  const [skillsBusy, setSkillsBusy] = useState(false);
 
   const buzzingRef = useRef(false);
   const buzzedBookingRef = useRef(null);
@@ -28,11 +61,13 @@ export default function ProviderHome({ onLogout }) {
 
   async function loadAll() {
     try {
-      const [me, bookings] = await Promise.all([
+      const [me, bookings, mySkills] = await Promise.all([
         apiGet('/providers/me', true),
         apiGet('/bookings/mine/provider', true),
+        apiGet('/providers/me/skills', true),
       ]);
       setProfile(me);
+      setSkills(mySkills);
       const active = bookings.find((b) => ['requested', 'accepted', 'ongoing'].includes(b.status));
       setActiveBooking(active || null);
     } catch (err) {
@@ -221,6 +256,40 @@ export default function ProviderHome({ onLogout }) {
     if (refreshProfile) await loadAll();
   }
 
+  async function requestSelectedSkills() {
+    if (!selectedSkills.length) return;
+    setSkillsBusy(true);
+    setError('');
+    try {
+      const requested = selectedSkills.map((key) => {
+        const item = PARTNER_SKILL_OPTIONS.find((option) => option.key === key);
+        return { skill_key: item.key, service_type: item.service_type };
+      });
+      const updated = await apiPut('/providers/me/skills', { skills: requested }, true);
+      setSkills(updated);
+      setSelectedSkills([]);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSkillsBusy(false);
+    }
+  }
+
+  async function toggleSkillAvailability(skill) {
+    setSkillsBusy(true);
+    setError('');
+    try {
+      const updated = await apiPatch(`/providers/me/skills/${encodeURIComponent(skill.skill_key)}/availability`, {
+        is_available: !skill.is_available,
+      }, true);
+      setSkills((current) => current.map((item) => item.skill_key === updated.skill_key ? updated : item));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSkillsBusy(false);
+    }
+  }
+
   async function toggleAvailability() {
     setBusy(true);
     setError('');
@@ -374,6 +443,50 @@ export default function ProviderHome({ onLogout }) {
       </div>
 
       {error && <p className="auth-error">{error}</p>}
+
+      <section className="provider-job-panel partner-skills-panel">
+        <div className="job-panel-head">
+          <div><span className="section-kicker">YOUR PARTNER PROFILE</span><h2>My services & skills</h2></div>
+        </div>
+        <p className="route-info">Ek hi Partner ID se multiple Ride aur Home Services chala sakte hain. Nayi skill admin approval ke baad active hogi.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: 8, marginBottom: 14 }}>
+          {PARTNER_SKILL_OPTIONS.filter((option) => !skills.some((skill) => skill.skill_key === option.key)).map((option) => (
+            <label key={option.key} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: 9, border: '1px solid #DCE5E0', borderRadius: 10, fontSize: 12 }}>
+              <input
+                type="checkbox"
+                checked={selectedSkills.includes(option.key)}
+                onChange={(event) => setSelectedSkills((current) => event.target.checked ? [...current, option.key] : current.filter((key) => key !== option.key))}
+              />
+              {option.label}
+            </label>
+          ))}
+        </div>
+        <button type="button" className="cta provider-main-cta" onClick={requestSelectedSkills} disabled={skillsBusy || !selectedSkills.length}>
+          {skillsBusy ? 'Please wait…' : 'Request selected skills'}
+        </button>
+        <div style={{ display: 'grid', gap: 8, marginTop: 14 }}>
+          {skills.map((skill) => (
+            <div key={skill.skill_key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: 10, border: '1px solid #DCE5E0', borderRadius: 10 }}>
+              <div>
+                <strong style={{ display: 'block', textTransform: 'capitalize' }}>{skill.skill_key.replaceAll('_', ' ')}</strong>
+                <small style={{ color: skill.kyc_status === 'approved' ? '#15803D' : skill.kyc_status === 'rejected' ? '#B91C1C' : '#A16207' }}>
+                  {skill.service_type} · {skill.kyc_status}{skill.review_note ? ` · ${skill.review_note}` : ''}
+                </small>
+              </div>
+              <button
+                type="button"
+                className={skill.is_available ? 'partner-online-toggle online' : 'partner-online-toggle'}
+                disabled={skillsBusy || skill.kyc_status !== 'approved' || !profile.is_available}
+                onClick={() => toggleSkillAvailability(skill)}
+                title={skill.kyc_status !== 'approved' ? 'Admin approval required' : !profile.is_available ? 'Go online first' : 'Toggle this skill'}
+              >
+                {skill.is_available ? 'Skill online' : skill.kyc_status === 'approved' ? 'Skill offline' : 'Pending'}
+              </button>
+            </div>
+          ))}
+          {skills.length === 0 && <small>No skills registered. Select services above to request approval.</small>}
+        </div>
+      </section>
 
       <section className="keep-going-card">
         <div className="keep-going-icon">🏆</div>
