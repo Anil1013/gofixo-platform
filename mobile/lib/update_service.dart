@@ -39,18 +39,18 @@ class UpdateService {
 
   static const _installerChannel = MethodChannel('gofixo/update');
 
-  static Future<void> checkAndPrompt(BuildContext context) async {
+  static Future<bool> checkAndPrompt(BuildContext context) async {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       final data = await _fetchManifest();
-      if (data == null) return;
+      if (data == null) return false;
 
       final latestVersion = data['version']?.toString();
       final buildNumber =
           int.tryParse(data['buildNumber']?.toString() ?? '') ?? 0;
       final downloadUrl = data['downloadUrl']?.toString();
 
-      if (latestVersion == null || downloadUrl == null) return;
+      if (latestVersion == null || downloadUrl == null) return false;
 
       final currentVersion = packageInfo.version;
       final currentBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
@@ -61,10 +61,10 @@ class UpdateService {
         latestVersion,
         buildNumber,
       )) {
-        return;
+        return false;
       }
 
-      if (!context.mounted) return;
+      if (!context.mounted) return false;
 
       final info = UpdateInfo(
         version: latestVersion,
@@ -98,7 +98,10 @@ class UpdateService {
           ],
         ),
       );
-    } catch (_) {}
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   static Future<Map<String, dynamic>?> _fetchManifest() async {
