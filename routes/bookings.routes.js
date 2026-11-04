@@ -464,12 +464,18 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
     const nearby = await client.query(
       `SELECT 1
        FROM service_providers sp
-       WHERE sp.type = $1
-         AND ($4::text IS NULL OR $4 = ANY(sp.service_categories))
+       WHERE EXISTS (
+           SELECT 1 FROM provider_skills skill
+           WHERE skill.provider_id = sp.id
+             AND skill.skill_key = CASE WHEN $5 = 'ride' THEN $1 ELSE $4 END
+             AND skill.service_type = $5
+             AND skill.kyc_status = 'approved'
+             AND skill.is_available = true
+         )
          AND sp.is_available = true
          AND sp.kyc_status = 'approved'
          AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
-         AND ($1 NOT IN ('bike','auto','car') OR EXISTS (
+         AND ($5 <> 'ride' OR EXISTS (
            SELECT 1 FROM provider_subscriptions ps
            WHERE ps.provider_id = sp.id
              AND ps.status = 'active'
@@ -483,7 +489,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
            ))
          )) <= 10
        LIMIT 1`,
-      [provider_type, matchingLatitude, matchingLongitude, serviceCategory]
+      [provider_type, matchingLatitude, matchingLongitude, serviceCategory, service_type]
     );
     if (nearby.rows.length === 0) {
       await client.query('ROLLBACK');
@@ -526,13 +532,19 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       `SELECT p.id AS provider_id, p.fcm_token, pps.endpoint, pps.p256dh, pps.auth
        FROM service_providers p
        LEFT JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
-       WHERE p.type = $1
-         AND ($4::text IS NULL OR $4 = ANY(p.service_categories))
+       WHERE EXISTS (
+           SELECT 1 FROM provider_skills skill
+           WHERE skill.provider_id = p.id
+             AND skill.skill_key = CASE WHEN $6 = 'ride' THEN $1 ELSE $4 END
+             AND skill.service_type = $6
+             AND skill.kyc_status = 'approved'
+             AND skill.is_available = true
+         )
          AND p.is_available = true
          AND p.kyc_status = 'approved'
          AND p.current_lat IS NOT NULL AND p.current_lng IS NOT NULL
          AND (pps.endpoint IS NOT NULL OR p.fcm_token IS NOT NULL)
-         AND ($1 NOT IN ('bike','auto','car') OR EXISTS (
+         AND ($6 <> 'ride' OR EXISTS (
            SELECT 1 FROM provider_subscriptions ps
            WHERE ps.provider_id = p.id
              AND ps.status = 'active'
@@ -555,7 +567,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
              sin(radians($2)) * sin(radians(p.current_lat))
            ))
          )) <= 10)`,
-      [provider_type, matchingLatitude, matchingLongitude, serviceCategory, result.rows[0].id]
+      [provider_type, matchingLatitude, matchingLongitude, serviceCategory, result.rows[0].id, service_type]
     ).then(async (pushRows) => {
       for (const row of pushRows.rows) {
         const payload = {
@@ -830,9 +842,15 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
            SELECT 1
            FROM service_providers sp
            WHERE sp.id = $2
-             AND sp.type = b.provider_type
              AND sp.is_available = true
-             AND (b.service_type <> 'services' OR b.service_category = ANY(sp.service_categories))
+             AND EXISTS (
+               SELECT 1 FROM provider_skills skill
+               WHERE skill.provider_id = sp.id
+                 AND skill.skill_key = CASE WHEN b.service_type = 'ride' THEN b.provider_type ELSE b.service_category END
+                 AND skill.service_type = b.service_type
+                 AND skill.kyc_status = 'approved'
+                 AND skill.is_available = true
+             )
              AND sp.kyc_status = 'approved'
              AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
              AND (b.service_type = 'services' OR EXISTS (
@@ -1021,11 +1039,18 @@ router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) =>
     const remaining = await pool.query(
       `SELECT 1
        FROM bookings b
-       JOIN service_providers sp ON sp.type = b.provider_type
+       JOIN service_providers sp ON true
        WHERE b.id = $1
          AND b.status = 'requested'
          AND b.provider_id IS NULL
-         AND (b.service_type <> 'services' OR b.service_category = ANY(sp.service_categories))
+         AND EXISTS (
+           SELECT 1 FROM provider_skills skill
+           WHERE skill.provider_id = sp.id
+             AND skill.skill_key = CASE WHEN b.service_type = 'ride' THEN b.provider_type ELSE b.service_category END
+             AND skill.service_type = b.service_type
+             AND skill.kyc_status = 'approved'
+             AND skill.is_available = true
+         )
          AND sp.is_available = true
          AND sp.kyc_status = 'approved'
          AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
