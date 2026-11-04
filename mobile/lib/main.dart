@@ -69,8 +69,6 @@ class RoleScreen extends StatelessWidget {
       'https://images.unsplash.com/photo-1662499840736-0178ce197a70?auto=format&fit=crop&w=1200&q=82';
   static const _partnerImage =
       'https://images.unsplash.com/photo-1741236922040-ea3a74896c17?auto=format&fit=crop&w=1200&q=82';
-  static const _serviceImage =
-      'https://images.unsplash.com/photo-1747110594869-789610507597?auto=format&fit=crop&w=1200&q=82';
 
   void _openAuth(BuildContext context, String role) {
     Navigator.push(
@@ -80,144 +78,81 @@ class RoleScreen extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext c) {
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          'Gofixo',
-          style: TextStyle(fontWeight: FontWeight.w900, color: navy),
-        ),
+        title: const Text('Gofixo',
+            style: TextStyle(fontWeight: FontWeight.w900, color: navy)),
         actions: [
           IconButton(
+            tooltip: 'App information',
             onPressed: () => Navigator.push(
-              c,
+              context,
               MaterialPageRoute(builder: (_) => const AppInfoPage()),
             ),
-            icon: const Icon(Icons.settings_outlined, color: navy),
+            icon: const Icon(Icons.info_outline_rounded, color: navy),
           ),
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 30),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 12),
-              const Text(
-                'What do you need today?',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  color: navy,
-                ),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 28),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Icon(Icons.bolt_rounded, color: orange, size: 38),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Welcome to Gofixo',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 27, fontWeight: FontWeight.w900, color: navy),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Please choose how you want to continue',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: muted),
+                  ),
+                  const SizedBox(height: 24),
+                  _RolePhotoCard(
+                    imageUrl: _customerImage,
+                    title: 'I am a Customer',
+                    subtitle: 'Book a ride or find trusted home & lifestyle services.',
+                    button: 'CUSTOMER LOGIN  →',
+                    icon: Icons.person_rounded,
+                    onTap: () => _openAuth(context, 'customer'),
+                  ),
+                  const SizedBox(height: 16),
+                  _RolePhotoCard(
+                    imageUrl: _partnerImage,
+                    title: 'I am a Partner',
+                    subtitle: 'Login to receive bookings and earn with Gofixo.',
+                    button: 'PARTNER LOGIN  →',
+                    icon: Icons.handshake_rounded,
+                    onTap: () => _openAuth(context, 'provider'),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'One app • Rides • Home & Lifestyle Services',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: muted, fontWeight: FontWeight.w600),
+                  ),
+                ],
               ),
-              const SizedBox(height: 5),
-              const Text(
-                'Choose your Gofixo experience',
-                style: TextStyle(fontSize: 13, color: muted),
-              ),
-              const SizedBox(height: 12),
-              _RolePhotoCard(
-                imageUrl: _customerImage,
-                title: 'Book rides & services',
-                subtitle: 'Bike, Auto, Car and trusted home & lifestyle services.',
-                button: 'Continue as Customer',
-                icon: Icons.directions_car_rounded,
-                onTap: () => _openAuth(c, 'customer'),
-              ),
-              const SizedBox(height: 12),
-              _RolePhotoCard(
-                imageUrl: _partnerImage,
-                title: 'Earn with Gofixo',
-                subtitle: 'Drive, deliver or offer your professional services.',
-                button: 'Continue as Partner',
-                icon: Icons.handshake_rounded,
-                onTap: () => _openAuth(c, 'provider'),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Home & Lifestyle Services',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: navy,
-                ),
-              ),
-              const SizedBox(height: 10),
-              _ServicePhotoStrip(
-                imageUrl: _serviceImage,
-                onTap: () => _openAuth(c, 'customer'),
-              ),
-              const SizedBox(height: 12),
-              _LandingServiceGroup(
-                title: 'Home Repair & Appliances',
-                icon: Icons.home_repair_service_rounded,
-                services: const ['Electrician', 'Plumber', 'AC Service', 'Refrigerator', 'Washing Machine', 'RO & Water Purifier', 'Appliance Repair', 'Carpenter', 'Painter'],
-              ),
-              const SizedBox(height: 12),
-              _LandingServiceGroup(
-                title: 'Cleaning & Maintenance',
-                icon: Icons.cleaning_services_rounded,
-                services: const ['Cleaning', 'Pest Control', 'Gardener'],
-              ),
-              const SizedBox(height: 12),
-              _LandingServiceGroup(
-                title: 'Personal & Lifestyle',
-                icon: Icons.spa_rounded,
-                services: const ['Salon & Beauty', 'Cook', 'Laundry', 'Personal Driver', 'Tutor', 'Babysitter', 'Elder Care'],
-              ),
-              const SizedBox(height: 12),
-              _LandingServiceGroup(
-                title: 'Moving, Security & Other',
-                icon: Icons.local_shipping_rounded,
-                services: const ['Packers & Movers', 'CCTV & Security', 'Internet & Wi-Fi', 'Other Services'],
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 }
-
-class _LandingServiceGroup extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final List<String> services;
-  const _LandingServiceGroup({required this.title, required this.icon, required this.services});
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0xFFE4EAF1)),
-    ),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Icon(icon, color: orange, size: 19),
-        const SizedBox(width: 7),
-        Expanded(child: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: navy))),
-      ]),
-      const SizedBox(height: 8),
-      Wrap(spacing: 7, runSpacing: 7, children: services.map((service) => Chip(
-        visualDensity: VisualDensity.compact,
-        avatar: Icon(icon, size: 14, color: orange),
-        label: Text(service, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-        backgroundColor: const Color(0xFFF5F8FA),
-        side: BorderSide.none,
-      )).toList()),
-    ]),
-  );
-}
-
 
 class _RolePhotoCard extends StatelessWidget {
   final String imageUrl;
@@ -311,57 +246,6 @@ class _RolePhotoCard extends StatelessWidget {
                       ),
                     ),
                   ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ServicePhotoStrip extends StatelessWidget {
-  final String imageUrl;
-  final VoidCallback onTap;
-
-  const _ServicePhotoStrip({required this.imageUrl, required this.onTap});
-
-  @override
-  Widget build(BuildContext c) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: SizedBox(
-          height: 128,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _NetworkPhoto(imageUrl: imageUrl, icon: Icons.handyman_rounded),
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xDD10213F), Color(0x4410213F)],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Align(
-                  alignment: Alignment.bottomLeft,
-                  child: Text(
-                    'Trusted help at home',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 19,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
                 ),
               ),
             ],
