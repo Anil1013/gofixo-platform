@@ -18,8 +18,8 @@ void main() {
 
     expect(find.text('Gofixo'), findsWidgets);
     expect(find.text('What do you need today?'), findsOneWidget);
-    expect(find.text('Home services'), findsOneWidget);
-    expect(find.text('Book a ride'), findsOneWidget);
+    expect(find.text('Home & Lifestyle Services'), findsOneWidget);
+    expect(find.text('Book a ride'), findsNothing);
     expect(find.text('Earn with Gofixo'), findsOneWidget);
   });
 }
