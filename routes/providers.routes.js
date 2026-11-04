@@ -424,6 +424,27 @@ router.patch('/:id/skills/:skillKey/kyc', requireAdmin, async (req, res, next) =
     if (!['approved', 'rejected', 'pending'].includes(status)) {
       return res.status(400).json({ error: 'status must be approved, rejected, or pending' });
     }
+    if (status === 'approved') {
+      const skillResult = await pool.query(
+        'SELECT skill_key, service_type FROM provider_skills WHERE provider_id = $1 AND skill_key = $2',
+        [req.params.id, req.params.skillKey]
+      );
+      if (!skillResult.rows.length) return res.status(404).json({ error: 'Partner skill not found' });
+      const skill = skillResult.rows[0];
+      const required = skill.service_type === 'ride'
+        ? REQUIRED_DOCS[skill.skill_key]
+        : ['aadhar_front', 'aadhar_back', 'profile_photo', 'police_verification'];
+      const docs = await pool.query(
+        'SELECT DISTINCT doc_type FROM provider_documents WHERE provider_id = $1 AND skill_key = $2',
+        [req.params.id, skill.skill_key]
+      );
+      const uploaded = new Set(docs.rows.map((doc) => doc.doc_type));
+      const missing = (required || []).filter((doc) => !uploaded.has(doc));
+      if (missing.length) {
+        return res.status(400).json({ error: 'Skill documents are incomplete', missing_documents: missing });
+      }
+    }
+
     const result = await pool.query(
       `UPDATE provider_skills SET kyc_status = $1, review_note = $2,
          is_available = CASE WHEN $1 = 'approved' THEN is_available ELSE false END,
