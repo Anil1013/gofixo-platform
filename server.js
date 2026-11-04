@@ -505,6 +505,16 @@ async function ensureRuntimeSchema() {
       UNIQUE (provider_id, skill_key)
     )
   `);
+  // Skill-specific document ownership. Nullable skill_key preserves legacy account-level KYC documents.
+  await pool.query(`
+    ALTER TABLE IF EXISTS provider_documents
+      ADD COLUMN IF NOT EXISTS skill_key VARCHAR(50)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS provider_documents_skill_idx
+      ON provider_documents (provider_id, skill_key, doc_type)
+  `);
+
   await pool.query(`
     INSERT INTO provider_skills (provider_id, skill_key, service_type, kyc_status, is_available)
     SELECT sp.id, sp.type, 'ride', sp.kyc_status, true
