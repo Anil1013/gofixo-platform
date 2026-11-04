@@ -1706,6 +1706,7 @@ class _Services extends StatefulWidget{
     {'providerType':'skilled_worker','key':'refrigerator_repair','label':'Refrigerator Repair','imageUrl':'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=700&q=82'},
     {'providerType':'skilled_worker','key':'washing_machine_repair','label':'Washing Machine','imageUrl':'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=700&q=82'},
     {'providerType':'skilled_worker','key':'ro_water_purifier','label':'RO & Purifier','imageUrl':'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'skilled_worker','key':'geyser_repair','label':'Geyser Repair','imageUrl':'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=700&q=82'},
     {'providerType':'skilled_worker','key':'cctv_security','label':'CCTV & Security','imageUrl':'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=700&q=82'},
     {'providerType':'skilled_worker','key':'internet_wifi','label':'Internet & Wi-Fi','imageUrl':'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=700&q=82'},
     {'providerType':'general_worker','key':'pest_control','label':'Pest Control','imageUrl':'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=700&q=82'},
