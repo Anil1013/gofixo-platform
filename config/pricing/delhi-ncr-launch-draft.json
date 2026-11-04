@@ -1,0 +1,761 @@
+{
+  "version": "2026-11-delhi-ncr-draft-1",
+  "status": "proposed_not_live",
+  "currency": "INR",
+  "market": [
+    "Delhi",
+    "Gurugram",
+    "Noida",
+    "Faridabad",
+    "Ghaziabad"
+  ],
+  "tax_note": "Customer-facing prices are draft planning prices. Confirm GST treatment, invoicing and statutory obligations with a qualified Indian tax professional before activation.",
+  "commercial_rules": {
+    "commission_basis": "service_labour_and_visit_fee_only",
+    "material_pass_through_commission_percent": 0,
+    "payment_gateway_fee_absorbed_by": "platform_share_until_unit_economics_review",
+    "commission_rates_percent": {
+      "cleaning": 12,
+      "skilled_repairs": 12,
+      "ac_and_appliance": 12,
+      "laundry": 12,
+      "caregiving": 10,
+      "pest_control": 15,
+      "gardening": 12,
+      "painting_and_moving": 12
+    },
+    "partner_share_percent": "100 minus category commission on service labour/visit amount",
+    "payout_target": "daily_settlement_after_completion_and_quality_checks; instant_only_if_provider_supports_it",
+    "partner_net_display": "show gross labour, commission, approved reimbursable materials, adjustments and estimated net before partner accepts",
+    "minimum_partner_earning": "admin-configured floor by service, skill, zone and duration; reject or reprice jobs below floor",
+    "customer_extra_charge": "never without itemised quote and customer approval",
+    "prices_include_gst": false
+  },
+  "services": [
+    {
+      "category": "cleaning",
+      "commissionKey": "cleaning",
+      "items": [
+        {
+          "key": "room_refresh",
+          "label": "Single room refresh",
+          "mode": "fixed",
+          "unit": "room",
+          "price": 349,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            45,
+            75
+          ],
+          "includes": "Dusting, surfaces, floor sweep and mop; no deep stain removal"
+        },
+        {
+          "key": "kitchen_refresh",
+          "label": "Kitchen refresh",
+          "mode": "fixed",
+          "unit": "kitchen",
+          "price": 699,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            60,
+            90
+          ],
+          "includes": "Counter, sink, stove exterior and floor; cabinet interiors excluded"
+        },
+        {
+          "key": "kitchen_deep",
+          "label": "Kitchen deep cleaning",
+          "mode": "fixed",
+          "unit": "kitchen",
+          "price": 1199,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            120,
+            180
+          ],
+          "includes": "Degreasing of accessible surfaces, tiles, sink and stove; large L/U kitchen quote"
+        },
+        {
+          "key": "bathroom_deep",
+          "label": "Bathroom deep cleaning",
+          "mode": "per_unit",
+          "unit": "bathroom",
+          "price": 449,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            45,
+            75
+          ],
+          "minimumQuantity": 1
+        },
+        {
+          "key": "home_refresh_1rk",
+          "label": "Home refresh 1RK",
+          "mode": "fixed",
+          "unit": "home",
+          "price": 999,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            90,
+            120
+          ]
+        },
+        {
+          "key": "home_refresh_1bhk",
+          "label": "Home refresh 1BHK",
+          "mode": "fixed",
+          "unit": "home",
+          "price": 1299,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            120,
+            150
+          ]
+        },
+        {
+          "key": "home_refresh_2bhk",
+          "label": "Home refresh 2BHK",
+          "mode": "fixed",
+          "unit": "home",
+          "price": 1599,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            120,
+            180
+          ]
+        },
+        {
+          "key": "home_refresh_3bhk",
+          "label": "Home refresh 3BHK",
+          "mode": "fixed",
+          "unit": "home",
+          "price": 2099,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            180,
+            240
+          ]
+        },
+        {
+          "key": "home_deep_1rk",
+          "label": "Home deep clean 1RK",
+          "mode": "fixed",
+          "unit": "home",
+          "price": 2299,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            240,
+            300
+          ]
+        },
+        {
+          "key": "home_deep_1bhk",
+          "label": "Home deep clean 1BHK",
+          "mode": "fixed",
+          "unit": "home",
+          "price": 2899,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            240,
+            360
+          ]
+        },
+        {
+          "key": "home_deep_2bhk",
+          "label": "Home deep clean 2BHK",
+          "mode": "fixed",
+          "unit": "home",
+          "price": 3699,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            300,
+            420
+          ]
+        },
+        {
+          "key": "home_deep_3bhk",
+          "label": "Home deep clean 3BHK",
+          "mode": "fixed",
+          "unit": "home",
+          "price": 4599,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            360,
+            480
+          ]
+        },
+        {
+          "key": "sofa_clean",
+          "label": "Fabric sofa cleaning",
+          "mode": "per_unit",
+          "unit": "seat",
+          "price": 179,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            15,
+            25
+          ],
+          "minimumQuantity": 3
+        }
+      ]
+    },
+    {
+      "category": "electrician",
+      "commissionKey": "skilled_repairs",
+      "items": [
+        {
+          "key": "electrician_visit",
+          "label": "Electrician inspection/visit",
+          "mode": "fixed",
+          "unit": "visit",
+          "price": 149,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            20,
+            40
+          ],
+          "includes": "Diagnosis only; repair labour and parts quoted separately"
+        },
+        {
+          "key": "switch_socket",
+          "label": "Switch/socket replacement labour",
+          "mode": "per_unit",
+          "unit": "point",
+          "price": 149,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            20,
+            35
+          ],
+          "materialsSeparate": true
+        },
+        {
+          "key": "fan_install",
+          "label": "Ceiling fan installation labour",
+          "mode": "per_unit",
+          "unit": "fan",
+          "price": 299,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            30,
+            60
+          ],
+          "materialsSeparate": true
+        },
+        {
+          "key": "mcb_replacement",
+          "label": "MCB replacement labour",
+          "mode": "per_unit",
+          "unit": "unit",
+          "price": 299,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            30,
+            60
+          ],
+          "materialsSeparate": true
+        }
+      ]
+    },
+    {
+      "category": "plumber",
+      "commissionKey": "skilled_repairs",
+      "items": [
+        {
+          "key": "plumber_visit",
+          "label": "Plumber inspection/visit",
+          "mode": "fixed",
+          "unit": "visit",
+          "price": 149,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            20,
+            40
+          ]
+        },
+        {
+          "key": "tap_leak",
+          "label": "Tap leak repair labour",
+          "mode": "fixed",
+          "unit": "job",
+          "price": 199,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            30,
+            60
+          ],
+          "materialsSeparate": true
+        },
+        {
+          "key": "tap_install",
+          "label": "Tap installation labour",
+          "mode": "per_unit",
+          "unit": "tap",
+          "price": 249,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            30,
+            60
+          ],
+          "materialsSeparate": true
+        },
+        {
+          "key": "drain_unblock",
+          "label": "Basic drain unclogging",
+          "mode": "fixed",
+          "unit": "job",
+          "price": 349,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            45,
+            90
+          ],
+          "excludes": "Concealed line or machine jetting"
+        }
+      ]
+    },
+    {
+      "category": "ac_service",
+      "commissionKey": "ac_and_appliance",
+      "items": [
+        {
+          "key": "window_ac_service",
+          "label": "Window AC basic service",
+          "mode": "per_unit",
+          "unit": "AC",
+          "price": 499,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            45,
+            75
+          ]
+        },
+        {
+          "key": "split_ac_service",
+          "label": "Split AC basic service",
+          "mode": "per_unit",
+          "unit": "AC",
+          "price": 599,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            60,
+            90
+          ]
+        },
+        {
+          "key": "split_ac_deep",
+          "label": "Split AC deep/jet cleaning",
+          "mode": "per_unit",
+          "unit": "AC",
+          "price": 999,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            90,
+            150
+          ]
+        },
+        {
+          "key": "split_ac_install",
+          "label": "Split AC installation labour",
+          "mode": "per_unit",
+          "unit": "AC",
+          "price": 1599,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            120,
+            180
+          ],
+          "excludes": "Copper pipe, stand, core cutting and electrical material"
+        },
+        {
+          "key": "ac_diagnosis",
+          "label": "AC repair diagnosis",
+          "mode": "inspection_quote",
+          "unit": "visit",
+          "visitFee": 199,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            30,
+            60
+          ],
+          "creditVisitFeeOnApprovedRepair": true,
+          "requiresLeakTestBeforeGasQuote": true
+        }
+      ]
+    },
+    {
+      "category": "appliance_repair",
+      "commissionKey": "ac_and_appliance",
+      "items": [
+        {
+          "key": "appliance_diagnosis",
+          "label": "Appliance inspection/diagnosis",
+          "mode": "inspection_quote",
+          "unit": "visit",
+          "visitFee": 199,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            30,
+            60
+          ],
+          "creditVisitFeeOnApprovedRepair": true,
+          "partsSeparate": true
+        }
+      ]
+    },
+    {
+      "category": "laundry",
+      "commissionKey": "laundry",
+      "items": [
+        {
+          "key": "wash_fold",
+          "label": "Wash & fold",
+          "mode": "per_kg",
+          "unit": "kg",
+          "price": 79,
+          "minimumQuantity": 4,
+          "quantityStep": 0.5,
+          "partnerPercent": 88,
+          "turnaroundHours": [
+            48,
+            72
+          ]
+        },
+        {
+          "key": "wash_iron",
+          "label": "Wash & iron",
+          "mode": "per_kg",
+          "unit": "kg",
+          "price": 119,
+          "minimumQuantity": 4,
+          "quantityStep": 0.5,
+          "partnerPercent": 88,
+          "turnaroundHours": [
+            48,
+            72
+          ]
+        },
+        {
+          "key": "premium_laundry",
+          "label": "Premium laundry",
+          "mode": "per_kg",
+          "unit": "kg",
+          "price": 179,
+          "minimumQuantity": 3,
+          "quantityStep": 0.5,
+          "partnerPercent": 88,
+          "turnaroundHours": [
+            48,
+            72
+          ]
+        },
+        {
+          "key": "ironing",
+          "label": "Ironing",
+          "mode": "per_item",
+          "unit": "piece",
+          "price": 18,
+          "minimumQuantity": 10,
+          "partnerPercent": 88
+        },
+        {
+          "key": "dry_clean",
+          "label": "Dry cleaning",
+          "mode": "inspection_quote",
+          "unit": "garment",
+          "visitFee": 0,
+          "partnerPercent": 88,
+          "requiresItemisedGarmentQuote": true
+        }
+      ]
+    },
+    {
+      "category": "caregiving",
+      "commissionKey": "caregiving",
+      "items": [
+        {
+          "key": "care_2h",
+          "label": "Companion/basic assistance",
+          "mode": "fixed",
+          "unit": "2-hour shift",
+          "price": 499,
+          "partnerPercent": 90,
+          "durationMinutes": [
+            120,
+            120
+          ],
+          "scope": "Companionship and non-clinical assistance"
+        },
+        {
+          "key": "care_4h",
+          "label": "Companion/basic assistance",
+          "mode": "fixed",
+          "unit": "4-hour shift",
+          "price": 899,
+          "partnerPercent": 90,
+          "durationMinutes": [
+            240,
+            240
+          ],
+          "scope": "Companionship and non-clinical assistance"
+        },
+        {
+          "key": "care_8h",
+          "label": "Companion/basic assistance",
+          "mode": "fixed",
+          "unit": "8-hour shift",
+          "price": 1599,
+          "partnerPercent": 90,
+          "durationMinutes": [
+            480,
+            480
+          ],
+          "scope": "Companionship and non-clinical assistance"
+        },
+        {
+          "key": "care_12h",
+          "label": "Companion/basic assistance",
+          "mode": "fixed",
+          "unit": "12-hour shift",
+          "price": 2299,
+          "partnerPercent": 90,
+          "durationMinutes": [
+            720,
+            720
+          ],
+          "scope": "Companionship and non-clinical assistance"
+        },
+        {
+          "key": "care_24h",
+          "label": "24-hour care plan",
+          "mode": "inspection_quote",
+          "unit": "day",
+          "visitFee": 0,
+          "partnerPercent": 90,
+          "scope": "Staffed roster and handover required; never imply one person works continuously for 24 hours"
+        }
+      ]
+    },
+    {
+      "category": "pest_control",
+      "commissionKey": "pest_control",
+      "items": [
+        {
+          "key": "pest_1bhk",
+          "label": "General pest treatment 1BHK",
+          "mode": "fixed",
+          "unit": "home",
+          "price": 899,
+          "partnerPercent": 85,
+          "durationMinutes": [
+            45,
+            75
+          ],
+          "chemicalDisclosureRequired": true
+        },
+        {
+          "key": "pest_2bhk",
+          "label": "General pest treatment 2BHK",
+          "mode": "fixed",
+          "unit": "home",
+          "price": 1199,
+          "partnerPercent": 85,
+          "durationMinutes": [
+            60,
+            90
+          ],
+          "chemicalDisclosureRequired": true
+        },
+        {
+          "key": "pest_3bhk",
+          "label": "General pest treatment 3BHK",
+          "mode": "fixed",
+          "unit": "home",
+          "price": 1499,
+          "partnerPercent": 85,
+          "durationMinutes": [
+            75,
+            120
+          ],
+          "chemicalDisclosureRequired": true
+        },
+        {
+          "key": "termite",
+          "label": "Termite treatment",
+          "mode": "inspection_quote",
+          "unit": "area",
+          "visitFee": 0,
+          "partnerPercent": 85,
+          "requiresLicensedSpecialist": true
+        }
+      ]
+    },
+    {
+      "category": "gardener",
+      "commissionKey": "gardening",
+      "items": [
+        {
+          "key": "garden_visit",
+          "label": "Garden maintenance visit",
+          "mode": "fixed",
+          "unit": "45-minute visit",
+          "price": 299,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            45,
+            45
+          ],
+          "materialsSeparate": true
+        },
+        {
+          "key": "garden_2h",
+          "label": "Garden maintenance",
+          "mode": "fixed",
+          "unit": "2-hour visit",
+          "price": 499,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            120,
+            120
+          ],
+          "materialsSeparate": true
+        }
+      ]
+    },
+    {
+      "category": "painter",
+      "commissionKey": "painting_and_moving",
+      "items": [
+        {
+          "key": "painting_quote",
+          "label": "Painting labour and material estimate",
+          "mode": "inspection_quote",
+          "unit": "sq ft",
+          "visitFee": 0,
+          "partnerPercent": 88,
+          "requiresAreaMeasurement": true,
+          "materialsItemised": true
+        }
+      ]
+    },
+    {
+      "category": "carpenter",
+      "commissionKey": "skilled_repairs",
+      "items": [
+        {
+          "key": "carpenter_visit",
+          "label": "Carpenter inspection/visit",
+          "mode": "fixed",
+          "unit": "visit",
+          "price": 199,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            20,
+            45
+          ]
+        },
+        {
+          "key": "hinge_repair",
+          "label": "Hinge adjustment/replacement labour",
+          "mode": "per_unit",
+          "unit": "hinge",
+          "price": 149,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            20,
+            40
+          ],
+          "materialsSeparate": true
+        },
+        {
+          "key": "lock_install",
+          "label": "Door lock installation labour",
+          "mode": "fixed",
+          "unit": "job",
+          "price": 299,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            30,
+            60
+          ],
+          "materialsSeparate": true
+        }
+      ]
+    },
+    {
+      "category": "refrigerator_repair",
+      "commissionKey": "ac_and_appliance",
+      "items": [
+        {
+          "key": "fridge_diagnosis",
+          "label": "Refrigerator diagnosis",
+          "mode": "inspection_quote",
+          "unit": "visit",
+          "visitFee": 199,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            30,
+            60
+          ],
+          "partsSeparate": true
+        }
+      ]
+    },
+    {
+      "category": "washing_machine_repair",
+      "commissionKey": "ac_and_appliance",
+      "items": [
+        {
+          "key": "washer_diagnosis",
+          "label": "Washing machine diagnosis",
+          "mode": "inspection_quote",
+          "unit": "visit",
+          "visitFee": 199,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            30,
+            60
+          ],
+          "partsSeparate": true
+        }
+      ]
+    },
+    {
+      "category": "ro_water_purifier",
+      "commissionKey": "ac_and_appliance",
+      "items": [
+        {
+          "key": "ro_diagnosis",
+          "label": "RO diagnosis",
+          "mode": "inspection_quote",
+          "unit": "visit",
+          "visitFee": 149,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            30,
+            60
+          ],
+          "filtersAndPartsSeparate": true
+        }
+      ]
+    },
+    {
+      "category": "other",
+      "commissionKey": "skilled_repairs",
+      "items": [
+        {
+          "key": "other_inspection",
+          "label": "Other service inspection",
+          "mode": "inspection_quote",
+          "unit": "visit",
+          "visitFee": 149,
+          "partnerPercent": 88,
+          "durationMinutes": [
+            30,
+            60
+          ]
+        }
+      ]
+    }
+  ]
+}
