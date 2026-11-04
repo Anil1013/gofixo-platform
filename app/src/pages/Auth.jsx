@@ -74,7 +74,7 @@ export default function Auth({ onAuthed }) {
     <div className="auth-screen">
       <div className="auth-brand">
         <h1>Gofixo</h1>
-        <p>Rides and home services</p>
+        <p>Rides and home & lifestyle services</p>
       </div>
 
       <div className="role-switch">
