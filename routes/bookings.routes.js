@@ -139,39 +139,95 @@ function ensureWaitingSchema() {
 }
 
 // Run on the server as well as on API requests, so timeout cancellation does not
-// depend on a customer/provider keeping the app open.
+// depend on a customer/provider keeping the app open. This applies to rides AND
+// home-service jobs; only rides accrue the separate PIN waiting fee.
 async function expireWaitingBookings() {
   await ensureWaitingSchema();
-  await pool.query(`
-    WITH expired AS (
-      UPDATE bookings
-         SET status = 'cancelled',
-             waiting_fee_amount = LEAST($1, GREATEST(0,
-               CEIL(EXTRACT(EPOCH FROM (NOW() - arrived_at)) / 60) * $2)),
-             waiting_fee_status = 'due',
-             start_pin = NULL,
-             offered_at = NULL
-       WHERE service_type = 'ride'
-         AND status = 'arrived'
-         AND arrived_at IS NOT NULL
-         AND arrived_at <= NOW() - ($3 * INTERVAL '1 minute')
-       RETURNING provider_id
-    )
-    UPDATE service_providers sp
-       SET is_available = true
-     WHERE sp.is_available = false
-       AND sp.id IN (SELECT DISTINCT provider_id FROM expired WHERE provider_id IS NOT NULL)
-       AND NOT EXISTS (
-         SELECT 1 FROM bookings active
-          WHERE active.provider_id = sp.id
-            AND active.status IN ('accepted', 'arrived', 'ongoing')
-       )
-       AND sp.kyc_status = 'approved'
-       AND (sp.type NOT IN ('bike','auto','car') OR EXISTS (
-         SELECT 1 FROM provider_subscriptions ps
-          WHERE ps.provider_id = sp.id AND ps.status = 'active' AND ps.expiry_date > NOW()
-       ))
-  `, [WAITING_RATE_PER_MINUTE * WAITING_LIMIT_MINUTES, WAITING_RATE_PER_MINUTE, WAITING_LIMIT_MINUTES]);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const expired = await client.query(
+      `UPDATE bookings b
+          SET status = 'cancelled',
+              waiting_fee_amount = CASE
+                WHEN b.service_type = 'ride' THEN LEAST($1, GREATEST(0,
+                  CEIL(EXTRACT(EPOCH FROM (NOW() - b.arrived_at)) / 60) * $2))
+                ELSE 0
+              END,
+              waiting_fee_status = CASE
+                WHEN b.service_type = 'ride' THEN 'due'
+                ELSE 'not_applicable'
+              END,
+              start_pin = NULL,
+              offered_at = NULL
+         FROM customers c
+        WHERE b.customer_id = c.id
+          AND b.status = 'arrived'
+          AND b.arrived_at IS NOT NULL
+          AND b.arrived_at <= NOW() - ($3 * INTERVAL '1 minute')
+        RETURNING b.id, b.service_type, b.customer_id, b.provider_id,
+                  b.fare_amount, c.fcm_token`,
+      [WAITING_RATE_PER_MINUTE * WAITING_LIMIT_MINUTES, WAITING_RATE_PER_MINUTE, WAITING_LIMIT_MINUTES]
+    );
+
+    for (const row of expired.rows) {
+      if (row.service_type === 'services') {
+        await releaseServiceWallet(
+          client, row.id, row.customer_id, Number(row.fare_amount),
+          'partner_arrival_timeout'
+        );
+      }
+    }
+
+    const providerIds = [...new Set(
+      expired.rows.map((row) => Number(row.provider_id)).filter(Number.isInteger)
+    )];
+    if (providerIds.length) {
+      await client.query(
+        `UPDATE service_providers sp
+            SET is_available = true
+          WHERE sp.is_available = false
+            AND sp.id = ANY($1::int[])
+            AND NOT EXISTS (
+              SELECT 1 FROM bookings active
+               WHERE active.provider_id = sp.id
+                 AND active.status IN ('accepted', 'arrived', 'ongoing')
+            )
+            AND sp.kyc_status = 'approved'
+            AND (sp.type NOT IN ('bike','auto','car') OR EXISTS (
+              SELECT 1 FROM provider_subscriptions ps
+               WHERE ps.provider_id = sp.id
+                 AND ps.status = 'active'
+                 AND ps.expiry_date > NOW()
+            ))`,
+        [providerIds]
+      );
+    }
+    await client.query('COMMIT');
+
+    for (const row of expired.rows) {
+      if (!row.fcm_token) continue;
+      const sent = await sendCustomerFcm(row.fcm_token, {
+        type: 'booking_arrival_timeout',
+        title: 'Gofixo — Booking cancelled',
+        body: row.service_type === 'services'
+          ? 'The partner arrived, but the service PIN was not verified within 15 minutes. Your reserved wallet amount has been released.'
+          : 'The partner arrived, but the ride PIN was not verified within 15 minutes. The booking was cancelled.',
+        booking_id: row.id,
+      });
+      if (sent && sent.expired) {
+        await pool.query(
+          'UPDATE customers SET fcm_token = NULL WHERE id = $1 AND fcm_token = $2',
+          [row.customer_id, row.fcm_token]
+        );
+      }
+    }
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 const waitingExpiryTimer = setInterval(() => {
   expireWaitingBookings().catch((err) => console.error('[Gofixo waiting policy] Expiry sweep failed:', err.message));
