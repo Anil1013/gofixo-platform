@@ -1,7 +1,7 @@
 {
-  "version": "1.0.41",
-  "buildNumber": 1000041,
-  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.41.apk",
-  "notes": "Gofixo v1.0.41: customer home hero cleanup, Senior & Disability Care label, and distinct service icons.",
+  "version": "1.0.42",
+  "buildNumber": 1000042,
+  "downloadUrl": "https://gofixo.mob13r.com/download/gofixo-release-v1.0.42.apk",
+  "notes": "Gofixo v1.0.42: fixes update detection so the full app update prompt appears before OTA patch checks.",
   "forceUpdate": false
 }
