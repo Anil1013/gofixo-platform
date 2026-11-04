@@ -34,6 +34,7 @@ export default function Providers() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
+  const [updatingSkill, setUpdatingSkill] = useState('');
   const [search, setSearch] = useState('');
   const [documentViewer, setDocumentViewer] = useState(null);
   const [documentLoading, setDocumentLoading] = useState(false);
@@ -79,6 +80,21 @@ export default function Providers() {
       alert(status === 'approved' ? `Approval not completed: ${e.message}` : `KYC update failed: ${e.message}`);
     } finally {
       setUpdatingId(null);
+    }
+  }
+
+  async function updateSkillKyc(providerId, skillKey, status) {
+    const key = `${providerId}:${skillKey}`;
+    setUpdatingSkill(key);
+    try {
+      let reason = '';
+      if (status === 'rejected') reason = window.prompt('Reason for rejecting this skill (optional):', '') || '';
+      await apiPatch(`/providers/${providerId}/skills/${encodeURIComponent(skillKey)}/kyc`, { status, reason });
+      await load();
+    } catch (e) {
+      alert(`Skill review failed: ${e.message}`);
+    } finally {
+      setUpdatingSkill('');
     }
   }
 
@@ -129,11 +145,25 @@ export default function Providers() {
               <td>{p.phone}</td>
               <td>{p.type}</td>
               <td>
-                {Array.isArray(p.service_categories) && p.service_categories.length > 0
-                  ? p.service_categories.map((item) => (
-                    <span key={item} className="provider-specialty-chip">{String(item).replaceAll('_', ' ')}</span>
-                  ))
-                  : <span style={{ color: '#B0A8BE' }}>—</span>}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                  {(Array.isArray(p.skills) ? p.skills : []).map((skill) => (
+                    <div key={skill.skill_key} style={{ border: '1px solid #334155', borderRadius: 8, padding: '5px 7px', minWidth: 110 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700 }}>{String(skill.skill_key).replaceAll('_', ' ')}</div>
+                      <div style={{ fontSize: 11, margin: '3px 0', color: skill.kyc_status === 'approved' ? '#22C55E' : skill.kyc_status === 'rejected' ? '#F87171' : '#FBBF24' }}>
+                        {skill.service_type} · {skill.kyc_status}
+                      </div>
+                      {skill.review_note && <div style={{ fontSize: 10, maxWidth: 150 }}>{skill.review_note}</div>}
+                      {skill.kyc_status !== 'approved' && (
+                        <button type="button" className="btn btn-approve" disabled={updatingSkill === `${p.id}:${skill.skill_key}`} onClick={() => updateSkillKyc(p.id, skill.skill_key, 'approved')}>Approve skill</button>
+                      )}
+                      {skill.kyc_status !== 'rejected' && (
+                        <button type="button" className="btn btn-reject" disabled={updatingSkill === `${p.id}:${skill.skill_key}`} onClick={() => updateSkillKyc(p.id, skill.skill_key, 'rejected')}>Reject skill</button>
+                      )}
+                      <div style={{ fontSize: 10, color: '#B0A8BE' }}>{skill.is_available ? 'Skill online' : 'Skill offline'}</div>
+                    </div>
+                  ))}
+                  {(!p.skills || p.skills.length === 0) && <span style={{ color: '#B0A8BE' }}>No skills</span>}
+                </div>
               </td>
               <td>
                 <span className={`badge badge-${p.kyc_status}`}>{p.kyc_status}</span>
