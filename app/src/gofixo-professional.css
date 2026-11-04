@@ -1,0 +1,21 @@
+/* Gofixo professional green brand system for customer and partner web app. */
+:root{
+  --plum:#087f4b;--paper:#f5faf7;--paper-card:#fff;--line:#e2eee7;
+  --text:#142a20;--text-dim:#64776c;--violet:#0b9658;--rose:#16a36a;
+  --teal:#0b9b70;--prism:linear-gradient(120deg,#087f4b 0%,#0b9658 55%,#19b879 100%);
+  --teal-bg:#e7f7ee;--gf-orange:#0b9658;--gf-orange-2:#19b879;--gf-green:#0b9658;
+  --gf-ink:#142a20;--gf-muted:#64776c;--gf-line:#e2eee7;--gf-bg:#f5faf7;
+  --gf-card:#fff;--gf-shadow:0 12px 30px rgba(8,127,75,.08);
+}
+body{background:#f2f8f4;color:#142a20}
+.topbar-brand::before{background:#0b9658;box-shadow:0 5px 12px rgba(11,150,88,.2)}
+.bottom-nav button.active{color:#087f4b}
+button.cta,.home-cta,.auth-box button[type="submit"]{background:linear-gradient(120deg,#087f4b,#0b9658 60%,#19b879)}
+button.secondary{border-color:#b8dfc9;color:#087f4b}
+.type-chip.active,.tab-switch button.active{background:#e8f7ee;border-color:#0b9658;color:#087f4b}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(11,150,88,.28);outline-offset:2px}
+@media(max-width:520px){
+ .app-shell{width:100%;max-width:none;min-height:100dvh;height:100dvh;box-shadow:none}
+ .screen{padding:16px}
+ .bottom-nav button{min-width:0;padding:11px 3px;font-size:10px}
+}
