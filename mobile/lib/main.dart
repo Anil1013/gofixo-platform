@@ -184,7 +184,7 @@ class _RolePhotoCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: SizedBox(
-          height: 202,
+          height: 228,
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -199,7 +199,7 @@ class _RolePhotoCard extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(18),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -221,7 +221,7 @@ class _RolePhotoCard extends StatelessWidget {
                             title,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 19,
+                              fontSize: 20,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
@@ -235,8 +235,8 @@ class _RolePhotoCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 11,
-                        height: 1.25,
+                        fontSize: 12,
+                        height: 1.3,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -247,18 +247,36 @@ class _RolePhotoCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Color(0xFFE5FFF0),
-                        fontSize: 10,
-                        height: 1.25,
+                        fontSize: 11,
+                        height: 1.3,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      button,
-                      style: const TextStyle(
-                        color: Color(0xFF7CFFB1),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF12B85F),
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: const [
+                          BoxShadow(color: Color(0x44000000), blurRadius: 10, offset: Offset(0, 3)),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            button.replaceAll('  →', ''),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              letterSpacing: 0.35,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(width: 7),
+                          const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 16),
+                        ],
                       ),
                     ),
                   ],
