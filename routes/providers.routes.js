@@ -193,7 +193,7 @@ router.get('/', requireAdmin, async (req, res, next) => {
         FROM provider_skills WHERE provider_id = sp.id
       ) sk ON true
       LEFT JOIN LATERAL (
-        SELECT json_agg(json_build_object('id', id, 'doc_type', doc_type) ORDER BY uploaded_at DESC) AS documents
+        SELECT json_agg(json_build_object('id', id, 'doc_type', doc_type, 'skill_key', skill_key) ORDER BY uploaded_at DESC) AS documents
         FROM provider_documents pd WHERE pd.provider_id = sp.id
       ) docs ON true
       ORDER BY sp.created_at DESC
@@ -259,9 +259,21 @@ router.post('/:id/documents', requireAuth(['provider']), requireOwnProvider, upl
   try {
     if (!req.file) return res.status(400).json({ error: 'file is required' });
     const docType = req.body.doc_type;
+    const skillKey = typeof req.body.skill_key === 'string' ? req.body.skill_key.trim().toLowerCase() : '';
     if (!ALLOWED_DOCUMENT_TYPES.has(docType)) {
       return res.status(400).json({ error: 'Invalid document type' });
     }
+    if (skillKey) {
+      const skill = await pool.query(
+        'SELECT skill_key, service_type, kyc_status FROM provider_skills WHERE provider_id = $1 AND skill_key = $2',
+        [req.params.id, skillKey]
+      );
+      if (skill.rows.length === 0) return res.status(400).json({ error: 'This skill is not registered on your partner account' });
+      if (skill.rows[0].service_type === 'ride' && !['bike', 'auto', 'car'].includes(skillKey)) {
+        return res.status(400).json({ error: 'Invalid ride skill' });
+      }
+    }
+
     if (docType === 'profile_photo') {
       const extension = path.extname(req.file.originalname || '').toLowerCase();
       if (!['.jpg', '.jpeg', '.png', '.webp'].includes(extension) ||
@@ -273,26 +285,37 @@ router.post('/:id/documents', requireAuth(['provider']), requireOwnProvider, upl
     const dir = path.join(__dirname, '..', 'uploads', 'providers', String(req.params.id));
     await fsp.mkdir(dir, { recursive: true });
     const extension = path.extname(req.file.originalname || '').toLowerCase();
-    const filename = `${docType}-${crypto.randomBytes(16).toString('hex')}${extension}`;
+    const filename = `${skillKey ? skillKey + '-' : ''}${docType}-${crypto.randomBytes(16).toString('hex')}${extension}`;
     const filePath = path.join(dir, filename);
     await fsp.writeFile(filePath, req.file.buffer, { flag: 'wx' });
 
     const fileUrl = `/uploads/providers/${req.params.id}/${filename}`;
     try {
       const result = await pool.query(
-        'INSERT INTO provider_documents (provider_id, doc_type, file_url) VALUES ($1, $2, $3) RETURNING id, provider_id, doc_type, file_url, uploaded_at',
-        [req.params.id, docType, fileUrl]
+        'INSERT INTO provider_documents (provider_id, doc_type, file_url, skill_key) VALUES ($1, $2, $3, $4) RETURNING id, provider_id, doc_type, skill_key, file_url, uploaded_at',
+        [req.params.id, docType, fileUrl, skillKey || null]
       );
 
       // Admin approval is final: provider document uploads must never revoke an
       // already-approved KYC status. Profile-photo replacement is also independent
       // of KYC, so an approved provider can change it whenever they want.
+      if (skillKey) {
+        // A new/replacement skill document requires a fresh explicit admin review.
+        // Never auto-approve a skill merely because files have been uploaded.
+        await pool.query(
+          `UPDATE provider_skills
+           SET kyc_status = 'pending', is_available = false, review_note = NULL, updated_at = NOW()
+           WHERE provider_id = $1 AND skill_key = $2`,
+          [req.params.id, skillKey]
+        );
+      }
+
       const provider = await pool.query(
         'SELECT type, kyc_status FROM service_providers WHERE id = $1',
         [req.params.id]
       );
 
-      if (provider.rows.length > 0) {
+      if (!skillKey && provider.rows.length > 0) {
         const currentStatus = provider.rows[0].kyc_status;
 
         if (docType !== 'profile_photo' && currentStatus !== 'approved') {
