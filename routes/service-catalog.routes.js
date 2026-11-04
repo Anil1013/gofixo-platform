@@ -30,10 +30,9 @@ router.get('/services', async (req, res, next) => {
         ORDER BY sort_order ASC, label ASC`
     );
     res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-    if (result.rows.length) return res.json(result.rows.map(publicItem));
-    return res.json(HOME_SERVICE_CATALOG.map((item) => ({
-      ...item, description: '', baseFare: getServiceBaseFare(item.key), metadata: {},
-    })));
+    // An empty result is meaningful: the admin has intentionally disabled all
+    // services. Only fall back when the table is not deployed yet (42P01 below).
+    return res.json(result.rows.map(publicItem));
   } catch (err) {
     // Keep existing clients functional if the additive migration has not yet
     // been deployed; do not hide unrelated database failures.
