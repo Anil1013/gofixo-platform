@@ -1948,9 +1948,10 @@ class _ActiveState extends State<_Active>{
   final arrivedAt=DateTime.tryParse(widget.b['arrived_at']?.toString()??'');
   final waitingSeconds=arrivedAt==null?0:DateTime.now().difference(arrivedAt).inSeconds.clamp(0,900);
   final waitingMinutes=(waitingSeconds/60).ceil().clamp(0,15);
+  final isHomeService=widget.b['service_type']=='services';
   final storedWaitingFee=double.tryParse(widget.b['waiting_fee_amount']?.toString()??'0')??0;
-  final waitingFee=storedWaitingFee>0?storedWaitingFee:
-      (arrivedAt==null?0.0:(waitingMinutes*0.50).clamp(0,7.50).toDouble());
+  final waitingFee=isHomeService?0.0:(storedWaitingFee>0?storedWaitingFee:
+      (arrivedAt==null?0.0:(waitingMinutes*0.50).clamp(0,7.50).toDouble()));
   final waitingSecondsLeft=(900-waitingSeconds).clamp(0,900);
 
   Future<void>cancelBookingAsPartner()async{
@@ -2035,9 +2036,9 @@ class _ActiveState extends State<_Active>{
    if(arrived)...[
     const SizedBox(height:6),
     Container(width:double.infinity,padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:const Color(0xFFFFF7E8),borderRadius:BorderRadius.circular(14)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      Text('PIN waiting: ₹'+waitingFee.toStringAsFixed(2)+' accrued',style:const TextStyle(fontSize:13,fontWeight:FontWeight.w900,color:gfNavy)),
+      Text(isHomeService?'Service PIN waiting':'PIN waiting: ₹'+waitingFee.toStringAsFixed(2)+' accrued',style:const TextStyle(fontSize:13,fontWeight:FontWeight.w900,color:gfNavy)),
       const SizedBox(height:3),
-      Text('₹0.50 per minute · maximum ₹7.50',style:const TextStyle(fontSize:11,color:gfMuted)),
+      Text(isHomeService?'No waiting fee for home services':'₹0.50 per minute · maximum ₹7.50',style:const TextStyle(fontSize:11,color:gfMuted)),
       const SizedBox(height:3),
       Text(waitingSecondsLeft>0
         ? 'Auto-cancel in '+(waitingSecondsLeft~/60).toString().padLeft(2,'0')+':'+(waitingSecondsLeft%60).toString().padLeft(2,'0')+' if PIN is not verified.'
@@ -2130,8 +2131,11 @@ class _Booking extends StatelessWidget{
       final minutes=(seconds/60).ceil().clamp(0,15);
       final fee=(minutes*0.50).clamp(0,7.50).toDouble();
       final left=(900-seconds).clamp(0,900);
+      final waitingLabel=isService
+        ? 'Service PIN waiting · auto-cancel in '
+        : 'PIN waiting · ₹'+fee.toStringAsFixed(2)+' at ₹0.50/min · auto-cancel in ';
       return Container(width:double.infinity,margin:const EdgeInsets.only(top:8),padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:const Color(0xFFFFF7E8),borderRadius:BorderRadius.circular(12)),child:Text(
-        'PIN waiting · ₹'+fee.toStringAsFixed(2)+' at ₹0.50/min · auto-cancel in '+(left~/60).toString().padLeft(2,'0')+':'+(left%60).toString().padLeft(2,'0'),
+        waitingLabel+(left~/60).toString().padLeft(2,'0')+':'+(left%60).toString().padLeft(2,'0'),
         style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:gfNavy)));
     }),
    ],
