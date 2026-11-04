@@ -200,7 +200,7 @@ jobs:
           node --check server.js
 
       - name: Domain tests
-        run: node --test tests/booking-domain.test.js
+        run: node --test tests/*.test.js
 
       - name: Workflow summary
         run: |
@@ -209,16 +209,3 @@ jobs:
           echo "Admin web: built"
           echo "Android app: built and signing verified"
           echo "Backend: syntax validated"
-
-  backend-tests:
-    name: Backend Pricing and Booking Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Run backend unit tests
-        run: node --test tests/*.test.js
