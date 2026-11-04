@@ -144,7 +144,7 @@ class _CustomerHomeTab extends StatelessWidget{
   return RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.only(bottom:18),children:[
    _CustomerHeader(onProfile:()=>onTab(4)),const SizedBox(height:6),_CustomerHero(session:session,onChanged:onChanged),const SizedBox(height:18),
    _SectionTitle(title:'Book a Ride',onSeeAll:()=>onTab(2)),const SizedBox(height:8),_RideTypeShowcase(session:session,onChanged:onChanged),const SizedBox(height:20),
-   _SectionTitle(title:'Home Services',onSeeAll:()=>onTab(2)),const SizedBox(height:8),_Services(onTap:(type,category,label)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:type,serviceCategory:category,serviceDescription:label,onChanged:onChanged)))),
+   _SectionTitle(title:'Home & Lifestyle Services',onSeeAll:()=>onTab(2)),const SizedBox(height:8),_Services(onTap:(type,category,label)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:type,serviceCategory:category,serviceDescription:label,onChanged:onChanged)))),
    const SizedBox(height:14),_CustomerPromo(onTap:()=>onTab(2)),const SizedBox(height:18),
    const _SectionTitle(title:'Why Gofixo?'),const SizedBox(height:8),const _CustomerBenefits(),
    if(active.isNotEmpty)...[const SizedBox(height:16),_ActiveBookingStrip(b:active.first,session:session)],
@@ -158,7 +158,7 @@ class _CustomerHeader extends StatelessWidget{
   Container(width:43,height:43,decoration:BoxDecoration(color:gfGreen,borderRadius:BorderRadius.circular(14)),child:const Icon(Icons.location_on_rounded,color:Colors.white,size:28)),
   const SizedBox(width:9),const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
    Text('Gofixo',style:TextStyle(fontSize:25,fontWeight:FontWeight.w900,color:gfNavy,letterSpacing:-.6)),
-   Text('Ride · Delivery · Home Services',style:TextStyle(fontSize:8,color:gfMuted,fontWeight:FontWeight.w600))
+   Text('Ride · Delivery · Home & Lifestyle Services',style:TextStyle(fontSize:8,color:gfMuted,fontWeight:FontWeight.w600))
   ])),
   IconButton(onPressed:(){},icon:const Icon(Icons.notifications_none_rounded,color:gfNavy,size:27)),
   GestureDetector(onTap:onProfile,child:Container(width:41,height:41,decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFEAFBF2)),child:const Icon(Icons.person_rounded,color:gfGreen,size:25))),
@@ -183,7 +183,7 @@ class _CustomerHero extends StatelessWidget{
         Text('Your City',style:TextStyle(color:Colors.white,fontSize:27,fontWeight:FontWeight.w900)),
         Text('Your Services',style:TextStyle(color:Color(0xFFFFB03A),fontSize:27,fontWeight:FontWeight.w900)),
         SizedBox(height:4),
-        Text('Rides, Home Services\nand more — All in One App',style:TextStyle(color:Colors.white,fontSize:12,fontWeight:FontWeight.w600,height:1.25))
+        Text('Rides, Home & Lifestyle Services\nand more — All in One App',style:TextStyle(color:Colors.white,fontSize:12,fontWeight:FontWeight.w600,height:1.25))
        ])),
        Positioned(left:12,right:12,bottom:12,child:Row(children:[
         _HeroRide('Bike','https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=700&q=88',session,onChanged),
@@ -290,7 +290,7 @@ class _CustomerPromo extends StatelessWidget{
       Positioned(
        left:16,top:15,bottom:10,right:145,
        child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        const Text('GOFIXO HOME SERVICES',style:TextStyle(fontSize:8,letterSpacing:1.2,fontWeight:FontWeight.w900,color:gfGreen)),
+        const Text('GOFIXO HOME & LIFESTYLE',style:TextStyle(fontSize:8,letterSpacing:1.2,fontWeight:FontWeight.w900,color:gfGreen)),
         const SizedBox(height:4),
         const Text('Trusted Professionals\nfor Your Home',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy,height:1.05)),
         const SizedBox(height:5),
@@ -340,7 +340,7 @@ class _CustomerServicesTab extends StatelessWidget{
  @override Widget build(BuildContext c)=>ListView(padding:const EdgeInsets.fromLTRB(12,12,12,24),children:[
   const _PageHeading(title:'Services',subtitle:'Everything Gofixo can do for you.'),
   const _Title(kicker:'RIDES',title:'Choose your ride'),const SizedBox(height:8),_RideTypeShowcase(session:session,onChanged:onChanged),
-  const SizedBox(height:16),const _Title(kicker:'HOME SERVICES',title:'Book a professional'),const SizedBox(height:8),
+  const SizedBox(height:16),const _Title(kicker:'HOME & LIFESTYLE',title:'Book a professional'),const SizedBox(height:8),
   _Services(onTap:(type,category,label)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:type,serviceCategory:category,serviceDescription:label,onChanged:onChanged)))),
  ]);
 }
@@ -511,7 +511,7 @@ class _CustomerProfileTabState extends State<_CustomerProfileTab>{
   ])),const SizedBox(height:12),
   const _ProfileAction(icon:Icons.security_rounded,title:'Safety & support',subtitle:'Verified partners and live trip tracking.'),
   const _ProfileAction(icon:Icons.location_on_outlined,title:'Location',subtitle:'Used for booking and live trip features.'),
-  const _ProfileAction(icon:Icons.info_outline,title:'About Gofixo',subtitle:'Ride · Delivery · Home Services'),const SizedBox(height:12),
+  const _ProfileAction(icon:Icons.info_outline,title:'About Gofixo',subtitle:'Ride · Delivery · Home & Lifestyle Services'),const SizedBox(height:12),
   SizedBox(width:double.infinity,child:OutlinedButton.icon(onPressed:widget.onLogout,icon:const Icon(Icons.logout_rounded),label:const Text('Log out')))
  ]);
 }
@@ -1143,7 +1143,7 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
       ])),
       const SizedBox(height:12),
       _ServiceInfo(title:'Rides',icon:Icons.local_taxi_rounded,enabled:driver),
-      _ServiceInfo(title:'Home services',icon:Icons.handyman_rounded,enabled:worker),
+      _ServiceInfo(title:'Home & Lifestyle Services',icon:Icons.handyman_rounded,enabled:worker),
       _ServiceInfo(title:'Nearby matching',icon:Icons.radar_rounded,enabled:approved),
       const SizedBox(height:12),
       _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -1197,7 +1197,7 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
         Align(alignment:Alignment.centerRight,child:TextButton.icon(onPressed:loading?null:_load,icon:const Icon(Icons.refresh,size:16),label:const Text('Refresh status'))),
       ])),
       const SizedBox(height:10),
-      const _Box(child:Text('Ride fare commission: 0%. Ride earnings are covered by your subscription. Home Services commission remains separate. KYC approval + an active earning plan + fresh location are required before matching.',style:TextStyle(fontSize:11,color:gfMuted))),
+      const _Box(child:Text('Ride fare commission: 0%. Ride earnings are covered by your subscription. Home & Lifestyle Services commission remains separate. KYC approval + an active earning plan + fresh location are required before matching.',style:TextStyle(fontSize:11,color:gfMuted))),
     ]);
   }
 }
@@ -1728,18 +1728,48 @@ class _ServicesState extends State<_Services>{
       if(mounted)setState(()=>items=List<Map<String,dynamic>>.from(_Services._fallback));
     }
   }
-  @override Widget build(BuildContext c)=>GridView.count(
-    crossAxisCount:4,crossAxisSpacing:7,mainAxisSpacing:9,childAspectRatio:.72,
-    shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),
-    children:items.map((item){
-      final type=item['providerType']?.toString()??'general_worker';
-      final key=item['key']?.toString()??'other';
-      final label=item['label']?.toString()??key;
-      final url=item['imageUrl']?.toString()??'';
-      final baseFare=double.tryParse(item['baseFare']?.toString()??'')?.round();
-      return _Service(url,label,baseFare,()=>widget.onTap(type,key,label));
-    }).toList(),
-  );
+  String _groupFor(String key) {
+    if (['electrician','plumber','ac_service','appliance_repair','refrigerator_repair','washing_machine_repair','ro_water_purifier','carpenter','painter'].contains(key)) return 'Home Repair & Appliances';
+    if (['cleaning','pest_control','gardener'].contains(key)) return 'Cleaning & Maintenance';
+    if (['salon_beauty','cook','laundry','driver','tutor','babysitter','elder_care'].contains(key)) return 'Personal & Lifestyle';
+    return 'Moving, Security & Other';
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    for (final item in items) {
+      final key = item['key']?.toString() ?? 'other';
+      grouped.putIfAbsent(_groupFor(key), () => []).add(item);
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: grouped.entries.map((group) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8, left: 2),
+            child: Text(group.key, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: gfNavy)),
+          ),
+          GridView.count(
+            crossAxisCount: 4,
+            crossAxisSpacing: 7,
+            mainAxisSpacing: 9,
+            childAspectRatio: .72,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: group.value.map((item) {
+              final type = item['providerType']?.toString() ?? 'general_worker';
+              final key = item['key']?.toString() ?? 'other';
+              final label = item['label']?.toString() ?? key;
+              final url = item['imageUrl']?.toString() ?? '';
+              final baseFare = double.tryParse(item['baseFare']?.toString() ?? '')?.round();
+              return _Service(url, label, baseFare, () => widget.onTap(type, key, label));
+            }).toList(),
+          ),
+        ]),
+      ),
+    ).toList());
+  }
 }
 class _Service extends StatelessWidget {
   final String url;
