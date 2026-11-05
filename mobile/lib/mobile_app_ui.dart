@@ -2051,7 +2051,7 @@ class _Incoming extends StatelessWidget{
    if(isService)...[
      const SizedBox(height:6),
      Align(alignment:Alignment.centerLeft,child:Text((b['service_category']?.toString()??'other').replaceAll('_',' ').toUpperCase(),style:const TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen))),
-     Align(alignment:Alignment.centerLeft,child:Text(b['service_description']?.toString()??'',maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:11,color:gfMuted))),
+     Align(alignment:Alignment.centerLeft,child:Text((b['service_description']?.toString().trim().isNotEmpty??false)?b['service_description'].toString():'No extra task details added.',style:const TextStyle(fontSize:12,height:1.35,color:gfNavy))),
    ],
    const SizedBox(height:10),_Route('Pickup',b['pickup_location']?.toString()??''),_Route(isService?'Service address':'Drop',b['drop_or_service_address']?.toString()??''),const SizedBox(height:10),
    Row(children:[
@@ -2158,6 +2158,13 @@ class _ActiveState extends State<_Active>{
    const SizedBox(height:4),
    Text(ongoing?'Confirm payment to complete':(accepted||arrived)?'Enter customer PIN to start the trip':'Navigate to pickup',style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy)),
    const SizedBox(height:10),
+   if(isHomeService)...[
+     Container(width:double.infinity,margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(11),decoration:BoxDecoration(color:const Color(0xFFEFFFF5),borderRadius:BorderRadius.circular(13)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+       Text((widget.b['service_category']?.toString()??'Home service').replaceAll('_',' ').toUpperCase(),style:const TextStyle(fontSize:10,fontWeight:FontWeight.w900,color:gfGreen)),
+       const SizedBox(height:5),
+       Text((widget.b['service_description']?.toString().trim().isNotEmpty??false)?widget.b['service_description'].toString():'No extra task details added.',style:const TextStyle(fontSize:12,height:1.35,color:gfNavy)),
+     ])),
+   ],
    _Route('Pickup',widget.b['pickup_location']?.toString()??''),
    if(widget.b['drop_or_service_address']!=null&&widget.b['drop_or_service_address'].toString().trim().isNotEmpty)
      _Route(widget.b['service_type']=='services'?'Service address':'Drop',widget.b['drop_or_service_address']?.toString()??''),
