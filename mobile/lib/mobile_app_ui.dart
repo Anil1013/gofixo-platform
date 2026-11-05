@@ -1776,6 +1776,97 @@ class _ServicesState extends State<_Services>{
     ).toList());
   }
 }
+IconData gfServiceIcon(String? rawKey) {
+  final key = (rawKey ?? '')
+      .trim()
+      .toLowerCase()
+      .replaceAll('&', 'and')
+      .replaceAll(' ', '_')
+      .replaceAll('-', '_');
+  switch (key) {
+    case 'electrician':
+    case 'electrical':
+      return Icons.electrical_services_rounded;
+    case 'plumber':
+    case 'plumbing':
+      return Icons.plumbing_rounded;
+    case 'ac_service':
+    case 'air_conditioning':
+    case 'air_conditioner':
+      return Icons.ac_unit_rounded;
+    case 'cleaning':
+    case 'house_cleaning':
+      return Icons.cleaning_services_rounded;
+    case 'painter':
+    case 'painting':
+      return Icons.format_paint_rounded;
+    case 'carpenter':
+    case 'carpentry':
+      return Icons.handyman_rounded;
+    case 'appliance_repair':
+    case 'home_appliance_repair':
+      return Icons.home_repair_service_rounded;
+    case 'refrigerator_repair':
+    case 'refrigerator':
+    case 'fridge':
+      return Icons.kitchen_rounded;
+    case 'washing_machine_repair':
+    case 'washing_machine':
+      return Icons.local_laundry_service_rounded;
+    case 'ro_water_purifier':
+    case 'water_purifier':
+    case 'ro':
+      return Icons.water_drop_rounded;
+    case 'geyser_repair':
+    case 'geyser':
+    case 'water_heater':
+      return Icons.hot_tub_rounded;
+    case 'cctv_security':
+    case 'cctv':
+    case 'security':
+      return Icons.videocam_rounded;
+    case 'internet_wifi':
+    case 'wifi':
+    case 'internet':
+      return Icons.wifi_rounded;
+    case 'pest_control':
+      return Icons.pest_control_rounded;
+    case 'packers_movers':
+    case 'moving':
+      return Icons.local_shipping_rounded;
+    case 'salon_beauty':
+    case 'salon':
+    case 'beauty':
+      return Icons.content_cut_rounded;
+    case 'cook':
+    case 'cooking':
+      return Icons.restaurant_rounded;
+    case 'gardener':
+    case 'gardening':
+      return Icons.yard_rounded;
+    case 'laundry':
+    case 'dry_cleaning':
+      return Icons.dry_cleaning_rounded;
+    case 'driver':
+    case 'personal_driver':
+      return Icons.directions_car_rounded;
+    case 'tutor':
+    case 'home_tutor':
+      return Icons.school_rounded;
+    case 'babysitter':
+    case 'childcare':
+      return Icons.child_care_rounded;
+    case 'elder_care':
+    case 'elderly_care':
+    case 'senior_disability_care':
+    case 'senior_and_disability_care':
+      return Icons.accessibility_new_rounded;
+    case 'other':
+    default:
+      return Icons.miscellaneous_services_rounded;
+  }
+}
+
 class _Service extends StatelessWidget {
   final String keyName;
   final String label;
@@ -1790,90 +1881,7 @@ class _Service extends StatelessWidget {
       .replaceAll(' ', '_')
       .replaceAll('-', '_');
 
-  IconData get _serviceIcon {
-    switch (_normalizedServiceKey) {
-      case 'electrician':
-      case 'electrical':
-        return Icons.electrical_services_rounded;
-      case 'plumber':
-      case 'plumbing':
-        return Icons.plumbing_rounded;
-      case 'ac_service':
-      case 'air_conditioning':
-      case 'air_conditioner':
-        return Icons.ac_unit_rounded;
-      case 'cleaning':
-      case 'house_cleaning':
-        return Icons.cleaning_services_rounded;
-      case 'painter':
-      case 'painting':
-        return Icons.format_paint_rounded;
-      case 'carpenter':
-      case 'carpentry':
-        return Icons.handyman_rounded;
-      case 'appliance_repair':
-      case 'home_appliance_repair':
-        return Icons.home_repair_service_rounded;
-      case 'refrigerator_repair':
-      case 'refrigerator':
-      case 'fridge':
-        return Icons.kitchen_rounded;
-      case 'washing_machine_repair':
-      case 'washing_machine':
-        return Icons.local_laundry_service_rounded;
-      case 'ro_water_purifier':
-      case 'water_purifier':
-      case 'ro':
-        return Icons.water_drop_rounded;
-      case 'geyser_repair':
-      case 'geyser':
-      case 'water_heater':
-        return Icons.hot_tub_rounded;
-      case 'cctv_security':
-      case 'cctv':
-      case 'security':
-        return Icons.videocam_rounded;
-      case 'internet_wifi':
-      case 'wifi':
-      case 'internet':
-        return Icons.wifi_rounded;
-      case 'pest_control':
-        return Icons.pest_control_rounded;
-      case 'packers_movers':
-      case 'moving':
-        return Icons.local_shipping_rounded;
-      case 'salon_beauty':
-      case 'salon':
-      case 'beauty':
-        return Icons.content_cut_rounded;
-      case 'cook':
-      case 'cooking':
-        return Icons.restaurant_rounded;
-      case 'gardener':
-      case 'gardening':
-        return Icons.yard_rounded;
-      case 'laundry':
-      case 'dry_cleaning':
-        return Icons.dry_cleaning_rounded;
-      case 'driver':
-      case 'personal_driver':
-        return Icons.directions_car_rounded;
-      case 'tutor':
-      case 'home_tutor':
-        return Icons.school_rounded;
-      case 'babysitter':
-      case 'childcare':
-        return Icons.child_care_rounded;
-      case 'elder_care':
-      case 'elderly_care':
-      case 'senior_disability_care':
-      case 'senior_and_disability_care':
-        return Icons.accessibility_new_rounded;
-      case 'other':
-      default:
-        return Icons.miscellaneous_services_rounded;
-    }
-  }
+  IconData get _serviceIcon => gfServiceIcon(keyName);
 
   @override
   Widget build(BuildContext c) {
@@ -1990,7 +1998,7 @@ class _Incoming extends StatelessWidget{
  @override Widget build(BuildContext c){
   final id=int.tryParse(b['id']?.toString()??'')??0;final isService=b['service_type']=='services';
   return _Box(child:Column(children:[
-   Row(children:[Icon(isService?Icons.handyman_outlined:Icons.notifications_active,color:gfGreen),const SizedBox(width:7),Expanded(child:Text(isService?'New service request':'New ride request',style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy))),Text('₹'+(b['fare_amount']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w900))]),
+   Row(children:[Icon(isService?gfServiceIcon(b['service_category']?.toString()):Icons.notifications_active,color:gfGreen),const SizedBox(width:7),Expanded(child:Text(isService?'New service request':'New ride request',style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy))),Text('₹'+(b['fare_amount']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w900))]),
    if(isService)...[
      const SizedBox(height:6),
      Align(alignment:Alignment.centerLeft,child:Text((b['service_category']?.toString()??'other').replaceAll('_',' ').toUpperCase(),style:const TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen))),
@@ -2889,7 +2897,7 @@ class _Incoming extends StatelessWidget{
  @override Widget build(BuildContext c){
   final id=int.tryParse(b['id']?.toString()??'')??0;final isService=b['service_type']=='services';
   return _Box(child:Column(children:[
-   Row(children:[Icon(isService?Icons.handyman_outlined:Icons.notifications_active,color:gfGreen),const SizedBox(width:7),Expanded(child:Text(isService?'New service request':'New ride request',style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy))),Text('₹'+(b['fare_amount']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w900))]),
+   Row(children:[Icon(isService?gfServiceIcon(b['service_category']?.toString()):Icons.notifications_active,color:gfGreen),const SizedBox(width:7),Expanded(child:Text(isService?'New service request':'New ride request',style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy))),Text('₹'+(b['fare_amount']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w900))]),
    if(isService)...[
      const SizedBox(height:6),
      Align(alignment:Alignment.centerLeft,child:Text((b['service_category']?.toString()??'other').replaceAll('_',' ').toUpperCase(),style:const TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen))),
