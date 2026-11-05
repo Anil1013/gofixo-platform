@@ -37,12 +37,6 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Cache Android NDK
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.ANDROID_HOME }}/ndk
-          key: gofixo-android-ndk-${{ runner.os }}-flutter-3.47.6
-
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -116,7 +110,9 @@ jobs:
           test -n "$APK_SIGNER"
           test -x "$APK_SIGNER"
           "$APK_SIGNER" verify --verbose --min-sdk-version 24 "$APK"
-          "$APK_SIGNER" verify --print-certs "$APK"
+          "$APK_SIGNER" verify --print-certs "$APK" | tee /tmp/gofixo-base-cert.txt
+          grep -Eo 'Signer #1 certificate SHA-256 digest: [0-9a-fA-F]+' /tmp/gofixo-base-cert.txt | sed 's/.*: //' > /tmp/gofixo-base-cert.sha256
+          test -s /tmp/gofixo-base-cert.sha256
 
       - name: Build OTA patch
         env:
@@ -184,6 +180,12 @@ jobs:
             --build-name "1.0.4" \
             --build-number "1000004" \
             --dart-define=GOFIXO_GIT_SHA=${{ github.sha }}
+          APK_SIGNER="$(find "${ANDROID_SDK_ROOT:-${ANDROID_HOME}}/build-tools" -type f -name apksigner -perm -111 | sort -V | tail -n 1)"
+          test -x "$APK_SIGNER"
+          "$APK_SIGNER" verify --verbose --min-sdk-version 24 build/app/outputs/flutter-apk/app-release.apk
+          "$APK_SIGNER" verify --print-certs build/app/outputs/flutter-apk/app-release.apk | tee /tmp/gofixo-legacy-cert.txt
+          grep -Eo 'Signer #1 certificate SHA-256 digest: [0-9a-fA-F]+' /tmp/gofixo-legacy-cert.txt | sed 's/.*: //' > /tmp/gofixo-legacy-cert.sha256
+          diff -u /tmp/gofixo-base-cert.sha256 /tmp/gofixo-legacy-cert.sha256
           ASSET_KEYS="$(find assets/illustrations -type f | sort | paste -sd, -)"
           test -n "$ASSET_KEYS"
           echo "Migration asset keys: $ASSET_KEYS"
@@ -197,6 +199,14 @@ jobs:
           test -s legacy-dist/manifest.json
           cp legacy-dist/patch.zip "legacy-dist/patch-1000004-${{ github.sha }}.zip"
           MD5="$(md5sum "legacy-dist/patch-1000004-${{ github.sha }}.zip" | awk '{print $1}')"
+          test -n "$MD5"
+          python3 - <<'PY'
+          import hashlib, os, pathlib
+          p = pathlib.Path("legacy-dist/patch-1000004-" + os.environ["GITHUB_SHA"] + ".zip")
+          assert p.is_file() and p.stat().st_size > 0
+          assert hashlib.md5(p.read_bytes()).hexdigest() == os.environ["MD5"]
+          print("Legacy OTA payload MD5 validation passed.")
+          PY
           export MD5 LEGACY_PATCH_VERSION
           python3 - <<'PY'
           import json, os
