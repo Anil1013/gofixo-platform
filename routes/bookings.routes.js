@@ -817,6 +817,7 @@ router.post('/:id/cancel', requireAuth(['customer']), async (req, res, next) => 
        JOIN service_providers p ON true
        LEFT JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
        WHERE b.id = $1
+         AND p.type = b.provider_type
          AND (p.fcm_token IS NOT NULL OR pps.endpoint IS NOT NULL)
          AND EXISTS (
            SELECT 1 FROM provider_skills skill
@@ -1043,6 +1044,7 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
        LEFT JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
        JOIN bookings b ON b.id = $1
        WHERE p.id <> $2
+         AND p.type = b.provider_type
          AND EXISTS (
            SELECT 1 FROM provider_skills skill
            WHERE skill.provider_id = p.id
