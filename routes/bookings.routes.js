@@ -1090,6 +1090,7 @@ router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) =>
   const client = await pool.connect();
   let inTransaction = false;
   let closedBooking = null;
+  let walletReservationReleased = false;
   try {
     await client.query('BEGIN');
     inTransaction = true;
@@ -1169,7 +1170,7 @@ router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) =>
 
     if (remaining.rows.length === 0) {
       if (booking.service_type === 'services') {
-        await releaseServiceWallet(
+        walletReservationReleased = await releaseServiceWallet(
           client,
           booking.id,
           booking.customer_id,
@@ -1213,7 +1214,7 @@ router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) =>
     return res.json({
       message: 'Request declined',
       booking_status: closedBooking ? 'no_provider' : 'requested',
-      wallet_reservation_released: Boolean(closedBooking && booking.service_type === 'services'),
+      wallet_reservation_released: walletReservationReleased,
     });
   } catch (err) {
     if (inTransaction) await client.query('ROLLBACK').catch(() => {});
