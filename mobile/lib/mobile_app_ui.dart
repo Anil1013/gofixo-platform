@@ -1355,7 +1355,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  Future<void>book()async{
   if(pickupPoint==null)return;
   if(!isService&&(km==null||fare==null))return;
-  if(isService&&serviceDescription.trim().length<8){_snack(serviceCategory=='cleaning'?'Please describe the home size (for example, 3 BHK) and cleaning required.':'Please describe the exact work and any important details so the partner can prepare.');return;}
+  if(isService&&serviceDescription.trim().length<8){_snack(serviceCategory=='cleaning'?'Please add room-wise cleaning details, including each area and quantity.':'Please describe the exact work and any important details so the partner can prepare.');return;}
   final address=place?['address']?.toString()??dest.text.trim();
   if(address.trim().isEmpty){_snack('Please enter the destination or service address.');return;}
   setState(()=>busy=true);
@@ -1561,8 +1561,8 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                onChanged:(v)=>serviceDescription=v.trim(),
                decoration:InputDecoration(
                  filled:true,fillColor:Colors.white,
-                 labelText:'What do you need?',
-                 hintText:serviceCategory=='cleaning'?'e.g. 3 BHK full-home deep cleaning, kitchen and bathrooms':serviceCategory=='ac_service'?'e.g. AC not cooling, 1.5 ton split AC, service or repair':serviceCategory=='plumber'?'e.g. bathroom tap leakage, pipe repair, number of fittings':serviceCategory=='electrician'?'e.g. fan installation, switchboard repair, number of points':'Mention the exact work, quantity, size or rooms, and any special requirements',
+                 labelText:serviceCategory=='cleaning'?'Room-wise cleaning requirements':'What do you need?',
+                 hintText:serviceCategory=='cleaning'?'Mention property type (villa, independent house, flat, etc.) and list each area with quantity: bedrooms, bathrooms, kitchen, living rooms, balconies, stairs and other spaces. Add deep/regular cleaning needs.':serviceCategory=='ac_service'?'e.g. AC not cooling, 1.5 ton split AC, service or repair':serviceCategory=='plumber'?'e.g. bathroom tap leakage, pipe repair, number of fittings':serviceCategory=='electrician'?'e.g. fan installation, switchboard repair, number of points':'Mention the exact work, quantity, size or rooms, and any special requirements',
                  
                  prefixIcon:const Icon(Icons.handyman_outlined,color:gfGreen),
                  border:OutlineInputBorder(borderRadius:BorderRadius.circular(18)),
