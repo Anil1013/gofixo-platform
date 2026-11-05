@@ -437,8 +437,11 @@ router.patch('/:id/skills/:skillKey/kyc', requireAdmin, async (req, res, next) =
       const required = skill.service_type === 'ride'
         ? REQUIRED_DOCS[skill.skill_key]
         : ['aadhar_front', 'aadhar_back', 'profile_photo', 'police_verification'];
+      // Identity/KYC files uploaded once at account level can satisfy the
+      // same document requirements for each registered specialty. Skill-specific
+      // uploads remain supported and take precedence when present.
       const docs = await pool.query(
-        'SELECT DISTINCT doc_type FROM provider_documents WHERE provider_id = $1 AND skill_key = $2',
+        'SELECT DISTINCT doc_type FROM provider_documents WHERE provider_id = $1 AND (skill_key = $2 OR skill_key IS NULL)',
         [req.params.id, skill.skill_key]
       );
       const uploaded = new Set(docs.rows.map((doc) => doc.doc_type));
