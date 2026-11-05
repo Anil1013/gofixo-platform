@@ -1250,7 +1250,7 @@ class ReferenceBookingPage extends StatefulWidget{
 class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  GoogleMapController? mapController;
  StreamSubscription<Position>? locationSub;
- final dest=TextEditingController();final pickupController=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your current location…';String serviceCategory='other',serviceDescription='';Position? pos;Map<String,dynamic>? place,pickupPlace;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[],pickupSuggestions=[];Set<Polyline> routePolylines={};List<Map<String,dynamic>> routeSteps=[];LatLng? destinationPoint,pickupPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce,pickupDebounce;LatLng? lastReversePoint;
+ final dest=TextEditingController();final pickupController=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your current location…';String serviceCategory='other',serviceDescription='';final List<String> selectedCleaningTasks=[];Position? pos;Map<String,dynamic>? place,pickupPlace;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[],pickupSuggestions=[];Set<Polyline> routePolylines={};List<Map<String,dynamic>> routeSteps=[];LatLng? destinationPoint,pickupPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce,pickupDebounce;LatLng? lastReversePoint;
  @override void initState(){super.initState();type=widget.type;serviceCategory=widget.serviceCategory??'other';serviceDescription=widget.serviceDescription??'';serviceDesc.text=serviceDescription;WidgetsBinding.instance.addPostFrameCallback((_)=>locate());}
  @override void dispose(){debounce?.cancel();pickupDebounce?.cancel();locationSub?.cancel();dest.dispose();pickupController.dispose();serviceDesc.dispose();super.dispose();}
  Future<void>locate()async{if(busy)return;setState(()=>busy=true);try{if(!await Geolocator.isLocationServiceEnabled())throw Exception('Please turn on Location Services.');var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)throw Exception('Location permission is required.');Position?best;for(var i=0;i<3;i++){final x=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:0,timeLimit:Duration(seconds:12)));if(best==null||x.accuracy<best.accuracy)best=x;if(x.accuracy<=30)break;}final x=best!;if(x.accuracy>150)throw Exception('GPS accuracy is too weak. Please move outdoors and try again.');final a=await _reverse(x.latitude,x.longitude);if(mounted){setState((){pos=x;pickup=a;pickupController.text=a;pickupPlace={'address':a,'lat':x.latitude,'lng':x.longitude};pickupPoint=LatLng(x.latitude,x.longitude);lastReversePoint=LatLng(x.latitude,x.longitude);});await _centerMap(LatLng(x.latitude,x.longitude),17);}_startLocationStream();}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
@@ -1355,7 +1355,8 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  Future<void>book()async{
   if(pickupPoint==null)return;
   if(!isService&&(km==null||fare==null))return;
-  if(isService&&serviceDescription.trim().length<8){_snack(serviceCategory=='cleaning'?'Please add room-wise cleaning details, including each area and quantity.':'Please describe the exact work and any important details so the partner can prepare.');return;}
+  final requestDetails=isService&&serviceCategory=='cleaning'?[...selectedCleaningTasks,if(serviceDescription.trim().isNotEmpty)serviceDescription.trim()].join(' | '):serviceDescription.trim();
+  if(isService&&requestDetails.length<3){_snack(serviceCategory=='cleaning'?'Please select the cleaning work or describe what needs cleaning.':'Please describe the exact work and any important details so the partner can prepare.');return;}
   final address=place?['address']?.toString()??dest.text.trim();
   if(address.trim().isEmpty){_snack('Please enter the destination or service address.');return;}
   setState(()=>busy=true);
@@ -1373,7 +1374,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
       distanceKm:isService?null:km,
       serviceType:isService?'services':'ride',
       serviceCategory:isService?serviceCategory:null,
-      serviceDescription:isService?serviceDescription:null,
+      serviceDescription:isService?requestDetails:null,
     );
     // Keep the customer on the new booking's live status instead of returning
     // straight to Home, so they can see when a partner accepts the request.
@@ -1549,6 +1550,24 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                  subtitle:Text(s['secondaryText']?.toString()??''),
                  onTap:busy?null:()=>select(s),
                )).toList(),
+             ),
+           ),
+         if(isService&&serviceCategory=='cleaning')
+           Padding(
+             padding:const EdgeInsets.only(bottom:8),
+             child:Container(
+               padding:const EdgeInsets.all(12),
+               decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(16)),
+               child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                 const Text('What do you want cleaned?',style:TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
+                 const SizedBox(height:4),
+                 const Text('Select only the work you need. You can choose more than one.',style:TextStyle(fontSize:11,color:gfMuted)),
+                 const SizedBox(height:8),
+                 Wrap(spacing:7,runSpacing:2,children:[
+                   for(final task in const ['Bathroom cleaning','Utensil washing','Kitchen cleaning','Bedroom cleaning','Living room cleaning','Balcony cleaning','Stairs cleaning','Full home cleaning','Deep cleaning','Other'])
+                     FilterChip(label:Text(task),selected:selectedCleaningTasks.contains(task),selectedColor:const Color(0xFFE8FFF1),checkmarkColor:gfGreen,onSelected:(selected){setState((){if(selected){if(!selectedCleaningTasks.contains(task))selectedCleaningTasks.add(task);}else{selectedCleaningTasks.remove(task);}});}),
+                 ]),
+               ]),
              ),
            ),
          if(isService)
