@@ -86,7 +86,7 @@ export default function Providers() {
   async function resetProviderPassword(provider) {
     const newPassword = window.prompt('Set a temporary password for ' + provider.name + '. Share it with the partner securely:');
     if (newPassword === null) return;
-    if (!/^(?=.*[A-Za-z])(?=.*\\d).{8,}$/.test(newPassword)) {
+    if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(newPassword)) {
       alert('Password must be at least 8 characters and include letters and numbers.');
       return;
     }
