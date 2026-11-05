@@ -601,14 +601,20 @@ router.patch('/:id/availability', requireAuth(['provider']), async (req, res, ne
       if (sub.rows[0].kyc_status !== 'approved') {
         return res.status(403).json({ error: 'KYC approval is required before going available' });
       }
-      const approvedSkill = await pool.query(
-        `SELECT 1 FROM provider_skills
-         WHERE provider_id = $1 AND kyc_status = 'approved' AND is_available = true
-         LIMIT 1`,
+      const approvedSkills = await pool.query(
+        `SELECT skill_key, service_type FROM provider_skills
+         WHERE provider_id = $1 AND kyc_status = 'approved' AND is_available = true`,
         [req.params.id]
       );
-      if (approvedSkill.rows.length === 0) {
-        return res.status(403).json({ error: 'At least one service specialty must be approved by Gofixo before going available' });
+      const accountType = sub.rows[0].type;
+      const hasValidApprovedSkill = approvedSkills.rows.some((skill) => {
+        if (['bike', 'auto', 'car'].includes(accountType)) {
+          return skill.service_type === 'ride' && skill.skill_key === accountType;
+        }
+        return skill.service_type === 'services' && isServiceCategoryForProvider(skill.skill_key, accountType);
+      });
+      if (!hasValidApprovedSkill) {
+        return res.status(403).json({ error: 'At least one matching service specialty must be approved by Gofixo before going available' });
       }
       const ridePartner = ['bike', 'auto', 'car'].includes(sub.rows[0].type);
       if (ridePartner && (!sub.rows[0].status || !sub.rows[0].expiry_date)) {
