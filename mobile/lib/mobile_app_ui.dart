@@ -144,7 +144,7 @@ class _CustomerHomeTab extends StatelessWidget{
   return RefreshIndicator(onRefresh:onChanged,child:ListView(padding:const EdgeInsets.only(bottom:18),children:[
    _CustomerHeader(onProfile:()=>onTab(4)),const SizedBox(height:6),const _CustomerHero(),const SizedBox(height:18),
    _SectionTitle(title:'Book a Ride',onSeeAll:()=>onTab(2)),const SizedBox(height:8),_RideTypeShowcase(session:session,onChanged:onChanged),const SizedBox(height:20),
-   _SectionTitle(title:'Home & Lifestyle Services',onSeeAll:()=>onTab(2)),const SizedBox(height:8),_Services(onTap:(type,category,label)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:type,serviceCategory:category,serviceDescription:label,onChanged:onChanged)))),
+   _SectionTitle(title:'Home & Lifestyle Services',onSeeAll:()=>onTab(2)),const SizedBox(height:8),_Services(onTap:(type,category,label)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:type,serviceCategory:category,onChanged:onChanged)))),
    const SizedBox(height:14),_CustomerPromo(onTap:()=>onTab(2)),const SizedBox(height:18),
    const _SectionTitle(title:'Why Gofixo?'),const SizedBox(height:8),const _CustomerBenefits(),
    if(active.isNotEmpty)...[const SizedBox(height:16),_ActiveBookingStrip(b:active.first,session:session)],
@@ -346,7 +346,7 @@ class _CustomerServicesTab extends StatelessWidget{
   const _PageHeading(title:'Services',subtitle:'Everything Gofixo can do for you.'),
   const _Title(kicker:'RIDES',title:'Choose your ride'),const SizedBox(height:8),_RideTypeShowcase(session:session,onChanged:onChanged),
   const SizedBox(height:16),const _Title(kicker:'HOME & LIFESTYLE',title:'Book a professional'),const SizedBox(height:8),
-  _Services(onTap:(type,category,label)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:type,serviceCategory:category,serviceDescription:label,onChanged:onChanged)))),
+  _Services(onTap:(type,category,label)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ReferenceBookingPage(session:session,type:type,serviceCategory:category,onChanged:onChanged)))),
  ]);
 }
 
@@ -1355,6 +1355,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  Future<void>book()async{
   if(pickupPoint==null)return;
   if(!isService&&(km==null||fare==null))return;
+  if(isService&&serviceDescription.trim().length<8){_snack(serviceCategory=='cleaning'?'Please describe the home size (for example, 3 BHK) and cleaning required.':'Please describe the exact work and any important details so the partner can prepare.');return;}
   final address=place?['address']?.toString()??dest.text.trim();
   if(address.trim().isEmpty){_snack('Please enter the destination or service address.');return;}
   setState(()=>busy=true);
@@ -1560,7 +1561,8 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                decoration:InputDecoration(
                  filled:true,fillColor:Colors.white,
                  labelText:'What do you need?',
-                 hintText:'Describe the work, issue or service required',
+                 hintText:serviceCategory=='cleaning'?'e.g. 3 BHK full-home deep cleaning, kitchen and bathrooms':serviceCategory=='ac_service'?'e.g. AC not cooling, 1.5 ton split AC, service or repair':serviceCategory=='plumber'?'e.g. bathroom tap leakage, pipe repair, number of fittings':serviceCategory=='electrician'?'e.g. fan installation, switchboard repair, number of points':'Mention the exact work, quantity, size or rooms, and any special requirements',
+                 maxLength:500,
                  prefixIcon:const Icon(Icons.handyman_outlined,color:gfGreen),
                  border:OutlineInputBorder(borderRadius:BorderRadius.circular(18)),
                ),
