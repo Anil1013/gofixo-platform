@@ -374,6 +374,9 @@ class _AuthState extends State<Auth>{
   setState((){busy=true;error=null;msg=null;});
   try{
    if(mode=='register'){
+    if(provider&&(type=='general_worker'||type=='skilled_worker')&&serviceCategories.isEmpty){
+     throw Exception('Please select at least one work specialty before creating your partner account.');
+    }
     if(provider)await ApiService.registerProvider(name.text.trim(),phone.text.trim(),type,pass.text,serviceCategories:serviceCategories.toList());
     else await ApiService.registerCustomer(name.text.trim(),phone.text.trim(),pass.text);
     if(mounted)setState((){mode='login';msg='Account created. Please log in.';});
