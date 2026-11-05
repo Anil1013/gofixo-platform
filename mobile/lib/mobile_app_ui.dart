@@ -1759,7 +1759,7 @@ class _Services extends StatefulWidget{
   static const _fallback=[
     {'providerType':'skilled_worker','key':'electrician','label':'Electrician','imageUrl':'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=700&q=82'},
     {'providerType':'skilled_worker','key':'plumber','label':'Plumber','imageUrl':'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=700&q=82'},
-    {'providerType':'skilled_worker','key':'ac_service','label':'AC Service','imageUrl':'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'skilled_worker','key':'ac_service','label':'AC Service','imageUrl':'https://www.aerocooljaipur.in/technician.png'},
     {'providerType':'general_worker','key':'cleaning','label':'Cleaning','imageUrl':'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=700&q=82'},
     {'providerType':'skilled_worker','key':'painter','label':'Painter','imageUrl':'https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=700&q=82'},
     {'providerType':'skilled_worker','key':'carpenter','label':'Carpenter','imageUrl':'https://images.unsplash.com/photo-1601058268499-e52658a84c9d?auto=format&fit=crop&w=700&q=82'},
@@ -1770,7 +1770,7 @@ class _Services extends StatefulWidget{
     {'providerType':'skilled_worker','key':'geyser_repair','label':'Geyser Repair','imageUrl':'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=700&q=82'},
     {'providerType':'skilled_worker','key':'cctv_security','label':'CCTV & Security','imageUrl':'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=700&q=82'},
     {'providerType':'skilled_worker','key':'internet_wifi','label':'Internet & Wi-Fi','imageUrl':'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=700&q=82'},
-    {'providerType':'general_worker','key':'pest_control','label':'Pest Control','imageUrl':'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=700&q=82'},
+    {'providerType':'general_worker','key':'pest_control','label':'Pest Control','imageUrl':'https://images.contentstack.io/v3/assets/blt4cb7085064c0b32f/blt29bbbac335557bd7/671fe4ec65b6a04bfbaf3441/comment_choisir_exterminateur.jpg'},
     {'providerType':'general_worker','key':'packers_movers','label':'Packers & Movers','imageUrl':'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=700&q=82'},
     {'providerType':'general_worker','key':'salon_beauty','label':'Salon & Beauty','imageUrl':'https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=700&q=82'},
     {'providerType':'general_worker','key':'cook','label':'Cook','imageUrl':'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=700&q=82'},
