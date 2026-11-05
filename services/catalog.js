@@ -106,6 +106,12 @@ function normalizeServiceCategories(values) {
   return [...new Set(list.map(normalizeServiceCategory).filter(Boolean))];
 }
 
+function isServiceCategoryForProvider(value, providerType) {
+  const key = normalizeServiceCategory(value);
+  const item = HOME_SERVICE_CATALOG.find((entry) => entry.key === key);
+  return Boolean(item && item.providerType === providerType);
+}
+
 function getServiceCatalog() {
   return HOME_SERVICE_CATALOG.map((item) => ({
     ...item,
@@ -121,4 +127,5 @@ module.exports = {
   normalizeServiceCategories,
   getServiceCatalog,
   getServiceBaseFare,
+  isServiceCategoryForProvider,
 };
