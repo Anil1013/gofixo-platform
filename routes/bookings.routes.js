@@ -351,6 +351,7 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
          OR (
            b.status = 'requested'
            AND b.provider_id IS NULL
+           AND target_sp.type = b.provider_type
            AND EXISTS (
              SELECT 1 FROM provider_skills ps
              WHERE ps.provider_id = target_sp.id
@@ -521,7 +522,8 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
     const nearby = await client.query(
       `SELECT 1
        FROM service_providers sp
-       WHERE EXISTS (
+       WHERE sp.type = $1
+         AND EXISTS (
            SELECT 1 FROM provider_skills skill
            WHERE skill.provider_id = sp.id
              AND skill.skill_key = CASE WHEN $5 = 'ride' THEN $1 ELSE $4 END
@@ -590,7 +592,8 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       `SELECT p.id AS provider_id, p.fcm_token, pps.endpoint, pps.p256dh, pps.auth
        FROM service_providers p
        LEFT JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
-       WHERE EXISTS (
+       WHERE p.type = $1
+         AND EXISTS (
            SELECT 1 FROM provider_skills skill
            WHERE skill.provider_id = p.id
              AND skill.skill_key = CASE WHEN $6 = 'ride' THEN $1 ELSE $4 END
@@ -1130,6 +1133,7 @@ router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) =>
         WHERE b.id = $1
           AND b.status = 'requested'
           AND (b.provider_id IS NULL OR b.provider_id = sp.id)
+          AND sp.type = b.provider_type
           AND sp.is_available = true
           AND sp.kyc_status = 'approved'
           AND sp.current_lat IS NOT NULL
@@ -1193,6 +1197,7 @@ router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) =>
         WHERE b.id = $1
           AND b.status = 'requested'
           AND b.provider_id IS NULL
+          AND sp.type = b.provider_type
           AND EXISTS (
             SELECT 1 FROM provider_skills skill
              WHERE skill.provider_id = sp.id
