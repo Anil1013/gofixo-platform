@@ -13,6 +13,7 @@ const { isValidPassword, PASSWORD_ERROR } = require('../utils/password');
 const { getVapidPublicKey } = require('../services/push');
 const { broadcastProviderLocation } = require('../services/realtime');
 const { normalizeServiceCategories } = require('../services/catalog');
+const { validateUploadFile } = require('../utils/fileValidation');
 
 const PROVIDER_TYPES = ['bike', 'auto', 'car', 'general_worker', 'skilled_worker'];
 
@@ -266,6 +267,12 @@ router.post('/:id/documents', requireAuth(['provider']), requireOwnProvider, upl
     if (!ALLOWED_DOCUMENT_TYPES.has(docType)) {
       return res.status(400).json({ error: 'Invalid document type' });
     }
+    const allowedMimes = docType === 'profile_photo'
+      ? new Set(['image/jpeg', 'image/png', 'image/webp'])
+      : ALLOWED_UPLOAD_MIME_TYPES;
+    if (!validateUploadFile(req.file, allowedMimes)) {
+      return res.status(400).json({ error: 'Uploaded file content does not match a supported JPG, PNG, WEBP or PDF file' });
+    }
     if (skillKey) {
       const skill = await pool.query(
         'SELECT skill_key, service_type, kyc_status FROM provider_skills WHERE provider_id = $1 AND skill_key = $2',
@@ -329,21 +336,8 @@ router.post('/:id/documents', requireAuth(['provider']), requireOwnProvider, upl
             [req.params.id]
           );
 
-          // Auto-approve when all required documents for this provider type
-          // are present. This is a completeness/file-validation rule; admin
-          // approval remains the final override.
-          const required = REQUIRED_DOCS[provider.rows[0].type] || [];
-          const docs = await pool.query(
-            'SELECT DISTINCT doc_type FROM provider_documents WHERE provider_id = $1',
-            [req.params.id]
-          );
-          const uploaded = new Set(docs.rows.map((d) => d.doc_type));
-          if (required.length > 0 && required.every((doc) => uploaded.has(doc))) {
-            await pool.query(
-              'UPDATE service_providers SET kyc_status = \'approved\', kyc_review_note = NULL WHERE id = $1',
-              [req.params.id]
-            );
-          }
+          // File presence is not identity verification. Keep the account pending
+          // until an administrator reviews the actual documents and explicitly approves it.
         }
       }
 
