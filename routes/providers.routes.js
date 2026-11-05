@@ -12,7 +12,7 @@ const { requireAdmin } = require('../middleware/admin');
 const { isValidPassword, PASSWORD_ERROR } = require('../utils/password');
 const { getVapidPublicKey } = require('../services/push');
 const { broadcastProviderLocation } = require('../services/realtime');
-const { normalizeServiceCategories } = require('../services/catalog');
+const { normalizeServiceCategories, isServiceCategoryForProvider } = require('../services/catalog');
 const { validateUploadFile } = require('../utils/fileValidation');
 
 const PROVIDER_TYPES = ['bike', 'auto', 'car', 'general_worker', 'skilled_worker'];
@@ -103,6 +103,10 @@ router.post('/register', async (req, res, next) => {
       : [];
     if ((type === 'general_worker' || type === 'skilled_worker') && serviceCategories.length === 0) {
       return res.status(400).json({ error: 'Select at least one home-service specialty before registering' });
+    }
+    const invalidCategory = serviceCategories.find((category) => !isServiceCategoryForProvider(category, type));
+    if (invalidCategory) {
+      return res.status(400).json({ error: 'The selected specialty does not belong to this partner type: ' + invalidCategory });
     }
     if (!isValidPassword(password)) return res.status(400).json({ error: PASSWORD_ERROR });
 
@@ -377,12 +381,18 @@ router.put('/me/skills', requireAuth(['provider']), async (req, res, next) => {
     if (!skills.length || skills.length > 30) {
       return res.status(400).json({ error: 'Provide between 1 and 30 skills' });
     }
+    const account = await pool.query('SELECT type FROM service_providers WHERE id = $1', [req.user.id]);
+    if (!account.rows.length) return res.status(404).json({ error: 'Provider not found' });
+    const accountType = account.rows[0].type;
     const normalized = [];
     for (const item of skills) {
       const skillKey = String(item?.skill_key || '').trim().toLowerCase();
       const serviceType = item?.service_type;
-      const validRide = serviceType === 'ride' && ['bike', 'auto', 'car'].includes(skillKey);
-      const validService = serviceType === 'services' && normalizeServiceCategories([skillKey]).includes(skillKey);
+      const validRide = serviceType === 'ride' && ['bike', 'auto', 'car'].includes(skillKey) && accountType === skillKey;
+      const validService = serviceType === 'services' &&
+        ['general_worker', 'skilled_worker'].includes(accountType) &&
+        normalizeServiceCategories([skillKey]).includes(skillKey) &&
+        isServiceCategoryForProvider(skillKey, accountType);
       if (!validRide && !validService) {
         return res.status(400).json({ error: `Invalid skill: ${skillKey}` });
       }
