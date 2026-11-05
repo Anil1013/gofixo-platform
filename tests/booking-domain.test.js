@@ -2,12 +2,20 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { calculateRideFare } = require('../services/ride-pricing');
-const { normalizeServiceCategory, normalizeServiceCategories } = require('../services/catalog');
+const { normalizeServiceCategory, normalizeServiceCategories, isServiceCategoryForProvider } = require('../services/catalog');
 
 test('ride pricing is independent and deterministic', () => {
   assert.equal(calculateRideFare('bike', 1), 36);
   assert.equal(calculateRideFare('auto', 1), 48);
   assert.equal(calculateRideFare('car', 1), 70);
+});
+
+test('home-service categories stay isolated to their registered partner type', () => {
+  assert.equal(isServiceCategoryForProvider('electrician', 'skilled_worker'), true);
+  assert.equal(isServiceCategoryForProvider('cleaning', 'general_worker'), true);
+  assert.equal(isServiceCategoryForProvider('electrician', 'general_worker'), false);
+  assert.equal(isServiceCategoryForProvider('cleaning', 'skilled_worker'), false);
+  assert.equal(isServiceCategoryForProvider('bike', 'bike'), false);
 });
 
 test('ride pricing rejects non-ride provider types', () => {
