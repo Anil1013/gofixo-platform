@@ -19,8 +19,16 @@ const paymentTrackingRoutes = require('./routes/payment-tracking.routes');
 const pool = require('./config/db');
 const { attachRealtime } = require('./services/realtime');
 const { getServiceCatalog } = require('./services/catalog');
+const { createRateLimiter } = require('./utils/requestRateLimit');
 
 const app = express();
+
+// Protect public Google-backed endpoints from accidental or abusive request volume.
+// Limits are per client IP and bounded in memory; use a shared store if the API is
+// later deployed across multiple backend instances.
+const placesRateLimit = createRateLimiter({ windowMs: 60_000, maxRequests: 60, keyPrefix: 'places' });
+const resolveRateLimit = createRateLimiter({ windowMs: 60_000, maxRequests: 20, keyPrefix: 'places-resolve' });
+const routesRateLimit = createRateLimiter({ windowMs: 60_000, maxRequests: 20, keyPrefix: 'routes' });
 
 // AWS Elastic Beanstalk runs the Node process behind its reverse proxy.
 // Trust the single proxy hop so req.ip reflects the real client IP for rate limiting.
@@ -139,7 +147,7 @@ app.get('/api/catalog/services', (req, res) => {
   res.json(getServiceCatalog());
 });
 
-app.get('/api/places/autocomplete', async (req, res) => {
+app.get('/api/places/autocomplete', placesRateLimit, async (req, res) => {
   const input = String(req.query.input || '').trim();
   if (input.length < 2) return res.json({ suggestions: [] });
 
@@ -185,7 +193,7 @@ app.get('/api/places/autocomplete', async (req, res) => {
   }
 });
 
-app.get('/api/places/details/:placeId', async (req, res) => {
+app.get('/api/places/details/:placeId', placesRateLimit, async (req, res) => {
   const placeId = String(req.params.placeId || '').trim();
   if (!placeId) return res.status(400).json({ error: 'Place ID is required' });
 
@@ -220,7 +228,7 @@ app.get('/api/places/details/:placeId', async (req, res) => {
   }
 });
 
-app.get('/api/places/resolve', async (req, res) => {
+app.get('/api/places/resolve', resolveRateLimit, async (req, res) => {
   const input = String(req.query.input || '').trim();
   if (!input) return res.status(400).json({ error: 'Address is required' });
 
@@ -252,7 +260,7 @@ app.get('/api/places/resolve', async (req, res) => {
   }
 });
 
-app.post('/api/routes/compute', async (req, res) => {
+app.post('/api/routes/compute', routesRateLimit, async (req, res) => {
   const originLat = Number(req.body?.origin?.lat);
   const originLng = Number(req.body?.origin?.lng);
   const destinationLat = Number(req.body?.destination?.lat);
