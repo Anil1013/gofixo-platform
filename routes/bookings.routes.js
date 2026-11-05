@@ -363,6 +363,7 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
            AND target_sp.kyc_status = 'approved'
            AND target_sp.current_lat IS NOT NULL
            AND target_sp.current_lng IS NOT NULL
+           AND target_sp.location_updated_at >= NOW() - INTERVAL '3 minutes'
            AND NOT (target_sp.id = ANY(COALESCE(b.declined_providers, '{}')))
            AND NOT EXISTS (
              SELECT 1 FROM bookings active_b
@@ -531,6 +532,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
          AND sp.is_available = true
          AND sp.kyc_status = 'approved'
          AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
+         AND sp.location_updated_at >= NOW() - INTERVAL '3 minutes'
          AND ($5 <> 'ride' OR EXISTS (
            SELECT 1 FROM provider_subscriptions ps
            WHERE ps.provider_id = sp.id
@@ -599,6 +601,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
          AND p.is_available = true
          AND p.kyc_status = 'approved'
          AND p.current_lat IS NOT NULL AND p.current_lng IS NOT NULL
+         AND p.location_updated_at >= NOW() - INTERVAL '3 minutes'
          AND (pps.endpoint IS NOT NULL OR p.fcm_token IS NOT NULL)
          AND ($6 <> 'ride' OR EXISTS (
            SELECT 1 FROM provider_subscriptions ps
@@ -915,6 +918,7 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
              )
              AND sp.kyc_status = 'approved'
              AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
+         AND sp.location_updated_at >= NOW() - INTERVAL '3 minutes'
              AND (b.service_type = 'services' OR EXISTS (
                SELECT 1
                FROM provider_subscriptions ps
@@ -1200,6 +1204,7 @@ router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) =>
           AND sp.is_available = true
           AND sp.kyc_status = 'approved'
           AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
+         AND sp.location_updated_at >= NOW() - INTERVAL '3 minutes'
           AND NOT (sp.id = ANY(COALESCE(b.declined_providers, '{}')))
           AND (b.service_type = 'services' OR EXISTS (
             SELECT 1 FROM provider_subscriptions ps
