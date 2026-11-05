@@ -1085,72 +1085,141 @@ router.post('/:id/confirm-waiting-fee', requireAuth(['provider']), async (req, r
   }
 });
 
-// Provider declines — stays on duty; the request goes to the next nearest provider
+// Provider declines — stays on duty; the request goes to the next nearest provider.
 router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) => {
+  const client = await pool.connect();
+  let inTransaction = false;
+  let closedBooking = null;
   try {
-    const result = await pool.query(
-      `UPDATE bookings
-       SET declined_providers = array_append(COALESCE(declined_providers, '{}'), $2)
-       WHERE id = $1
-         AND status = 'requested'
-         AND (provider_id IS NULL OR provider_id = $2)
-         AND NOT ($2 = ANY(COALESCE(declined_providers, '{}')))
-       RETURNING id`,
-      [req.params.id, req.user.id]
+    await client.query('BEGIN');
+    inTransaction = true;
+
+    // Serialize declines for this booking so the final eligible provider cannot
+    // race another decline and leave a request open or its wallet reserve locked.
+    const bookingResult = await client.query(
+      `SELECT id, customer_id, service_type, fare_amount, status, provider_id,
+              declined_providers
+         FROM bookings
+        WHERE id = $1
+        FOR UPDATE`,
+      [req.params.id]
     );
-    if (result.rows.length === 0) {
+    if (!bookingResult.rows.length || bookingResult.rows[0].status !== 'requested') {
+      await client.query('ROLLBACK');
+      inTransaction = false;
+      return res.status(409).json({ error: 'This request is no longer available' });
+    }
+    const booking = bookingResult.rows[0];
+    if (booking.provider_id != null && Number(booking.provider_id) !== Number(req.user.id)) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
+      return res.status(409).json({ error: 'This request is no longer available' });
+    }
+    const declined = (booking.declined_providers || []).map(Number);
+    if (declined.includes(Number(req.user.id))) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
       return res.status(409).json({ error: 'This request is no longer available' });
     }
 
+    await client.query(
+      `UPDATE bookings
+          SET declined_providers = array_append(COALESCE(declined_providers, '{}'), $2)
+        WHERE id = $1 AND status = 'requested'`,
+      [req.params.id, req.user.id]
+    );
+
     // Keep everyone else online. If nobody eligible within 10 km remains,
-    // the request is closed instead of taking providers offline.
-    const remaining = await pool.query(
+    // close the request and release any home-service wallet reservation.
+    const remaining = await client.query(
       `SELECT 1
-       FROM bookings b
-       JOIN service_providers sp ON true
-       WHERE b.id = $1
-         AND b.status = 'requested'
-         AND b.provider_id IS NULL
-         AND EXISTS (
-           SELECT 1 FROM provider_skills skill
-           WHERE skill.provider_id = sp.id
-             AND skill.skill_key = CASE WHEN b.service_type = 'ride' THEN b.provider_type ELSE b.service_category END
-             AND skill.service_type = b.service_type
-             AND skill.kyc_status = 'approved'
-             AND skill.is_available = true
-         )
-         AND sp.is_available = true
-         AND sp.kyc_status = 'approved'
-         AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
-         AND NOT (sp.id = ANY(COALESCE(b.declined_providers, '{}')))
-         AND (b.service_type = 'services' OR EXISTS (
-           SELECT 1 FROM provider_subscriptions ps
-           WHERE ps.provider_id = sp.id
-             AND ps.status = 'active'
-             AND ps.expiry_date > NOW()
-         ))
-         AND (6371 * acos(
-           LEAST(1, GREATEST(-1,
-             cos(radians(CASE WHEN b.service_type = 'services' THEN COALESCE(b.drop_lat, b.pickup_lat) ELSE b.pickup_lat END)) * cos(radians(sp.current_lat)) *
-             cos(radians(sp.current_lng) - radians(CASE WHEN b.service_type = 'services' THEN COALESCE(b.drop_lng, b.pickup_lng) ELSE b.pickup_lng END)) +
-             sin(radians(CASE WHEN b.service_type = 'services' THEN COALESCE(b.drop_lat, b.pickup_lat) ELSE b.pickup_lat END)) * sin(radians(sp.current_lat))
-           ))
-         )) <= 10
-       LIMIT 1`,
+         FROM bookings b
+         JOIN service_providers sp ON true
+        WHERE b.id = $1
+          AND b.status = 'requested'
+          AND b.provider_id IS NULL
+          AND EXISTS (
+            SELECT 1 FROM provider_skills skill
+             WHERE skill.provider_id = sp.id
+               AND skill.skill_key = CASE WHEN b.service_type = 'ride' THEN b.provider_type ELSE b.service_category END
+               AND skill.service_type = b.service_type
+               AND skill.kyc_status = 'approved'
+               AND skill.is_available = true
+          )
+          AND sp.is_available = true
+          AND sp.kyc_status = 'approved'
+          AND sp.current_lat IS NOT NULL AND sp.current_lng IS NOT NULL
+          AND NOT (sp.id = ANY(COALESCE(b.declined_providers, '{}')))
+          AND (b.service_type = 'services' OR EXISTS (
+            SELECT 1 FROM provider_subscriptions ps
+             WHERE ps.provider_id = sp.id
+               AND ps.status = 'active'
+               AND ps.expiry_date > NOW()
+          ))
+          AND (6371 * acos(
+            LEAST(1, GREATEST(-1,
+              cos(radians(CASE WHEN b.service_type = 'services' THEN COALESCE(b.drop_lat, b.pickup_lat) ELSE b.pickup_lat END)) * cos(radians(sp.current_lat)) *
+              cos(radians(sp.current_lng) - radians(CASE WHEN b.service_type = 'services' THEN COALESCE(b.drop_lng, b.pickup_lng) ELSE b.pickup_lng END)) +
+              sin(radians(CASE WHEN b.service_type = 'services' THEN COALESCE(b.drop_lat, b.pickup_lat) ELSE b.pickup_lat END)) * sin(radians(sp.current_lat))
+            ))
+          )) <= 10
+        LIMIT 1`,
       [req.params.id]
     );
+
     if (remaining.rows.length === 0) {
-      await pool.query(
+      if (booking.service_type === 'services') {
+        await releaseServiceWallet(
+          client,
+          booking.id,
+          booking.customer_id,
+          Number(booking.fare_amount),
+          'no_eligible_provider'
+        );
+      }
+      await client.query(
         `UPDATE bookings
-         SET status = 'no_provider', offered_at = NULL
-         WHERE id = $1 AND status = 'requested' AND provider_id IS NULL`,
+            SET status = 'no_provider', offered_at = NULL, start_pin = NULL
+          WHERE id = $1 AND status = 'requested'`,
         [req.params.id]
       );
+      closedBooking = booking;
     }
 
-    res.json({ message: 'Request declined' });
+    await client.query('COMMIT');
+    inTransaction = false;
+
+    if (closedBooking) {
+      pool.query('SELECT fcm_token FROM customers WHERE id = $1', [closedBooking.customer_id])
+        .then(async (customer) => {
+          const token = customer.rows[0]?.fcm_token;
+          if (!token) return;
+          const sent = await sendCustomerFcm(token, {
+            type: 'booking_expired',
+            title: 'Gofixo — No partner available',
+            body: 'No eligible partner is available nearby. Any reserved service-wallet amount has been released.',
+            booking_id: closedBooking.id,
+          });
+          if (sent && sent.expired) {
+            await pool.query(
+              'UPDATE customers SET fcm_token = NULL WHERE id = $1 AND fcm_token = $2',
+              [closedBooking.customer_id, token]
+            );
+          }
+        })
+        .catch((pushError) => console.error('Failed to notify customer about unavailable booking:', pushError.message));
+    }
+
+    return res.json({
+      message: 'Request declined',
+      booking_status: closedBooking ? 'no_provider' : 'requested',
+      wallet_reservation_released: Boolean(closedBooking && booking.service_type === 'services'),
+    });
   } catch (err) {
+    if (inTransaction) await client.query('ROLLBACK').catch(() => {});
     next(err);
+  } finally {
+    client.release();
   }
 });
 
