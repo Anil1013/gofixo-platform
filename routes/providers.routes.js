@@ -183,7 +183,8 @@ router.get('/', requireAdmin, async (req, res, next) => {
         CASE WHEN sub.earning_cap IS NOT NULL
              THEN sub.earning_cap - sub.total_earned_this_cycle
              ELSE NULL END AS pending_amount,
-        COALESCE(docs.documents, '[]') AS documents
+        COALESCE(docs.documents, '[]') AS documents,
+        EXISTS (SELECT 1 FROM provider_password_reset_requests pr WHERE pr.provider_id = sp.id AND pr.status = 'pending') AS reset_requested
       FROM service_providers sp
       LEFT JOIN LATERAL (
         SELECT ps.total_earned_this_cycle, spl.plan_name, spl.earning_cap
@@ -210,6 +211,38 @@ router.get('/', requireAdmin, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+// Admin resolves a partner's forgotten-password request with a new bcrypt hash.
+router.post('/:id/reset-password', requireAdmin, async (req, res, next) => {
+  try {
+    const providerId = Number.parseInt(req.params.id, 10);
+    const newPassword = req.body?.new_password;
+    if (!Number.isSafeInteger(providerId) || providerId <= 0) return res.status(400).json({ error: 'Invalid provider ID' });
+    if (!isValidPassword(newPassword)) return res.status(400).json({ error: PASSWORD_ERROR });
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const updated = await client.query(
+        'UPDATE service_providers SET password_hash = $1, password_changed_at = NOW() WHERE id = $2 RETURNING id',
+        [passwordHash, providerId]
+      );
+      if (!updated.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Partner not found' });
+      }
+      await client.query(
+        "UPDATE provider_password_reset_requests SET status = 'resolved', resolved_at = NOW() WHERE provider_id = $1 AND status = 'pending'",
+        [providerId]
+      );
+      await client.query('COMMIT');
+      return res.json({ message: 'Partner password reset successfully' });
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally { client.release(); }
+  } catch (err) { next(err); }
 });
 
 // Admin-only access to a stored KYC document. Documents are never publicly served.
