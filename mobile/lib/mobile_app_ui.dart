@@ -1563,7 +1563,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                  filled:true,fillColor:Colors.white,
                  labelText:'What do you need?',
                  hintText:serviceCategory=='cleaning'?'e.g. 3 BHK full-home deep cleaning, kitchen and bathrooms':serviceCategory=='ac_service'?'e.g. AC not cooling, 1.5 ton split AC, service or repair':serviceCategory=='plumber'?'e.g. bathroom tap leakage, pipe repair, number of fittings':serviceCategory=='electrician'?'e.g. fan installation, switchboard repair, number of points':'Mention the exact work, quantity, size or rooms, and any special requirements',
-                 maxLength:500,
+                 
                  prefixIcon:const Icon(Icons.handyman_outlined,color:gfGreen),
                  border:OutlineInputBorder(borderRadius:BorderRadius.circular(18)),
                ),
