@@ -373,7 +373,8 @@ app.use((err, req, res, next) => {
 async function ensureRuntimeSchema() {
   await pool.query(`
     ALTER TABLE service_providers
-    ADD COLUMN IF NOT EXISTS kyc_review_note TEXT
+      ADD COLUMN IF NOT EXISTS kyc_review_note TEXT,
+      ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP DEFAULT NOW()
   `);
 
   await pool.query(`
