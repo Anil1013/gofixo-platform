@@ -11,6 +11,7 @@ const pool = require('../config/db');
 const { isValidPassword, PASSWORD_ERROR } = require('../utils/password');
 const { checkLoginRateLimit, recordFailedLogin, clearLoginFailures } = require('../utils/loginRateLimit');
 const { requireAuth } = require('../middleware/auth');
+const { validateUploadFile } = require('../utils/fileValidation');
 
 const profileUpload = multer({
   storage: multer.memoryStorage(),
@@ -66,6 +67,9 @@ router.post('/customer/fcm-token', requireAuth(['customer']), async (req, res, n
 router.post('/customer/profile-photo', requireAuth(['customer']), profileUpload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'file is required' });
+    if (!validateUploadFile(req.file, new Set(['image/jpeg', 'image/png', 'image/webp']))) {
+      return res.status(400).json({ error: 'Profile photo content does not match a supported JPG, PNG or WEBP image' });
+    }
     const dir = path.join(__dirname, '..', 'uploads', 'customers', String(req.user.id));
     await fsp.mkdir(dir, { recursive: true });
     const ext = path.extname(req.file.originalname || '').toLowerCase();
