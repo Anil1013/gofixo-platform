@@ -450,7 +450,7 @@ router.patch('/:id/skills/:skillKey/kyc', requireAdmin, async (req, res, next) =
 
     const result = await pool.query(
       `UPDATE provider_skills SET kyc_status = $1, review_note = $2,
-         is_available = CASE WHEN $1 = 'approved' THEN is_available ELSE false END,
+         is_available = CASE WHEN $1 = 'approved' THEN true ELSE false END,
          updated_at = NOW()
        WHERE provider_id = $3 AND skill_key = $4
        RETURNING provider_id, skill_key, service_type, kyc_status, is_available, review_note`,
