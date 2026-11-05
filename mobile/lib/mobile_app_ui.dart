@@ -1250,9 +1250,37 @@ class ReferenceBookingPage extends StatefulWidget{
 class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  GoogleMapController? mapController;
  StreamSubscription<Position>? locationSub;
- final dest=TextEditingController();final pickupController=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your current location…';String serviceCategory='other',serviceDescription='';final List<String> selectedCleaningTasks=[];Position? pos;Map<String,dynamic>? place,pickupPlace;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[],pickupSuggestions=[];Set<Polyline> routePolylines={};List<Map<String,dynamic>> routeSteps=[];LatLng? destinationPoint,pickupPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce,pickupDebounce;LatLng? lastReversePoint;
+ final dest=TextEditingController();final pickupController=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your current location…';String serviceCategory='other',serviceDescription='';final List<String> selectedCleaningTasks=[];final List<String> selectedServiceTasks=[];Position? pos;Map<String,dynamic>? place,pickupPlace;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[],pickupSuggestions=[];Set<Polyline> routePolylines={};List<Map<String,dynamic>> routeSteps=[];LatLng? destinationPoint,pickupPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce,pickupDebounce;LatLng? lastReversePoint;
  @override void initState(){super.initState();type=widget.type;serviceCategory=widget.serviceCategory??'other';serviceDescription=widget.serviceDescription??'';serviceDesc.text=serviceDescription;WidgetsBinding.instance.addPostFrameCallback((_)=>locate());}
  @override void dispose(){debounce?.cancel();pickupDebounce?.cancel();locationSub?.cancel();dest.dispose();pickupController.dispose();serviceDesc.dispose();super.dispose();}
+ List<String> get serviceTaskOptions {
+  const tasks=<String,List<String>>{
+   'cleaning':['Bathroom cleaning','Utensil washing','Kitchen cleaning','Bedroom cleaning','Living room cleaning','Balcony cleaning','Stairs cleaning','Full home cleaning','Deep cleaning','Other'],
+   'electrician':['Fan installation/repair','Light or LED fitting','Switch/socket repair','Wiring fault','MCB or fuse issue','Inverter installation','Doorbell repair','Other'],
+   'plumber':['Tap leakage/repair','Flush or toilet repair','Washbasin installation','Pipe leakage','Drain blockage','Shower installation','Water motor repair','Other'],
+   'ac_service':['AC general servicing','AC not cooling','Gas refill/check','Water leakage','AC installation','AC uninstallation','AC repair','Other'],
+   'painter':['Single wall painting','One room painting','Full home painting','Touch-up/putty','Door or grill painting','Waterproofing','Other'],
+   'carpenter':['Door repair','Lock/handle fitting','Furniture repair','Shelf installation','Bed/wardrobe assembly','Hinge/channel repair','Other'],
+   'appliance_repair':['Microwave repair','Chimney repair','Induction/cooktop repair','Geyser repair','Other appliance repair'],
+   'refrigerator_repair':['Fridge not cooling','Gas/leak check','Compressor issue','Water leakage','Door/gasket repair','Other'],
+   'washing_machine_repair':['Machine not starting','Water not draining','Spin/noise issue','Installation','General check-up','Other'],
+   'ro_water_purifier':['RO servicing','Filter replacement','Water not dispensing','Leakage repair','Installation/uninstallation','Other'],
+   'cctv_security':['Camera installation','CCTV not working','DVR/NVR setup','Remote viewing setup','Other'],
+   'internet_wifi':['New Wi-Fi setup','Router installation','No internet issue','Weak signal/coverage','LAN wiring','Other'],
+   'geyser_repair':['Geyser servicing','No hot water','Leakage repair','Installation/uninstallation','Other'],
+   'pest_control':['Cockroach treatment','Mosquito treatment','Termite treatment','Rodent control','Bed bug treatment','Full home treatment','Other'],
+   'packers_movers':['Few items shifting','One room shifting','Full home shifting','Packing only','Loading/unloading','Office shifting','Other'],
+   'salon_beauty':['Haircut','Hair styling','Facial/cleanup','Waxing','Manicure/pedicure','Makeup','Other'],
+   'cook':['One-time cooking','Daily cook','Meal preparation','Small gathering cooking','Kitchen help','Other'],
+   'gardener':['Plant trimming','Lawn mowing','Plant watering','Repotting','Garden cleanup','New plants setup','Other'],
+   'laundry':['Wash clothes','Wash and iron','Ironing only','Dry cleaning pickup','Bedsheet/curtain wash','Small load laundry','Other'],
+   'driver':['Hourly driver','Half-day driver','Full-day driver','Outstation driver','Pickup/drop only','Other'],
+   'tutor':['Maths tuition','Science tuition','English tuition','Homework help','Online tuition','Other'],
+   'babysitter':['Hourly babysitting','Half-day childcare','Full-day childcare','After-school care','Other'],
+   'elder_care':['Companionship','Daily assistance','Mobility assistance','Meal assistance','Appointment accompaniment','Other'],
+  };
+  return tasks[serviceCategory]??const <String>[];
+ }
  Future<void>locate()async{if(busy)return;setState(()=>busy=true);try{if(!await Geolocator.isLocationServiceEnabled())throw Exception('Please turn on Location Services.');var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)throw Exception('Location permission is required.');Position?best;for(var i=0;i<3;i++){final x=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:0,timeLimit:Duration(seconds:12)));if(best==null||x.accuracy<best.accuracy)best=x;if(x.accuracy<=30)break;}final x=best!;if(x.accuracy>150)throw Exception('GPS accuracy is too weak. Please move outdoors and try again.');final a=await _reverse(x.latitude,x.longitude);if(mounted){setState((){pos=x;pickup=a;pickupController.text=a;pickupPlace={'address':a,'lat':x.latitude,'lng':x.longitude};pickupPoint=LatLng(x.latitude,x.longitude);lastReversePoint=LatLng(x.latitude,x.longitude);});await _centerMap(LatLng(x.latitude,x.longitude),17);}_startLocationStream();}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
  void _startLocationStream(){locationSub?.cancel();locationSub=Geolocator.getPositionStream(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:5)).listen((x)async{if(!mounted||x.accuracy>150)return;final point=LatLng(x.latitude,x.longitude);final old=pos;setState(()=>pos=x);if(old==null||Geolocator.distanceBetween(old.latitude,old.longitude,x.latitude,x.longitude)>=3){if(lastReversePoint==null||Geolocator.distanceBetween(lastReversePoint!.latitude,lastReversePoint!.longitude,x.latitude,x.longitude)>=50){final address=await _reverse(x.latitude,x.longitude);if(!mounted)return;setState((){if(pickupPoint==null||_samePoint(pickupPoint!,old==null?point:LatLng(old.latitude,old.longitude))){pickup=address;pickupController.text=address;pickupPlace={'address':address,'lat':x.latitude,'lng':x.longitude};pickupPoint=point;}lastReversePoint=point;});}}});}
  void searchPickup(String v){pickupDebounce?.cancel();pickupPlace=null;final q=v.trim();if(q.length<2){setState(()=>pickupSuggestions=[]);return;}pickupDebounce=Timer(const Duration(milliseconds:450),()async{try{final s=await ApiService.placeAutocomplete(q);if(mounted&&pickupController.text.trim()==q)setState(()=>pickupSuggestions=s);}catch(_){try{final points=await locationFromAddress(q);if(points.isNotEmpty&&mounted&&pickupController.text.trim()==q){final p=points.first;setState(()=>pickupSuggestions=[{'type':'native','placeId':'native:'+p.latitude.toString()+','+p.longitude.toString(),'text':q,'mainText':q,'secondaryText':'Device address search'}]);}}catch(_){if(mounted&&pickupController.text.trim()==q)setState(()=>pickupSuggestions=[]);}}});}
@@ -1355,8 +1383,9 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  Future<void>book()async{
   if(pickupPoint==null)return;
   if(!isService&&(km==null||fare==null))return;
-  final requestDetails=isService&&serviceCategory=='cleaning'?[...selectedCleaningTasks,if(serviceDescription.trim().isNotEmpty)serviceDescription.trim()].join(' | '):serviceDescription.trim();
-  if(isService&&requestDetails.length<3){_snack(serviceCategory=='cleaning'?'Please select the cleaning work or describe what needs cleaning.':'Please describe the exact work and any important details so the partner can prepare.');return;}
+  final selectedTasks=serviceCategory=='cleaning'?selectedCleaningTasks:selectedServiceTasks;
+  final requestDetails=isService?[...selectedTasks,if(serviceDescription.trim().isNotEmpty)serviceDescription.trim()].join(' | '):serviceDescription.trim();
+  if(isService&&requestDetails.length<3){_snack('Please select the work you need or add a short description for the partner.');return;}
   final address=place?['address']?.toString()??dest.text.trim();
   if(address.trim().isEmpty){_snack('Please enter the destination or service address.');return;}
   setState(()=>busy=true);
@@ -1552,20 +1581,30 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                )).toList(),
              ),
            ),
-         if(isService&&serviceCategory=='cleaning')
+         if(isService&&serviceTaskOptions.isNotEmpty)
            Padding(
              padding:const EdgeInsets.only(bottom:8),
              child:Container(
                padding:const EdgeInsets.all(12),
                decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(16)),
                child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                 const Text('What do you want cleaned?',style:TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
+                 const Text('Select the work you need',style:TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
                  const SizedBox(height:4),
-                 const Text('Select only the work you need. You can choose more than one.',style:TextStyle(fontSize:11,color:gfMuted)),
+                 const Text('Choose only the required task. Multiple tasks can be selected.',style:TextStyle(fontSize:11,color:gfMuted)),
                  const SizedBox(height:8),
                  Wrap(spacing:7,runSpacing:2,children:[
-                   for(final task in const ['Bathroom cleaning','Utensil washing','Kitchen cleaning','Bedroom cleaning','Living room cleaning','Balcony cleaning','Stairs cleaning','Full home cleaning','Deep cleaning','Other'])
-                     FilterChip(label:Text(task),selected:selectedCleaningTasks.contains(task),selectedColor:const Color(0xFFE8FFF1),checkmarkColor:gfGreen,onSelected:(selected){setState((){if(selected){if(!selectedCleaningTasks.contains(task))selectedCleaningTasks.add(task);}else{selectedCleaningTasks.remove(task);}});}),
+                   for(final task in serviceTaskOptions)
+                     FilterChip(
+                       label:Text(task),
+                       selected:(serviceCategory=='cleaning'?selectedCleaningTasks:selectedServiceTasks).contains(task),
+                       selectedColor:const Color(0xFFE8FFF1),
+                       checkmarkColor:gfGreen,
+                       onSelected:(selected){setState((){
+                         final selectedList=serviceCategory=='cleaning'?selectedCleaningTasks:selectedServiceTasks;
+                         if(selected){if(!selectedList.contains(task))selectedList.add(task);}
+                         else{selectedList.remove(task);}
+                       });},
+                     ),
                  ]),
                ]),
              ),
@@ -1580,8 +1619,8 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                onChanged:(v)=>serviceDescription=v.trim(),
                decoration:InputDecoration(
                  filled:true,fillColor:Colors.white,
-                 labelText:serviceCategory=='cleaning'?'Room-wise cleaning requirements':'What do you need?',
-                 hintText:serviceCategory=='cleaning'?'Mention property type (villa, independent house, flat, etc.) and list each area with quantity: bedrooms, bathrooms, kitchen, living rooms, balconies, stairs and other spaces. Add deep/regular cleaning needs.':serviceCategory=='ac_service'?'e.g. AC not cooling, 1.5 ton split AC, service or repair':serviceCategory=='plumber'?'e.g. bathroom tap leakage, pipe repair, number of fittings':serviceCategory=='electrician'?'e.g. fan installation, switchboard repair, number of points':'Mention the exact work, quantity, size or rooms, and any special requirements',
+                 labelText:serviceCategory=='cleaning'?'Room-wise cleaning requirements':'Quantity & additional details',
+                 hintText:serviceCategory=='cleaning'?'Property type and room-wise quantity: bedrooms, bathrooms, kitchen, living rooms, balconies and stairs. Mention approximate size and regular/deep cleaning.':'Mention quantity and details: e.g. 2 fans, 3 switches, 1 bathroom tap, 2 ACs (1.5 ton split), number of rooms/items, brand/model or access notes.',
                  
                  prefixIcon:const Icon(Icons.handyman_outlined,color:gfGreen),
                  border:OutlineInputBorder(borderRadius:BorderRadius.circular(18)),
