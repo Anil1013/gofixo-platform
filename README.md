@@ -82,7 +82,7 @@ Allowed file types: JPG, JPEG, PNG, WEBP and PDF. Maximum file size is 15 MB. Th
 
 ## Maps and routing
 
-The Flutter Android app uses Google Maps for the interactive map, Google Places for address autocomplete/details, and Google Routes API for road distance, route geometry, turn instructions and traffic-aware ETA. The backend keeps the Google API key in its environment and verifies ride distance again when creating a booking. The Android app uses the Google Maps SDK key supplied through the Android build configuration.
+The Flutter Android app uses Google Maps for the interactive map, Google Places for address autocomplete/details, and Google Routes API for road distance, route geometry, turn instructions and traffic-aware ETA. The backend keeps the Google API key in its environment and verifies ride distance again when creating a booking. The Android app uses the Google Maps SDK key supplied through the Android build configuration. Public Places autocomplete/details, text resolution and Routes endpoints have per-IP request limits to reduce abuse and unexpected Google API charges. These limits are process-local; use a shared rate-limit store if the backend is scaled to multiple instances.
 
 ## Realtime
 
