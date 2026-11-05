@@ -105,6 +105,19 @@ jobs:
             --dart-define=GOFIXO_GIT_SHA=${{ github.sha }}
           cp build/app/outputs/flutter-apk/app-release.apk /tmp/gofixo-current-release.apk
 
+      - name: Verify OTA APK signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          test -s "$APK"
+          SDK_ROOT="\${ANDROID_SDK_ROOT:-\${ANDROID_HOME}}"
+          APK_SIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner -perm -111 | sort -V | tail -n 1)"
+          test -n "$APK_SIGNER"
+          test -x "$APK_SIGNER"
+          "$APK_SIGNER" verify --verbose --min-sdk-version 24 "$APK"
+          "$APK_SIGNER" verify --print-certs "$APK"
+
       - name: Build OTA patch
         env:
           PATCH_VERSION: "ota-${{ github.sha }}"
@@ -142,6 +155,22 @@ jobs:
               "targetVersionCode": int(os.environ["TARGET_VERSION_CODE"])
             }
           open("dist/latest.json", "w").write(json.dumps(manifest, indent=2) + "\n")
+          PY
+          python3 - <<'PY'
+          import hashlib, json, pathlib, re
+          root = pathlib.Path("dist")
+          manifest = json.loads((root / "latest.json").read_text())
+          assert manifest.get("schemaVersion") == 1
+          patches = manifest.get("patches", {})
+          assert set(patches) == {"arm64-v8a", "armeabi-v7a", "x86_64"}
+          for abi, patch in patches.items():
+              payload = root / patch["filename"]
+              assert payload.is_file() and payload.stat().st_size > 0, abi
+              digest = hashlib.md5(payload.read_bytes()).hexdigest()
+              assert re.fullmatch(r"[0-9a-f]{32}", patch.get("md5", "")), abi
+              assert digest == patch["md5"], f"MD5 mismatch for {abi}"
+              assert patch.get("targetVersionCode") == int(os.environ["TARGET_VERSION_CODE"]), abi
+          print("OTA manifest validation passed: all ABIs, target version and payload MD5 verified.")
           PY
           cat dist/latest.json
 
