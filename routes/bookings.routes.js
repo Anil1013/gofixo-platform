@@ -234,6 +234,15 @@ async function expireWaitingBookings() {
                  AND active.status IN ('accepted', 'arrived', 'ongoing')
             )
             AND sp.kyc_status = 'approved'
+            AND sp.location_updated_at >= NOW() - INTERVAL '3 minutes'
+            AND EXISTS (
+              SELECT 1 FROM provider_skills skill
+               WHERE skill.provider_id = sp.id
+                 AND skill.kyc_status = 'approved'
+                 AND skill.is_available = true
+                 AND skill.service_type = CASE WHEN sp.type IN ('bike','auto','car') THEN 'ride' ELSE 'services' END
+                 AND (skill.service_type <> 'ride' OR skill.skill_key = sp.type)
+            )
             AND (sp.type NOT IN ('bike','auto','car') OR EXISTS (
               SELECT 1 FROM provider_subscriptions ps
                WHERE ps.provider_id = sp.id
@@ -768,6 +777,15 @@ router.post('/:id/cancel', requireAuth(['customer']), async (req, res, next) => 
            AND sp.kyc_status = 'approved'
            AND sp.current_lat IS NOT NULL
            AND sp.current_lng IS NOT NULL
+           AND sp.location_updated_at >= NOW() - INTERVAL '3 minutes'
+           AND EXISTS (
+             SELECT 1 FROM provider_skills skill
+              WHERE skill.provider_id = sp.id
+                AND skill.kyc_status = 'approved'
+                AND skill.is_available = true
+                AND skill.service_type = CASE WHEN sp.type IN ('bike','auto','car') THEN 'ride' ELSE 'services' END
+                AND (skill.service_type <> 'ride' OR skill.skill_key = sp.type)
+           )
            AND NOT EXISTS (
              SELECT 1 FROM bookings b
              WHERE b.provider_id = sp.id
@@ -890,6 +908,15 @@ router.post('/:id/provider-cancel', requireAuth(['provider']), async (req, res, 
     const eligible = await client.query(
       `SELECT 1 FROM service_providers sp
         WHERE sp.id = $1 AND sp.kyc_status = 'approved'
+          AND sp.location_updated_at >= NOW() - INTERVAL '3 minutes'
+          AND EXISTS (
+            SELECT 1 FROM provider_skills skill
+             WHERE skill.provider_id = sp.id
+               AND skill.kyc_status = 'approved'
+               AND skill.is_available = true
+               AND skill.service_type = CASE WHEN sp.type IN ('bike','auto','car') THEN 'ride' ELSE 'services' END
+               AND (skill.service_type <> 'ride' OR skill.skill_key = sp.type)
+          )
           AND (sp.type NOT IN ('bike','auto','car') OR EXISTS (SELECT 1 FROM provider_subscriptions ps
                        WHERE ps.provider_id = sp.id AND ps.status = 'active' AND ps.expiry_date > NOW()))
           AND NOT EXISTS (SELECT 1 FROM bookings b
@@ -950,6 +977,7 @@ router.post('/:id/accept', requireAuth(['provider']), async (req, res, next) => 
            SELECT 1
            FROM service_providers sp
            WHERE sp.id = $2
+             AND sp.type = b.provider_type
              AND sp.is_available = true
              AND EXISTS (
                SELECT 1 FROM provider_skills skill
@@ -1640,6 +1668,33 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
       }
     }
 
+    const onlineEligibility = await client.query(
+      `SELECT 1 FROM service_providers sp
+        WHERE sp.id = $1
+          AND sp.kyc_status = 'approved'
+          AND sp.location_updated_at >= NOW() - INTERVAL '3 minutes'
+          AND EXISTS (
+            SELECT 1 FROM provider_skills skill
+             WHERE skill.provider_id = sp.id
+               AND skill.kyc_status = 'approved'
+               AND skill.is_available = true
+               AND skill.service_type = CASE WHEN sp.type IN ('bike','auto','car') THEN 'ride' ELSE 'services' END
+               AND (skill.service_type <> 'ride' OR skill.skill_key = sp.type)
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM bookings active_b
+             WHERE active_b.provider_id = sp.id
+               AND active_b.status IN ('accepted', 'arrived', 'ongoing')
+          )
+          AND (sp.type NOT IN ('bike','auto','car') OR EXISTS (
+            SELECT 1 FROM provider_subscriptions ps
+             WHERE ps.provider_id = sp.id
+               AND ps.status = 'active'
+               AND ps.expiry_date > NOW()
+          ))`,
+      [req.user.id]
+    );
+    providerAvailable = providerAvailable && onlineEligibility.rows.length > 0;
     await client.query(
       'UPDATE service_providers SET is_available = $1 WHERE id = $2',
       [providerAvailable, req.user.id]
