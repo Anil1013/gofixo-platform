@@ -111,7 +111,7 @@ jobs:
           set -euo pipefail
           APK="build/app/outputs/flutter-apk/app-release.apk"
           test -s "$APK"
-          SDK_ROOT="\${ANDROID_SDK_ROOT:-\${ANDROID_HOME}}"
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}"
           APK_SIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner -perm -111 | sort -V | tail -n 1)"
           test -n "$APK_SIGNER"
           test -x "$APK_SIGNER"
