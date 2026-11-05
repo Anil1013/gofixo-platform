@@ -14,6 +14,8 @@ const { getVapidPublicKey } = require('../services/push');
 const { broadcastProviderLocation } = require('../services/realtime');
 const { normalizeServiceCategories, isServiceCategoryForProvider } = require('../services/catalog');
 const { validateUploadFile } = require('../utils/fileValidation');
+const { createRateLimiter } = require('../utils/requestRateLimit');
+const providerRegisterLimit = createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 8, keyPrefix: 'provider-register' });
 
 const PROVIDER_TYPES = ['bike', 'auto', 'car', 'general_worker', 'skilled_worker'];
 
@@ -87,7 +89,7 @@ router.post('/:id/fcm-token', requireAuth(['provider']), requireOwnProvider, asy
 });
 
 // Register a new provider (driver/worker) — KYC starts as 'pending'
-router.post('/register', async (req, res, next) => {
+router.post('/register', providerRegisterLimit, async (req, res, next) => {
   try {
     const { name, phone, type, password, service_categories } = req.body;
     const normalizedPhone = String(phone ?? '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '');
