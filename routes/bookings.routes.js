@@ -16,6 +16,46 @@ function money(value) {
   return Number.isFinite(n) ? Number(n.toFixed(2)) : 0;
 }
 
+async function getAuthoritativeRideDistanceKm(originLat, originLng, destinationLat, destinationLng) {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) {
+    const error = new Error('Google Routes is not configured on the Gofixo server');
+    error.status = 503;
+    throw error;
+  }
+  const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': apiKey,
+      'X-Goog-FieldMask': 'routes.distanceMeters',
+    },
+    body: JSON.stringify({
+      origin: { location: { latLng: { latitude: originLat, longitude: originLng } } },
+      destination: { location: { latLng: { latitude: destinationLat, longitude: destinationLng } } },
+      travelMode: 'DRIVE',
+      routingPreference: 'TRAFFIC_AWARE',
+      computeAlternativeRoutes: false,
+      languageCode: 'en-IN',
+      units: 'METRIC',
+    }),
+    signal: AbortSignal.timeout(15000),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data?.error?.message || 'Google Routes could not verify the ride distance');
+    error.status = response.status >= 500 ? 502 : 400;
+    throw error;
+  }
+  const meters = Number(data?.routes?.[0]?.distanceMeters);
+  if (!Number.isFinite(meters) || meters <= 0) {
+    const error = new Error('No valid drivable route was found for this ride');
+    error.status = 422;
+    throw error;
+  }
+  return meters / 1000;
+}
+
 async function reserveServiceWallet(client, customerId, bookingId, amount) {
   const wallet = await client.query(
     'SELECT * FROM wallets WHERE customer_id = $1 FOR UPDATE',
@@ -467,8 +507,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       return res.status(400).json({ error: 'drop_lat and drop_lng are required for a ride' });
     }
 
-    const routeDistance = route_distance_km === undefined || route_distance_km === null || route_distance_km === '' ? null : Number(route_distance_km);
-    const clientEstimatedFare = estimated_fare === undefined || estimated_fare === null || estimated_fare === '' ? null : Number(estimated_fare);
+    // Client distance and fare are hints only; server pricing uses a fresh Google Routes result.
     // Ride matching uses pickup; home-service matching uses the service address.
     const matchingLatitude = service_type === 'services' && destinationLatitude !== null ? destinationLatitude : pickupLatitude;
     const matchingLongitude = service_type === 'services' && destinationLongitude !== null ? destinationLongitude : pickupLongitude;
@@ -482,12 +521,13 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       calculatedFare = getServiceBaseFare(serviceCategory);
     }
 
+    let routeDistance = null;
     if (service_type === 'ride') {
+      routeDistance = await getAuthoritativeRideDistanceKm(
+        pickupLatitude, pickupLongitude, destinationLatitude, destinationLongitude
+      );
       if (!Number.isFinite(routeDistance) || routeDistance <= 0 || routeDistance > 1000) {
-        return res.status(400).json({ error: 'A valid route distance is required for a ride' });
-      }
-      if (clientEstimatedFare !== null && (!Number.isFinite(clientEstimatedFare) || clientEstimatedFare <= 0 || clientEstimatedFare > 1000000)) {
-        return res.status(400).json({ error: 'estimated_fare must be a valid positive number when provided' });
+        return res.status(400).json({ error: 'The verified ride distance is outside the supported range' });
       }
       calculatedFare = calculateRideFare(provider_type, routeDistance);
     }
