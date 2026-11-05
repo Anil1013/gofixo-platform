@@ -13,12 +13,14 @@ The backend listens on port 4000 by default.
 Customer:
 - `POST /api/auth/customer/register`
 - `POST /api/auth/customer/login`
-- `POST /api/auth/customer/forgot-password`
+- `POST /api/auth/customer/forgot-password` (creates an admin-visible reset request; does not change the password)
 
 Provider:
 - `POST /api/providers/register`
 - `POST /api/auth/provider/login`
-- `POST /api/auth/provider/forgot-password`
+- `POST /api/auth/provider/forgot-password` (creates an admin-visible reset request; does not change the password)
+
+Admins resolve reset requests from the Customers or Providers console. Passwords are bcrypt-hashed and password changes invalidate existing JWT sessions.
 
 Password rules: minimum 8 characters with at least one letter and one number.
 
@@ -27,20 +29,21 @@ Protected requests use:
 
 ## Booking lifecycle
 
-`requested -> accepted -> ongoing -> completed`
+`requested -> accepted -> arrived -> ongoing -> completed` (arrival is optional for a booking).
 
-Customers can cancel before the booking starts. Providers accept or decline requests from the provider dashboard. The current implementation broadcasts an eligible request to providers within 10 km; the first eligible provider to atomically accept wins. A request that remains unaccepted for 15 minutes becomes `no_provider`; the backend expiry sweep runs independently of the mobile app.
+Customers can cancel before the job starts. Partners can cancel an accepted/arrived booking before the customer PIN starts the job. Requests are offered only to the matching approved specialty within 10 km, with a GPS location refreshed in the last 3 minutes. The first eligible provider to atomically accept wins. A request that remains unaccepted for 15 minutes becomes `no_provider`; home-service wallet reservations are released on cancellation, timeout, or when all eligible partners decline. The backend expiry sweep runs independently of the mobile app.
 
-For ride bookings, the customer app calculates the route and estimated fare before calling `POST /api/bookings`. The server validates the supplied distance and estimated fare bounds.
+For ride bookings, the customer app previews the Google route and fare. At booking creation the backend independently recomputes the Google Routes distance and calculates the fare from that server-verified distance; client-supplied distance/fare values are not authoritative.
 
 ## Provider eligibility
 
 A provider must have:
-- approved KYC
-- an active subscription
-- an available/online status
-- a recent GPS location
-- no other accepted/ongoing booking
+- account KYC approved by an administrator
+- the requested individual specialty approved and enabled
+- an active subscription for ride bookings (home-service partners do not use the ride subscription)
+- an available/online account status
+- GPS updated within the last 3 minutes
+- no other active booking
 
 Location is considered fresh for 5 minutes.
 
@@ -59,13 +62,14 @@ A successful start clears the PIN and changes the booking to `ongoing`.
 
 `POST /api/bookings/:id/confirm-payment`
 
-Completing an ongoing booking:
-- marks the booking completed
-- records the final fare
-- records the provider earning
-- updates the active subscription's earning total
-- exhausts the plan at its earning cap
-- controls whether the provider can go available again
+Current settlement model:
+- Home-service bookings are paid from the customer's Gofixo Wallet. The amount is reserved when the booking is created and captured only when the partner confirms completion.
+- Customer wallet top-ups use the official Gofixo UPI QR and require admin verification against the actual bank credit before wallet balance changes.
+- Ride bookings currently use cash settlement with the partner; ride partners use the subscription/earning-cap model.
+- Home-service commission is separate from ride subscriptions. The default home-service commission is configured by `GOFIXO_COMMISSION_PERCENT` (default 20%).
+- Home-service partner payouts are recorded as pending. An admin must make the actual bank/UPI transfer and record its reference before marking the payout paid; automatic payout-provider integration is not enabled.
+
+Completing an ongoing booking records the locked fare, commission, partner earning and payment ledger entries in a database transaction. Ride subscription earnings update the active plan and can exhaust it at its earning cap.
 
 ## KYC documents
 
@@ -74,16 +78,11 @@ Provider documents are uploaded with:
 
 The upload is multipart with `doc_type` and `file`.
 
-Allowed file types: JPG, JPEG, PNG, WEBP and PDF. Maximum file size is 15 MB. Stored KYC files are not publicly exposed.
+Allowed file types: JPG, JPEG, PNG, WEBP and PDF. Maximum file size is 15 MB. The backend checks the file signature against its extension and reported MIME type before saving. Stored KYC files are not publicly exposed. Uploading documents does not automatically approve account KYC; an administrator must review and approve the account and each required specialty.
 
 ## Maps and routing
 
-The Flutter mobile app uses:
-- OpenStreetMap tiles
-- Nominatim for address lookup/reverse geocoding
-- OSRM public routing
-
-These public services are intended for a low-cost MVP. High-volume production traffic should move to a hosted/self-managed provider later.
+The Flutter Android app uses Google Maps for the interactive map, Google Places for address autocomplete/details, and Google Routes API for road distance, route geometry, turn instructions and traffic-aware ETA. The backend keeps the Google API key in its environment and verifies ride distance again when creating a booking. The Android app uses the Google Maps SDK key supplied through the Android build configuration.
 
 ## Realtime
 
@@ -113,7 +112,7 @@ Verify only after matching the payment against the actual bank record. The confi
 
 ## Mobile releases
 
-Flutter mobile code lives in `mobile/`.
+The customer and partner mobile experience is Flutter in `mobile/`; the supported native release target is Android. The release workflow verifies APK signing. OTA patches are published for the current app build and include a migration patch for legacy build `1000004` (Gofixo 1.0.4). A new full APK version requires updating both `mobile/pubspec.yaml` and `mobile/version.json`.
 
 GitHub tag releases `v*` build a signed APK and publish:
 - `gofixo-release.apk`
