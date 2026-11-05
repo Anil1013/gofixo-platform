@@ -111,7 +111,7 @@ jobs:
           test -x "$APK_SIGNER"
           "$APK_SIGNER" verify --verbose --min-sdk-version 24 "$APK"
           "$APK_SIGNER" verify --print-certs "$APK" | tee /tmp/gofixo-base-cert.txt
-          grep -Eo 'Signer #1 certificate SHA-256 digest: [0-9a-fA-F]+' /tmp/gofixo-base-cert.txt | sed 's/.*: //' > /tmp/gofixo-base-cert.sha256
+          grep -Eo '(V[0-9]+ )?Signer: certificate SHA-256 digest: [0-9a-fA-F]+' /tmp/gofixo-base-cert.txt | sed 's/.*: //' | tr '[:upper:]' '[:lower:]' > /tmp/gofixo-base-cert.sha256
           test -s /tmp/gofixo-base-cert.sha256
 
       - name: Build OTA patch
@@ -184,7 +184,7 @@ jobs:
           test -x "$APK_SIGNER"
           "$APK_SIGNER" verify --verbose --min-sdk-version 24 build/app/outputs/flutter-apk/app-release.apk
           "$APK_SIGNER" verify --print-certs build/app/outputs/flutter-apk/app-release.apk | tee /tmp/gofixo-legacy-cert.txt
-          grep -Eo 'Signer #1 certificate SHA-256 digest: [0-9a-fA-F]+' /tmp/gofixo-legacy-cert.txt | sed 's/.*: //' > /tmp/gofixo-legacy-cert.sha256
+          grep -Eo '(V[0-9]+ )?Signer: certificate SHA-256 digest: [0-9a-fA-F]+' /tmp/gofixo-legacy-cert.txt | sed 's/.*: //' | tr '[:upper:]' '[:lower:]' > /tmp/gofixo-legacy-cert.sha256
           diff -u /tmp/gofixo-base-cert.sha256 /tmp/gofixo-legacy-cert.sha256
           ASSET_KEYS="$(find assets/illustrations -type f | sort | paste -sd, -)"
           test -n "$ASSET_KEYS"
