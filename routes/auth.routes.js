@@ -12,6 +12,11 @@ const { isValidPassword, PASSWORD_ERROR } = require('../utils/password');
 const { checkLoginRateLimit, recordFailedLogin, clearLoginFailures } = require('../utils/loginRateLimit');
 const { requireAuth } = require('../middleware/auth');
 const { validateUploadFile } = require('../utils/fileValidation');
+const { createRateLimiter } = require('../utils/requestRateLimit');
+
+const customerRegisterLimit = createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 8, keyPrefix: 'customer-register' });
+const forgotPasswordLimit = createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 5, keyPrefix: 'forgot-password' });
+const passwordChangeLimit = createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 8, keyPrefix: 'password-change' });
 
 const profileUpload = multer({
   storage: multer.memoryStorage(),
@@ -32,7 +37,7 @@ function normalizeIndianPhone(value) {
 }
 
 // Register a new customer — phone + password (name optional)
-router.post('/customer/register', async (req, res, next) => {
+router.post('/customer/register', customerRegisterLimit, async (req, res, next) => {
   try {
     const { name, phone, password } = req.body;
     const normalizedPhone = normalizeIndianPhone(phone);
@@ -193,7 +198,7 @@ router.post('/:role/login', loginHandler);
 
 // Request a password reset without revealing whether the phone exists.
 // This creates an admin-visible request; it does not change the password by itself.
-router.post('/:role/forgot-password', async (req, res, next) => {
+router.post('/:role/forgot-password', forgotPasswordLimit, async (req, res, next) => {
   try {
     const { role } = req.params;
     const normalizedPhone = normalizeIndianPhone(req.body?.phone);
@@ -239,7 +244,7 @@ router.post('/:role/forgot-password', async (req, res, next) => {
 });
 
 // Change password while already signed in. The existing password is still required here.
-router.post('/:role/reset-password', async (req, res, next) => {
+router.post('/:role/reset-password', passwordChangeLimit, async (req, res, next) => {
   try {
     const { role } = req.params;
     const { phone, current_password, new_password } = req.body;
