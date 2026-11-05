@@ -1874,13 +1874,6 @@ class _Service extends StatelessWidget {
   final VoidCallback tap;
   const _Service(this.keyName, this.label, this.baseFare, this.tap);
 
-  String get _normalizedServiceKey => keyName
-      .trim()
-      .toLowerCase()
-      .replaceAll('&', 'and')
-      .replaceAll(' ', '_')
-      .replaceAll('-', '_');
-
   IconData get _serviceIcon => gfServiceIcon(keyName);
 
   @override
