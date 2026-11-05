@@ -1768,7 +1768,7 @@ class _ServicesState extends State<_Services>{
               final key = item['key']?.toString() ?? 'other';
               final label = item['label']?.toString() ?? key;
               final baseFare = double.tryParse(item['baseFare']?.toString() ?? '')?.round();
-              return _Service(key, label, baseFare, () => widget.onTap(type, key, label));
+              return _Service(key, label, baseFare, item['imageUrl']?.toString(), () => widget.onTap(type, key, label));
             }).toList(),
           ),
         ]),
@@ -1871,8 +1871,9 @@ class _Service extends StatelessWidget {
   final String keyName;
   final String label;
   final int? baseFare;
+  final String? imageUrl;
   final VoidCallback tap;
-  const _Service(this.keyName, this.label, this.baseFare, this.tap);
+  const _Service(this.keyName, this.label, this.baseFare, this.imageUrl, this.tap);
 
   IconData get _serviceIcon => gfServiceIcon(keyName);
 
@@ -1892,34 +1893,28 @@ class _Service extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFFF0FFF6), Color(0xFFE1F7EB)],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFD6F0E0)),
-                ),
-                child: Center(
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: gfGreen.withOpacity(0.10),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: imageUrl != null && imageUrl!.trim().isNotEmpty
+                      ? Image.network(
+                          imageUrl!,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: const Color(0xFFEFFFF5),
+                            child: Center(
+                              child: Icon(_serviceIcon, color: gfGreen, size: 31),
+                            ),
+                          ),
+                        )
+                      : Container(
+                          color: const Color(0xFFEFFFF5),
+                          child: Center(
+                            child: Icon(_serviceIcon, color: gfGreen, size: 31),
+                          ),
                         ),
-                      ],
-                    ),
-                    child: Icon(_serviceIcon, color: gfGreen, size: 27),
-                  ),
                 ),
               ),
             ),
