@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiGet, apiGetBlob, apiPatch } from '../api';
+import { apiGet, apiGetBlob, apiPatch, apiPost } from '../api';
 
 
 function ProviderPhoto({ providerId, documentId, size = 44 }) {
@@ -78,6 +78,25 @@ export default function Providers() {
       await load();
     } catch (e) {
       alert(status === 'approved' ? `Approval not completed: ${e.message}` : `KYC update failed: ${e.message}`);
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function resetProviderPassword(provider) {
+    const newPassword = window.prompt('Set a temporary password for ' + provider.name + '. Share it with the partner securely:');
+    if (newPassword === null) return;
+    if (!/^(?=.*[A-Za-z])(?=.*\\d).{8,}$/.test(newPassword)) {
+      alert('Password must be at least 8 characters and include letters and numbers.');
+      return;
+    }
+    setUpdatingId(provider.id);
+    try {
+      await apiPost(`/providers/${provider.id}/reset-password`, { new_password: newPassword });
+      alert('Partner password reset. The partner must sign in again with the new password.');
+      await load();
+    } catch (e) {
+      alert('Partner password reset failed: ' + e.message);
     } finally {
       setUpdatingId(null);
     }
@@ -199,6 +218,15 @@ export default function Providers() {
               </td>
               <td>{p.avg_rating} ★</td>
               <td>
+                {p.reset_requested && (
+                  <button
+                    className="btn"
+                    disabled={updatingId === p.id}
+                    onClick={() => resetProviderPassword(p)}
+                  >
+                    Reset password
+                  </button>
+                )}
                 {p.kyc_status !== 'approved' && (
                   <button
                     className="btn btn-approve"
