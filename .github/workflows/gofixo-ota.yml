@@ -157,7 +157,7 @@ jobs:
           open("dist/latest.json", "w").write(json.dumps(manifest, indent=2) + "\n")
           PY
           python3 - <<'PY'
-          import hashlib, json, pathlib, re
+          import hashlib, json, os, pathlib, re
           root = pathlib.Path("dist")
           manifest = json.loads((root / "latest.json").read_text())
           assert manifest.get("schemaVersion") == 1
