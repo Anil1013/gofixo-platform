@@ -1557,6 +1557,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
              child:TextField(
                controller:serviceDesc,
                maxLines:3,
+               maxLength:500,
                onChanged:(v)=>serviceDescription=v.trim(),
                decoration:InputDecoration(
                  filled:true,fillColor:Colors.white,
