@@ -100,6 +100,9 @@ router.post('/register', async (req, res, next) => {
     const serviceCategories = type === 'general_worker' || type === 'skilled_worker'
       ? normalizeServiceCategories(service_categories)
       : [];
+    if ((type === 'general_worker' || type === 'skilled_worker') && serviceCategories.length === 0) {
+      return res.status(400).json({ error: 'Select at least one home-service specialty before registering' });
+    }
     if (!isValidPassword(password)) return res.status(400).json({ error: PASSWORD_ERROR });
 
     // generated_id pattern: RL-D-00231 (driver) or RL-W-00512 (worker).
