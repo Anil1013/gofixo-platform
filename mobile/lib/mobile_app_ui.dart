@@ -1786,8 +1786,94 @@ class _Service extends StatelessWidget {
   String get _normalizedServiceKey => keyName
       .trim()
       .toLowerCase()
-      .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
-      .replaceAll(RegExp(r'^_+|_+
+      .replaceAll('&', 'and')
+      .replaceAll(' ', '_')
+      .replaceAll('-', '_');
+
+  IconData get _serviceIcon {
+    switch (_normalizedServiceKey) {
+      case 'electrician':
+      case 'electrical':
+        return Icons.electrical_services_rounded;
+      case 'plumber':
+      case 'plumbing':
+        return Icons.plumbing_rounded;
+      case 'ac_service':
+      case 'air_conditioning':
+      case 'air_conditioner':
+        return Icons.ac_unit_rounded;
+      case 'cleaning':
+      case 'house_cleaning':
+        return Icons.cleaning_services_rounded;
+      case 'painter':
+      case 'painting':
+        return Icons.format_paint_rounded;
+      case 'carpenter':
+      case 'carpentry':
+        return Icons.handyman_rounded;
+      case 'appliance_repair':
+      case 'home_appliance_repair':
+        return Icons.home_repair_service_rounded;
+      case 'refrigerator_repair':
+      case 'refrigerator':
+      case 'fridge':
+        return Icons.kitchen_rounded;
+      case 'washing_machine_repair':
+      case 'washing_machine':
+        return Icons.local_laundry_service_rounded;
+      case 'ro_water_purifier':
+      case 'water_purifier':
+      case 'ro':
+        return Icons.water_drop_rounded;
+      case 'geyser_repair':
+      case 'geyser':
+      case 'water_heater':
+        return Icons.hot_tub_rounded;
+      case 'cctv_security':
+      case 'cctv':
+      case 'security':
+        return Icons.videocam_rounded;
+      case 'internet_wifi':
+      case 'wifi':
+      case 'internet':
+        return Icons.wifi_rounded;
+      case 'pest_control':
+        return Icons.pest_control_rounded;
+      case 'packers_movers':
+      case 'moving':
+        return Icons.local_shipping_rounded;
+      case 'salon_beauty':
+      case 'salon':
+      case 'beauty':
+        return Icons.content_cut_rounded;
+      case 'cook':
+      case 'cooking':
+        return Icons.restaurant_rounded;
+      case 'gardener':
+      case 'gardening':
+        return Icons.yard_rounded;
+      case 'laundry':
+      case 'dry_cleaning':
+        return Icons.dry_cleaning_rounded;
+      case 'driver':
+      case 'personal_driver':
+        return Icons.directions_car_rounded;
+      case 'tutor':
+      case 'home_tutor':
+        return Icons.school_rounded;
+      case 'babysitter':
+      case 'childcare':
+        return Icons.child_care_rounded;
+      case 'elder_care':
+      case 'elderly_care':
+      case 'senior_disability_care':
+      case 'senior_and_disability_care':
+        return Icons.accessibility_new_rounded;
+      case 'other':
+      default:
+        return Icons.miscellaneous_services_rounded;
+    }
+  }
 
   @override
   Widget build(BuildContext c) {
@@ -1825,7 +1911,7 @@ class _Service extends StatelessWidget {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: gfGreen.withValues(alpha: 0.10),
+                          color: gfGreen.withOpacity(0.10),
                           blurRadius: 10,
                           offset: const Offset(0, 3),
                         ),
@@ -1842,12 +1928,21 @@ class _Service extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 9, height: 1.12, fontWeight: FontWeight.w900, color: gfNavy),
+              style: const TextStyle(
+                fontSize: 9,
+                height: 1.12,
+                fontWeight: FontWeight.w900,
+                color: gfNavy,
+              ),
             ),
             if (baseFare != null)
               Text(
                 'From ₹$baseFare',
-                style: const TextStyle(fontSize: 7, fontWeight: FontWeight.w800, color: gfGreen),
+                style: const TextStyle(
+                  fontSize: 7,
+                  fontWeight: FontWeight.w800,
+                  color: gfGreen,
+                ),
               ),
           ],
         ),
