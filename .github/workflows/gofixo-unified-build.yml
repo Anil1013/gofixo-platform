@@ -200,7 +200,7 @@ jobs:
           node --check server.js
 
       - name: Domain tests
-        run: node --test tests/booking-domain.test.js
+        run: node --test tests/*.test.js
 
       - name: Workflow summary
         run: |
