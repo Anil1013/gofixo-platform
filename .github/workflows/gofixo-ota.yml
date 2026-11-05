@@ -199,6 +199,7 @@ jobs:
           test -s legacy-dist/manifest.json
           cp legacy-dist/patch.zip "legacy-dist/patch-1000004-${{ github.sha }}.zip"
           MD5="$(md5sum "legacy-dist/patch-1000004-${{ github.sha }}.zip" | awk '{print $1}')"
+          export MD5
           test -n "$MD5"
           python3 - <<'PY'
           import hashlib, os, pathlib
