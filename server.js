@@ -401,6 +401,22 @@ async function ensureRuntimeSchema() {
       WHERE status = 'pending'
   `);
 
+  // Partner forgotten-password requests have their own account-linked queue.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS provider_password_reset_requests (
+      id SERIAL PRIMARY KEY,
+      provider_id INT NOT NULL REFERENCES service_providers(id) ON DELETE CASCADE,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT NOW(),
+      resolved_at TIMESTAMP
+    )
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS provider_password_reset_requests_one_pending
+      ON provider_password_reset_requests (provider_id)
+      WHERE status = 'pending'
+  `);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS provider_push_subscriptions (
       id SERIAL PRIMARY KEY,
