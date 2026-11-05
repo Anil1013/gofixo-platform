@@ -1116,6 +1116,56 @@ router.post('/:id/decline', requireAuth(['provider']), async (req, res, next) =>
       inTransaction = false;
       return res.status(409).json({ error: 'This request is no longer available' });
     }
+    // A provider may decline only a request they are actually eligible to receive.
+    // Without this check, any authenticated provider who guesses a booking ID could
+    // mutate another customer's request or prematurely exhaust its provider pool.
+    const eligibleToDecline = await client.query(
+      `SELECT 1
+         FROM bookings b
+         JOIN service_providers sp ON sp.id = $2
+        WHERE b.id = $1
+          AND b.status = 'requested'
+          AND (b.provider_id IS NULL OR b.provider_id = sp.id)
+          AND sp.is_available = true
+          AND sp.kyc_status = 'approved'
+          AND sp.current_lat IS NOT NULL
+          AND sp.current_lng IS NOT NULL
+          AND EXISTS (
+            SELECT 1 FROM provider_skills skill
+             WHERE skill.provider_id = sp.id
+               AND skill.skill_key = CASE WHEN b.service_type = 'ride' THEN b.provider_type ELSE b.service_category END
+               AND skill.service_type = b.service_type
+               AND skill.kyc_status = 'approved'
+               AND skill.is_available = true
+          )
+          AND (b.service_type = 'services' OR EXISTS (
+            SELECT 1 FROM provider_subscriptions ps
+             WHERE ps.provider_id = sp.id
+               AND ps.status = 'active'
+               AND ps.expiry_date > NOW()
+          ))
+          AND NOT EXISTS (
+            SELECT 1 FROM bookings active_b
+             WHERE active_b.provider_id = sp.id
+               AND active_b.status IN ('accepted', 'arrived', 'ongoing')
+               AND active_b.id <> b.id
+          )
+          AND (6371 * acos(
+            LEAST(1, GREATEST(-1,
+              cos(radians(CASE WHEN b.service_type = 'services' THEN COALESCE(b.drop_lat, b.pickup_lat) ELSE b.pickup_lat END)) * cos(radians(sp.current_lat)) *
+              cos(radians(sp.current_lng) - radians(CASE WHEN b.service_type = 'services' THEN COALESCE(b.drop_lng, b.pickup_lng) ELSE b.pickup_lng END)) +
+              sin(radians(CASE WHEN b.service_type = 'services' THEN COALESCE(b.drop_lat, b.pickup_lat) ELSE b.pickup_lat END)) * sin(radians(sp.current_lat))
+            ))
+          )) <= 10
+        LIMIT 1`,
+      [req.params.id, req.user.id]
+    );
+    if (eligibleToDecline.rows.length === 0) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
+      return res.status(403).json({ error: 'You are not eligible to decline this request' });
+    }
+
     const declined = (booking.declined_providers || []).map(Number);
     if (declined.includes(Number(req.user.id))) {
       await client.query('ROLLBACK');
