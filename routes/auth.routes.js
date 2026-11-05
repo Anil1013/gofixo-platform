@@ -220,6 +220,15 @@ router.post('/:role/forgot-password', async (req, res, next) => {
          DO NOTHING`,
         [result.rows[0].id]
       );
+    } else if (role === 'provider' && result.rows.length > 0) {
+      await pool.query(
+        `INSERT INTO provider_password_reset_requests (provider_id, status)
+         VALUES ($1, 'pending')
+         ON CONFLICT (provider_id)
+         WHERE status = 'pending'
+         DO NOTHING`,
+        [result.rows[0].id]
+      );
     }
 
     // Same response whether the account exists or not to reduce account enumeration.
