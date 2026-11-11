@@ -540,7 +540,9 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
         );
         const bookingPolicy = resolveServiceCatalogBooking(catalogResult.rows[0], provider_type);
         if (bookingPolicy.error) {
-          const status = !catalogResult.rows[0] || catalogResult.rows[0].is_active !== true ? 409 : 400;
+          const status = !catalogResult.rows[0] || catalogResult.rows[0].is_active !== true
+            ? 409
+            : catalogResult.rows[0].provider_type !== provider_type ? 400 : 503;
           return res.status(status).json({ error: bookingPolicy.error });
         }
         calculatedFare = bookingPolicy.baseFare;
