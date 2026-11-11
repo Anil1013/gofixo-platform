@@ -117,6 +117,8 @@ router.post('/transactions', async (req, res, next) => {
     if (!DIRECTIONS.has(direction)) return res.status(400).json({ error: 'direction must be in or out' });
     if (!TYPES.has(transactionType)) return res.status(400).json({ error: 'Invalid transaction_type' });
     if (!STATUSES.has(status)) return res.status(400).json({ error: 'Invalid transaction status' });
+    const initialStatusError = validateInitialStatus(direction, status);
+    if (initialStatusError) return res.status(400).json({ error: initialStatusError });
     if (!Number.isFinite(amount) || amount <= 0 || amount > 10000000) return res.status(400).json({ error: 'amount must be between ₹0.01 and ₹10000000' });
     if (occurredAt && Number.isNaN(occurredAt.getTime())) return res.status(400).json({ error: 'occurred_at must be a valid ISO date/time with timezone' });
     for (const [name, value] of [['booking_id', bookingId], ['customer_id', customerId], ['provider_id', providerId]]) {
@@ -137,7 +139,7 @@ router.post('/transactions', async (req, res, next) => {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
                  NULL,
                  NULL,
-                 NULL,$12,$13)
+                 NULL,$13,$12)
          RETURNING *`,
         [code, direction, transactionType, Number(amount.toFixed(2)), status, bookingId, customerId, providerId,
          method, reference, occurredAt, actor, notes]
