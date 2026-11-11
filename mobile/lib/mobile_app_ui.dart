@@ -1790,7 +1790,7 @@ class _ServicesState extends State<_Services>{
   Future<void> _load()async{
     try{
       final remote=await ApiService.serviceCatalog();
-      if(mounted)setState(()=>items=remote.isEmpty?List<Map<String,dynamic>>.from(_Services._fallback):remote);
+      if(mounted)setState(()=>items=remote);
     }catch(_){
       if(mounted)setState(()=>items=List<Map<String,dynamic>>.from(_Services._fallback));
     }
@@ -1808,6 +1808,12 @@ class _ServicesState extends State<_Services>{
     for (final item in items) {
       final key = item['key']?.toString() ?? 'other';
       grouped.putIfAbsent(_groupFor(key), () => []).add(item);
+    }
+    if (items.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 18),
+        child: Center(child: Text('No services are available right now. Please check again soon.', textAlign: TextAlign.center)),
+      );
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: grouped.entries.map((group) =>
       Padding(
