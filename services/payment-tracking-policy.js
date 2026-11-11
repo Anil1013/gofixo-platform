@@ -20,7 +20,7 @@ function validateStatusTransition({ direction, currentStatus, nextStatus, bankRe
 
   const transitions = direction === 'in'
     ? {
-        pending_verification: new Set(['verified', 'failed', 'refunded']),
+        pending_verification: new Set(['verified', 'failed']),
         verified: new Set(['refunded']),
       }
     : {
