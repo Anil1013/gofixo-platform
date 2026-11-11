@@ -72,8 +72,6 @@ router.get('/transactions', async (req, res, next) => {
     const where = [];
     if (status) {
       if (!STATUSES.has(status)) return res.status(400).json({ error: 'Invalid transaction status' });
-    const initialStatusError = validateInitialStatus(direction, status);
-    if (initialStatusError) return res.status(400).json({ error: initialStatusError });
       params.push(status); where.push(`t.status = $${params.length}`);
     }
     if (direction) {
