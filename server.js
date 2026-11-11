@@ -18,7 +18,7 @@ const walletRoutes = require('./routes/wallet.routes');
 const paymentTrackingRoutes = require('./routes/payment-tracking.routes');
 const pool = require('./config/db');
 const { attachRealtime } = require('./services/realtime');
-const { getServiceCatalog } = require('./services/catalog');
+const serviceCatalogRoutes = require('./routes/service-catalog.routes');
 const { createRateLimiter } = require('./utils/requestRateLimit');
 
 const app = express();
@@ -142,10 +142,7 @@ async function googlePlacesRequest(url, fieldMask, body) {
   return data;
 }
 
-app.get('/api/catalog/services', (req, res) => {
-  res.set('Cache-Control', 'public, max-age=300');
-  res.json(getServiceCatalog());
-});
+app.use('/api/catalog', serviceCatalogRoutes);
 
 app.get('/api/places/autocomplete', placesRateLimit, async (req, res) => {
   const input = String(req.query.input || '').trim();
