@@ -45,6 +45,36 @@ jobs:
 
             npm install --omit=dev
 
+            # Apply the additive dynamic service catalog migration before restart.
+            # The SQL is idempotent and preserves any catalog edits made by admins.
+            node <<'NODE'
+            require('dotenv').config();
+            const fs = require('node:fs');
+            const { Client } = require('pg');
+            (async () => {
+              if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is missing; cannot apply service catalog migration');
+              const client = new Client({
+                connectionString: process.env.DATABASE_URL,
+                ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+              });
+              await client.connect();
+              try {
+                await client.query('BEGIN');
+                await client.query(fs.readFileSync('config/migration_016_dynamic_service_catalog.sql', 'utf8'));
+                await client.query('COMMIT');
+                console.log('Dynamic service catalog migration 016 applied.');
+              } catch (error) {
+                await client.query('ROLLBACK').catch(() => {});
+                throw error;
+              } finally {
+                await client.end();
+              }
+            })().catch((error) => {
+              console.error('Migration 016 failed:', error.message);
+              process.exitCode = 1;
+            });
+            NODE
+
             test -n "${GOOGLE_MAPS_API_KEY:-}" || {
               echo "GOOGLE_MAPS_API_KEY is missing from the GitHub deployment environment."
               exit 1
