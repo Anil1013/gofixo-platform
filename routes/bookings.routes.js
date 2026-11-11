@@ -6,6 +6,7 @@ const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
 const { sendProviderPush, sendProviderFcm, sendCustomerFcm } = require('../services/push');
 const { normalizeServiceCategory, getServiceBaseFare } = require('../services/catalog');
+const { resolveServiceCatalogBooking } = require('../services/service-catalog-booking');
 const { calculateRideFare } = require('../services/ride-pricing');
 
 const SERVICE_TYPES = new Set(['ride', 'services']);
@@ -537,17 +538,12 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
             WHERE category_key = $1`,
           [serviceCategory]
         );
-        const catalogItem = catalogResult.rows[0];
-        if (!catalogItem || catalogItem.is_active !== true) {
-          return res.status(409).json({ error: 'This service is currently unavailable. Please refresh the service list.' });
+        const bookingPolicy = resolveServiceCatalogBooking(catalogResult.rows[0], provider_type);
+        if (bookingPolicy.error) {
+          const status = !catalogResult.rows[0] || catalogResult.rows[0].is_active !== true ? 409 : 400;
+          return res.status(status).json({ error: bookingPolicy.error });
         }
-        if (catalogItem.provider_type !== provider_type) {
-          return res.status(400).json({ error: 'The selected service requires a different partner type. Please refresh and try again.' });
-        }
-        calculatedFare = Number(catalogItem.base_fare);
-        if (!Number.isFinite(calculatedFare) || calculatedFare < 0) {
-          return res.status(503).json({ error: 'The service price is temporarily unavailable. Please try again later.' });
-        }
+        calculatedFare = bookingPolicy.baseFare;
       } catch (err) {
         // Rolling deployments may briefly run the old backend before migration 016.
         // Fall back only when the table is genuinely absent, never on DB outages.
