@@ -492,6 +492,10 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
     if (service_type === 'services' && !serviceCategory) {
       return res.status(400).json({ error: 'service_category is required for home services' });
     }
+    if (service_type === 'services' && serviceCategory === 'other'
+      && String(rawServiceCategory || '').trim().toLowerCase() !== 'other') {
+      return res.status(400).json({ error: 'Unknown home-service category. Please select a service from the catalog.' });
+    }
     if (service_type === 'services' && !serviceDescription) {
       return res.status(400).json({ error: 'service_description is required for home services' });
     }
@@ -523,11 +527,33 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
     let calculatedFare = null;
 
     if (service_type === 'services') {
-      // Home-service bookings must carry a locked starting fare so the existing
-      // completion/earning lifecycle works for every universal service category.
-      // The provider may inspect the job before accepting, but the customer-facing
-      // base price is server-authoritative and cannot be rewritten at completion.
-      calculatedFare = getServiceBaseFare(serviceCategory);
+      // The selected category, worker type, visibility and display base fare are
+      // authoritative on the server. Never trust a client-supplied fare or let a
+      // stale app book a category that an admin has disabled.
+      try {
+        const catalogResult = await pool.query(
+          `SELECT provider_type, base_fare, is_active
+             FROM service_catalog
+            WHERE category_key = $1`,
+          [serviceCategory]
+        );
+        const catalogItem = catalogResult.rows[0];
+        if (!catalogItem || catalogItem.is_active !== true) {
+          return res.status(409).json({ error: 'This service is currently unavailable. Please refresh the service list.' });
+        }
+        if (catalogItem.provider_type !== provider_type) {
+          return res.status(400).json({ error: 'The selected service requires a different partner type. Please refresh and try again.' });
+        }
+        calculatedFare = Number(catalogItem.base_fare);
+        if (!Number.isFinite(calculatedFare) || calculatedFare < 0) {
+          return res.status(503).json({ error: 'The service price is temporarily unavailable. Please try again later.' });
+        }
+      } catch (err) {
+        // Rolling deployments may briefly run the old backend before migration 016.
+        // Fall back only when the table is genuinely absent, never on DB outages.
+        if (err.code !== '42P01') throw err;
+        calculatedFare = getServiceBaseFare(serviceCategory);
+      }
     }
 
     let routeDistance = null;
