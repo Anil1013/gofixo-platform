@@ -1514,7 +1514,7 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
 
     const configuredCommission = Number(process.env.GOFIXO_COMMISSION_PERCENT || 20);
     const commissionPercent = Number.isFinite(configuredCommission)
-      ? Math.min(50, Math.max(0, configuredCommission))
+      ? Math.min(50, Math.max(20, configuredCommission))
       : 20;
 
     await client.query('BEGIN');
