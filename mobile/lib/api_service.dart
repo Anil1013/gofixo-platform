@@ -81,6 +81,9 @@ class ApiService {
   static Future<List<Map<String,dynamic>>> providerPayouts(String token)async{final d=await _request('GET','/providers/me/payouts',token:token);return d is List?d.map((e)=>Map<String,dynamic>.from(e as Map)).toList():[];}
   static Future<Map<String,dynamic>> providerPayoutSummary(String token)async=>Map<String,dynamic>.from(await _request('GET','/providers/me/payout-summary',token:token) as Map);
   static Future<Map<String,dynamic>> confirmPayment(String token,int id,double fare,{String paymentMethod='cash'})async=>Map<String,dynamic>.from(await _request('POST','/bookings/'+id.toString()+'/confirm-payment',token:token,body:{'fare_amount':fare,'payment_method':paymentMethod}) as Map);
+  static Future<Map<String,dynamic>> proposeServiceQuote(String token,int bookingId,{required String description,required double labourAmount,List<Map<String,dynamic>> materials=const [],bool creditVisitFee=false})async=>Map<String,dynamic>.from(await _request('POST','/service-quotes/'+bookingId.toString()+'/propose',token:token,body:{'description':description,'labourAmount':labourAmount,'materials':materials,'creditVisitFee':creditVisitFee}) as Map);
+  static Future<Map<String,dynamic>> serviceQuotes(String token,int bookingId)async=>Map<String,dynamic>.from(await _request('GET','/service-quotes/'+bookingId.toString(),token:token) as Map);
+  static Future<Map<String,dynamic>> respondServiceQuote(String token,int bookingId,{required bool approve})async=>Map<String,dynamic>.from(await _request('POST','/service-quotes/'+bookingId.toString()+'/respond',token:token,body:{'decision':approve?'approve':'decline'}) as Map);
   static Future<void> uploadCustomerProfilePhoto(String token,String path)async{
     final q=http.MultipartRequest('POST',Uri.parse(apiBase+'/auth/customer/profile-photo'));
     q.headers['Authorization']='Bearer '+token;
