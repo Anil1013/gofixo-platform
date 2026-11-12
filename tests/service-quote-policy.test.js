@@ -32,3 +32,11 @@ test('rejects malformed and excessive material entries', () => {
 test('requires a clear customer-visible explanation', () => {
   assert.throws(() => buildServiceQuote({ labourAmount: 100 }), /description/);
 });
+
+test('prevents visit-fee credit from reducing labour to zero', () => {
+  assert.throws(() => buildServiceQuote({
+    description: 'Repair',
+    labourAmount: 299,
+    creditVisitFee: true,
+  }, 299), /remain positive/);
+});
