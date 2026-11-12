@@ -165,6 +165,10 @@ router.post('/:bookingId/respond', requireAuth(['customer']), async (req, res, n
       const reservedBefore = money(w.reserved_balance);
       const availableAfter = money(available - delta);
       const reservedAfter = money(reservedBefore + delta);
+      if (reservedAfter < 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'Wallet reserved balance does not match this booking. Contact Gofixo support before approving.' });
+      }
       await client.query(
         'UPDATE wallets SET available_balance = $1, reserved_balance = $2, updated_at = NOW() WHERE id = $3',
         [availableAfter, reservedAfter, w.id]
