@@ -369,13 +369,15 @@ router.get('/mine', requireAuth(['customer']), async (req, res, next) => {
               CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing') THEN sp.current_lat END AS provider_lat,
               CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing') THEN sp.current_lng END AS provider_lng,
               sq.service_quote_id, sq.service_quote_status, sq.service_quote_description,
-              sq.service_quote_labour_amount, sq.service_quote_materials_amount,
+              sq.service_quote_labour_amount, sq.service_quote_visit_fee_credit_amount,
+              sq.service_quote_service_amount, sq.service_quote_materials_amount,
               sq.service_quote_total_amount, sq.service_quote_materials
        FROM bookings b
        LEFT JOIN service_providers sp ON b.provider_id = sp.id
        LEFT JOIN LATERAL (
          SELECT id AS service_quote_id, status AS service_quote_status, description AS service_quote_description,
-                labour_amount AS service_quote_labour_amount, materials_amount AS service_quote_materials_amount,
+                labour_amount AS service_quote_labour_amount, visit_fee_credit_amount AS service_quote_visit_fee_credit_amount,
+                service_amount AS service_quote_service_amount, materials_amount AS service_quote_materials_amount,
                 total_amount AS service_quote_total_amount, materials AS service_quote_materials
          FROM service_job_quotes WHERE booking_id = b.id ORDER BY id DESC LIMIT 1
        ) sq ON true
