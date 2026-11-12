@@ -32,7 +32,7 @@ function buildServiceQuote(input, visitFeeAmount = 0) {
   const description = String(input.description || '').trim();
   if (!description || description.length > 1000) throw new TypeError('description is required and must be at most 1000 characters');
   const totalAmount = Math.round((serviceAmount + materialsAmount + Number.EPSILON) * 100) / 100;
-  if (totalAmount <= 0) throw new TypeError('Quote total must be greater than zero');
+  if (totalAmount <= 0 || totalAmount > MAX_AMOUNT) throw new TypeError('Quote total must be greater than zero and at most 1000000');
   return Object.freeze({
     description, labourAmount, visitFeeAmount: visitFee, visitFeeCreditAmount,
     serviceAmount, materialsAmount, totalAmount, materials: Object.freeze(materials),
