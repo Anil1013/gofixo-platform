@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
 const { sendProviderPush, sendProviderFcm, sendCustomerFcm } = require('../services/push');
-const { normalizeServiceCategory, getServiceBaseFare } = require('../services/catalog');
+const { normalizeServiceCategory, getServiceBaseFare, isValidServiceCategoryKey } = require('../services/catalog');
 const { resolveServiceCatalogBooking } = require('../services/service-catalog-booking');
 const { calculateRideFare } = require('../services/ride-pricing');
 const { calculateServiceSettlement } = require('../services/service-settlement');
@@ -528,17 +528,13 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
     }
 
     const serviceCategory = service_type === 'services'
-      ? normalizeServiceCategory(rawServiceCategory)
+      ? String(rawServiceCategory || '').trim().toLowerCase()
       : null;
     const serviceDescription = service_type === 'services'
       ? String(rawServiceDescription ?? '').trim().slice(0, 500)
       : null;
-    if (service_type === 'services' && !serviceCategory) {
-      return res.status(400).json({ error: 'service_category is required for home services' });
-    }
-    if (service_type === 'services' && serviceCategory === 'other'
-      && String(rawServiceCategory || '').trim().toLowerCase() !== 'other') {
-      return res.status(400).json({ error: 'Unknown home-service category. Please select a service from the catalog.' });
+    if (service_type === 'services' && !isValidServiceCategoryKey(serviceCategory)) {
+      return res.status(400).json({ error: 'Select a valid home-service category from the service catalog.' });
     }
     if (service_type === 'services' && !serviceDescription) {
       return res.status(400).json({ error: 'service_description is required for home services' });
@@ -593,6 +589,10 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
         // Rolling deployments may briefly run the old backend before migration 016.
         // Fall back only when the table is genuinely absent, never on DB outages.
         if (err.code !== '42P01') throw err;
+        // Legacy fallback is limited to bundled categories; dynamic categories require migration 016.
+        if (normalizeServiceCategory(serviceCategory) !== serviceCategory) {
+          return res.status(503).json({ error: 'Service catalog is updating. Please try again shortly.' });
+        }
         calculatedFare = getServiceBaseFare(serviceCategory);
       }
     }
