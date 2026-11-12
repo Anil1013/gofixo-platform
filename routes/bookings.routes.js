@@ -1544,7 +1544,7 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
     await client.query('BEGIN');
 
     const existing = await client.query(
-      'SELECT provider_id, customer_id, service_type, status, fare_amount, payment_status, waiting_fee_amount, waiting_fee_status FROM bookings WHERE id = $1 FOR UPDATE',
+      `SELECT b.provider_id, b.customer_id, b.service_type, b.status, b.fare_amount, b.payment_status, b.waiting_fee_amount, b.waiting_fee_status, COALESCE(q.materials_amount, 0) AS approved_material_amount FROM bookings b LEFT JOIN LATERAL (SELECT materials_amount FROM service_job_quotes WHERE booking_id = b.id AND status = 'approved' ORDER BY id DESC LIMIT 1) q ON true WHERE b.id = $1 FOR UPDATE OF b`,
       [id]
     );
     if (existing.rows.length === 0) {
@@ -1574,7 +1574,9 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
     const isService = existing.rows[0].service_type === 'services';
     const waitingFee = !isService && ['due', 'accruing'].includes(existing.rows[0].waiting_fee_status)
       ? Number(Number(existing.rows[0].waiting_fee_amount || 0).toFixed(2)) : 0;
-    const totalCharge = Number((lockedFare + waitingFee).toFixed(2));
+    const approvedMaterialAmount = isService ? Number(existing.rows[0].approved_material_amount || 0) : 0;
+    const totalServiceCharge = Number((lockedFare + approvedMaterialAmount).toFixed(2));
+    const totalCharge = Number((totalServiceCharge + waitingFee).toFixed(2));
     if (submittedFare !== null && Math.abs(submittedFare - totalCharge) > 0.01) {
       await client.query('ROLLBACK');
       return res.status(409).json({ error: waitingFee > 0
@@ -1593,10 +1595,10 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
     }
     const effectiveCommissionPercent = isService ? commissionPercent : 0;
     const commission = Number((fare * effectiveCommissionPercent / 100).toFixed(2));
-    const providerAmount = Number((fare + waitingFee - commission).toFixed(2));
+    const providerAmount = Number((fare + approvedMaterialAmount + waitingFee - commission).toFixed(2));
 
     if (isService) {
-      const captured = await captureServiceWallet(client, Number(id), existing.rows[0].customer_id, fare);
+      const captured = await captureServiceWallet(client, Number(id), existing.rows[0].customer_id, totalServiceCharge);
       if (!captured) {
         await client.query('ROLLBACK');
         return res.status(409).json({ error: 'Wallet reservation is missing or does not cover this service amount' });
@@ -1652,7 +1654,7 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
           (booking_id, provider_id, gross_amount, platform_fee, payout_amount, payout_method, payout_status)
          VALUES ($1,$2,$3,$4,$5,'bank_or_upi','pending')
          ON CONFLICT (booking_id) DO NOTHING`,
-        [id, req.user.id, fare, commission, providerAmount]
+        [id, req.user.id, totalServiceCharge, commission, providerAmount]
       );
     }
 
