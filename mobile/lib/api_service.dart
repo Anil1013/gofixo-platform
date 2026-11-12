@@ -65,6 +65,7 @@ class ApiService {
   static Future<Map<String,dynamic>> setAvailability(String token,int id,bool v)async=>Map<String,dynamic>.from(await _request('PATCH','/providers/'+id.toString()+'/availability',token:token,body:{'is_available':v}) as Map);
   static Future<List<Map<String,dynamic>>> providerSkills(String token)async{final d=await _request('GET','/providers/me/skills',token:token);return d is List?d.map((e)=>Map<String,dynamic>.from(e as Map)).toList():[];}
   static Future<List<Map<String,dynamic>>> updateProviderSkills(String token,List<Map<String,dynamic>> skills)async{final d=await _request('PUT','/providers/me/skills',token:token,body:{'skills':skills});return d is List?d.map((e)=>Map<String,dynamic>.from(e as Map)).toList():[];}
+  static Future<Map<String,dynamic>> setProviderSkillAvailability(String token,String skillKey,bool enabled)async=>Map<String,dynamic>.from(await _request('PATCH','/providers/me/skills/'+Uri.encodeComponent(skillKey)+'/availability',token:token,body:{'enabled':enabled}) as Map);
   static Future<List<Map<String,dynamic>>> serviceCatalog()async{
     final d=await _request('GET','/catalog/services');
     return d is List?d.map((e)=>Map<String,dynamic>.from(e as Map)).toList():[];
