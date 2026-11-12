@@ -32,4 +32,25 @@ function calculateWalletCapture({ reservedBalance, reserveAmount, captureAmount 
   return Object.freeze({ reservedAfter: money(reserved - capture, 'reservedAfter'), amount: capture });
 }
 
-module.exports = { calculateWalletRelease, calculateWalletCapture };
+function calculateWalletAdjustment({ availableBalance, reservedBalance, currentReserveAmount, newReserveAmount }) {
+  const available = money(availableBalance, 'availableBalance');
+  const reserved = money(reservedBalance, 'reservedBalance');
+  const currentReserve = money(currentReserveAmount, 'currentReserveAmount');
+  const newReserve = money(newReserveAmount, 'newReserveAmount');
+  if (reserved < currentReserve) {
+    const error = new Error('Wallet reserved balance does not cover this booking current reserve; no funds were changed.');
+    error.status = 409;
+    throw error;
+  }
+  const delta = money(newReserve - currentReserve, 'reserveDelta');
+  if (delta > available) return null;
+  return Object.freeze({
+    delta,
+    availableAfter: money(available - delta, 'availableAfter'),
+    reservedAfter: money(reserved + delta, 'reservedAfter'),
+    currentReserve,
+    newReserve,
+  });
+}
+
+module.exports = { calculateWalletRelease, calculateWalletCapture, calculateWalletAdjustment };
