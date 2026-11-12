@@ -1068,7 +1068,7 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
       try{requests=await ApiService.mySubscriptionPayments(widget.session.token);}catch(_){}
       if(mounted)setState((){
         plans=all.where((p)=>p['provider_type']?.toString()==type).toList();
-        serviceCatalog=catalog.where((item)=>item['provider_type']?.toString()==type && item['is_active']==true).toList();
+        serviceCatalog=catalog.where((item)=>item['providerType']?.toString()==type).toList();
         providerSkills=skills;
         selectedNewSkills.clear();
         subscription=current;
@@ -1183,7 +1183,7 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
           const SizedBox(height:10),
           if(serviceCatalog.isEmpty) const Text('No active services are available right now. Refresh to try again.',style:TextStyle(fontSize:11,color:gfMuted))
           else Wrap(spacing:7,runSpacing:7,children:serviceCatalog.map((item){
-            final key=item['category_key']?.toString()??'';
+            final key=item['key']?.toString()??'';
             final label=item['label']?.toString()??key.replaceAll('_',' ');
             final current=providerSkills.where((skill)=>skill['service_type']=='services'&&skill['skill_key']==key).toList();
             final exists=current.isNotEmpty;
