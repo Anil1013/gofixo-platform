@@ -3,7 +3,7 @@
 const express = require('express');
 const pool = require('../config/db');
 const { requireAdmin } = require('../middleware/admin');
-const { HOME_SERVICE_CATALOG, getServiceBaseFare, normalizeServiceCategory } = require('../services/catalog');
+const { HOME_SERVICE_CATALOG, getServiceBaseFare, isValidServiceCategoryKey } = require('../services/catalog');
 
 const router = express.Router();
 
@@ -60,8 +60,8 @@ router.get('/admin/services', requireAdmin, async (req, res, next) => {
 
 router.put('/admin/services/:key', requireAdmin, async (req, res, next) => {
   try {
-    const key = normalizeServiceCategory(req.params.key);
-    if (!key || key === 'other' && req.params.key !== 'other') {
+    const key = String(req.params.key || '').trim().toLowerCase();
+    if (!isValidServiceCategoryKey(key)) {
       return res.status(400).json({ error: 'Unknown service category' });
     }
     const body = req.body || {};
