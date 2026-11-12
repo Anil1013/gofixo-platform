@@ -13,6 +13,7 @@ function buildServiceQuote(input, visitFeeAmount = 0) {
   const creditVisitFee = input.creditVisitFee === true;
   const visitFeeCreditAmount = creditVisitFee ? Math.min(labourAmount, visitFee) : 0;
   const serviceAmount = Math.round((labourAmount - visitFeeCreditAmount + Number.EPSILON) * 100) / 100;
+  if (serviceAmount <= 0) throw new RangeError('Labour amount must remain positive after any visit-fee credit');
   const rawItems = input.materials === undefined ? [] : input.materials;
   if (!Array.isArray(rawItems) || rawItems.length > 50) throw new TypeError('materials must be an array with at most 50 items');
   const seen = new Set();
