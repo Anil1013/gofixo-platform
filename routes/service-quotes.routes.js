@@ -197,7 +197,7 @@ router.post('/:bookingId/respond', requireAuth(['customer']), async (req, res, n
     }
     await client.query('COMMIT');
     return res.json({
-      message: decision === 'approve' ? 'Quote approved and Wallet reserve updated' : 'Quote declined; only the original visit fee remains reserved',
+      message: decision === 'approve' ? 'Quote approved and Wallet reserve updated' : 'Quote declined; no new charge was reserved and the previous approved amount remains unchanged',
       decision,
       quote_id: Number(quote.id),
     });
