@@ -2172,7 +2172,7 @@ class _ActiveState extends State<_Active>{
     final name=item.name.text.trim();
     final quantityText=item.quantity.text.trim();
     final priceText=item.unitPrice.text.trim();
-    if(name.isEmpty&&quantityText.isEmpty&&priceText.isEmpty)continue;
+    if(name.isEmpty&&priceText.isEmpty)continue;
     final qty=double.tryParse(quantityText);
     final unit=double.tryParse(priceText);
     if(name.isEmpty||qty==null||qty<=0||unit==null||unit<0){
