@@ -1669,15 +1669,15 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
            payment_status = 'paid',
            commission_amount = $2,
            provider_earning_amount = $3,
-           waiting_fee_status = CASE WHEN $7 > 0 THEN 'paid' ELSE waiting_fee_status END,
+           waiting_fee_status = CASE WHEN $6 > 0 THEN 'paid' ELSE waiting_fee_status END,
            completed_at = NOW()
-       WHERE id = $5
-         AND provider_id = $6
+       WHERE id = $4
+         AND provider_id = $5
          AND status = 'ongoing'
        RETURNING id, service_type, customer_id, provider_id, pickup_location, fare_amount,
                  payment_method, payment_status, commission_amount, provider_earning_amount,
                  waiting_fee_amount, waiting_fee_status, status, completed_at`,
-      [paymentMethod, commission, providerAmount, fare, id, req.user.id, waitingFee]
+      [paymentMethod, commission, providerAmount, id, req.user.id, waitingFee]
     );
 
     if (booking.rows.length === 0) {
