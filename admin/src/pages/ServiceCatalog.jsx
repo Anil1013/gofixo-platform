@@ -58,6 +58,21 @@ export default function ServiceCatalog() {
     finally { setSaving(''); }
   }
 
+  async function restore(item) {
+    const current = draft[item.category_key] || item;
+    setSaving(item.category_key); setError(''); setNotice('');
+    try {
+      await apiPut(`/catalog/admin/services/${encodeURIComponent(item.category_key)}`, {
+        label: current.label, description: current.description || '', image_url: current.image_url || '',
+        provider_type: current.provider_type, base_fare: Number(current.base_fare),
+        is_active: true, sort_order: Number(current.sort_order), metadata: current.metadata || {},
+      });
+      setNotice(`${item.label} restored and made visible to customers.`);
+      await load();
+    } catch (e) { setError(e.message); }
+    finally { setSaving(''); }
+  }
+
   async function archive(item) {
     const confirmed = window.confirm(`Delete “${item.label}” from the active service list? Existing bookings and records will be preserved. You can restore it later.`);
     if (!confirmed) return;
@@ -117,7 +132,7 @@ export default function ServiceCatalog() {
                 <button disabled={busy} onClick={()=>save(item.category_key)}>{busy?'Saving…':'Save changes'}</button>
                 {item.is_active
                   ? <button disabled={busy} type="button" onClick={()=>archive(item)} style={{background:'#B42318',color:'#fff'}}>Delete / Archive service</button>
-                  : <button disabled={busy} type="button" onClick={()=>save(item.category_key)} style={{background:'#16803C',color:'#fff'}}>Restore service (enable visibility and save)</button>}
+                  : <button disabled={busy} type="button" onClick={()=>restore(item)} style={{background:'#16803C',color:'#fff'}}>Restore service</button>}
               </div>
             </div>
           </article>;
