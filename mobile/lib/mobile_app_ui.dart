@@ -1053,11 +1053,14 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
   @override void initState(){super.initState();_load();}
   @override void didUpdateWidget(covariant _ProviderServicesTab oldWidget){
     super.didUpdateWidget(oldWidget);
-    final oldId=oldWidget.me['id']?.toString()??'';
-    final newId=widget.me['id']?.toString()??'';
-    final oldType=oldWidget.me['type']?.toString()??'';
-    final newType=widget.me['type']?.toString()??'';
-    if(oldId!=newId||oldType!=newType)_load();
+    // The parent refreshes the provider profile as KYC/account data changes.
+    // Reload the service catalog and submitted specialties whenever that profile
+    // or the authenticated session changes, not only when the provider ID changes.
+    if(oldWidget.me!=widget.me||
+       oldWidget.session.token!=widget.session.token||
+       oldWidget.session.user['id']!=widget.session.user['id']){
+      _load();
+    }
   }
   Future<void> _load()async{
     final generation=++_loadGeneration;
