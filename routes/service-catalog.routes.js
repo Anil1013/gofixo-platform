@@ -34,8 +34,6 @@ router.get('/services', async (req, res, next) => {
     // services. Only fall back when the table is not deployed yet (42P01 below).
     return res.json(result.rows.map(publicItem));
   } catch (err) {
-    // Keep existing clients functional if the additive migration has not yet
-    // been deployed; do not hide unrelated database failures.
     if (err.code === '42P01') {
       return res.json(HOME_SERVICE_CATALOG.map((item) => ({
         ...item, description: '', baseFare: getServiceBaseFare(item.key), metadata: {},
@@ -56,6 +54,26 @@ router.get('/admin/services', requireAdmin, async (req, res, next) => {
     );
     res.json(result.rows);
   } catch (err) { next(err); }
+});
+
+// "Delete" is a reversible archive: preserve historical bookings, provider
+// skills and settlement references while immediately hiding the service.
+router.delete('/admin/services/:key', requireAdmin, async (req, res, next) => {
+  try {
+    const key = String(req.params.key || '').trim().toLowerCase();
+    if (!isValidServiceCategoryKey(key)) {
+      return res.status(400).json({ error: 'Unknown service category' });
+    }
+    const result = await pool.query(
+      `UPDATE service_catalog
+          SET is_active = false, updated_at = NOW()
+        WHERE category_key = $1
+        RETURNING category_key, label, is_active`,
+      [key]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: 'Service not found' });
+    return res.json({ service: result.rows[0], archived: true });
+  } catch (err) { return next(err); }
 });
 
 router.put('/admin/services/:key', requireAdmin, async (req, res, next) => {
