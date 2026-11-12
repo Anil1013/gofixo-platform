@@ -30,7 +30,7 @@ test('captures only when both booking reserve and wallet reserved balance cover 
     availableBalance: 100, reservedBalance: 299.99, reserveAmount: 300, captureAmount: 250,
   }), null);
   assert.equal(calculateWalletCapture({
-    reservedBalance: 700, reserveAmount: 100, captureAmount: 250,
+    availableBalance: 100, reservedBalance: 700, reserveAmount: 100, captureAmount: 250,
   }), null);
 });
 
