@@ -21,13 +21,13 @@ test('refuses release when the reserved balance cannot cover the booking', () =>
 
 test('captures only when both booking reserve and wallet reserved balance cover the charge', () => {
   assert.deepEqual(calculateWalletCapture({
-    reservedBalance: 700, reserveAmount: 300, captureAmount: 250,
-  }), { reservedAfter: 450, amount: 250 });
+    availableBalance: 100, reservedBalance: 700, reserveAmount: 300, captureAmount: 250,
+  }), { availableAfter: 150, reservedAfter: 400, amount: 250, releasedAmount: 50 });
   assert.equal(calculateWalletCapture({
-    reservedBalance: 100, reserveAmount: 300, captureAmount: 250,
+    availableBalance: 100, reservedBalance: 100, reserveAmount: 300, captureAmount: 250,
   }), null);
   assert.equal(calculateWalletCapture({
-    reservedBalance: 249.99, reserveAmount: 300, captureAmount: 250,
+    availableBalance: 100, reservedBalance: 299.99, reserveAmount: 300, captureAmount: 250,
   }), null);
   assert.equal(calculateWalletCapture({
     reservedBalance: 700, reserveAmount: 100, captureAmount: 250,
