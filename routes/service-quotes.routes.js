@@ -7,6 +7,10 @@ const { sendCustomerFcm } = require('../services/push');
 const { buildServiceQuote } = require('../services/service-quote-policy');
 
 const router = express.Router();
+const INSPECTION_CATEGORIES = new Set([
+  'electrician', 'plumber', 'ac_service', 'carpenter', 'appliance_repair',
+  'refrigerator_repair', 'washing_machine_repair', 'ro_water_purifier', 'geyser_repair',
+]);
 const money = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 
 router.get('/:bookingId', requireAuth(['customer', 'provider']), async (req, res, next) => {
@@ -39,7 +43,7 @@ router.post('/:bookingId/propose', requireAuth(['provider']), async (req, res, n
   try {
     await client.query('BEGIN');
     const result = await client.query(
-      'SELECT id, customer_id, provider_id, service_type, status, fare_amount FROM bookings WHERE id = $1 FOR UPDATE',
+      'SELECT id, customer_id, provider_id, service_type, service_category, status, fare_amount FROM bookings WHERE id = $1 FOR UPDATE',
       [req.params.bookingId]
     );
     if (!result.rows.length) {
@@ -54,6 +58,10 @@ router.post('/:bookingId/propose', requireAuth(['provider']), async (req, res, n
     if (booking.service_type !== 'services' || !['accepted', 'arrived'].includes(booking.status)) {
       await client.query('ROLLBACK');
       return res.status(409).json({ error: 'A Home Service quote can only be proposed before the customer PIN starts the job' });
+    }
+    if (req.body?.creditVisitFee === true && !INSPECTION_CATEGORIES.has(booking.service_category)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Visit-fee credit is only available for eligible inspection and repair services' });
     }
     const previous = await client.query(
       'SELECT visit_fee_amount FROM service_job_quotes WHERE booking_id = $1 ORDER BY id ASC LIMIT 1',
