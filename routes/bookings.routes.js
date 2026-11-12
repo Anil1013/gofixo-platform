@@ -9,6 +9,7 @@ const { normalizeServiceCategory, getServiceBaseFare } = require('../services/ca
 const { resolveServiceCatalogBooking } = require('../services/service-catalog-booking');
 const { calculateRideFare } = require('../services/ride-pricing');
 const { calculateServiceSettlement } = require('../services/service-settlement');
+const { calculateWalletRelease, calculateWalletCapture } = require('../services/wallet-reserve-policy');
 
 const SERVICE_TYPES = new Set(['ride', 'services']);
 const PROVIDER_TYPES = new Set(['bike', 'auto', 'car', 'general_worker', 'skilled_worker']);
@@ -101,16 +102,16 @@ async function releaseServiceWallet(client, bookingId, customerId, amount, reaso
   // The reserve ledger is authoritative: approved quotes may include materials
   // in addition to bookings.fare_amount, so cancellation must release the full
   // currently reserved amount rather than the original booking fare.
-  const releaseAmount = money(row.amount);
+  const movement = calculateWalletRelease({
+    availableBalance: row.available_balance,
+    reservedBalance: row.reserved_balance,
+    reserveAmount: row.amount,
+  });
+  const releaseAmount = movement.amount;
   const before = Number(row.available_balance);
   const reservedBefore = Number(row.reserved_balance);
-  if (!Number.isFinite(reservedBefore) || reservedBefore + 0.01 < releaseAmount) {
-    const error = new Error('Wallet reserved balance does not cover this booking release; no funds were changed.');
-    error.status = 409;
-    throw error;
-  }
-  const after = money(before + releaseAmount);
-  const reservedAfter = money(reservedBefore - releaseAmount);
+  const after = movement.availableAfter;
+  const reservedAfter = movement.reservedAfter;
   await client.query('UPDATE wallets SET available_balance=$1, reserved_balance=$2, updated_at=NOW() WHERE id=$3', [after, reservedAfter, row.wallet_id]);
   await client.query(
     `INSERT INTO wallet_transactions
@@ -138,11 +139,16 @@ async function captureServiceWallet(client, bookingId, customerId, amount) {
   const row = tx.rows[0];
   const captureAmount = money(amount);
   if (Number(row.amount) + 0.01 < captureAmount) return false;
+  const movement = calculateWalletCapture({
+    reservedBalance: row.reserved_balance,
+    reserveAmount: row.amount,
+    captureAmount,
+  });
+  if (!movement) return false;
   const before = Number(row.available_balance);
   const reservedBefore = Number(row.reserved_balance);
-  if (!Number.isFinite(reservedBefore) || reservedBefore + 0.01 < captureAmount) return false;
   const after = before;
-  const reservedAfter = money(reservedBefore - captureAmount);
+  const reservedAfter = movement.reservedAfter;
   await client.query('UPDATE wallets SET reserved_balance=$1, updated_at=NOW() WHERE id=$2', [reservedAfter, row.wallet_id]);
   await client.query(
     `INSERT INTO wallet_transactions
