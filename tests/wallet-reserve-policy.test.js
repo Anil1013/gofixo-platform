@@ -14,6 +14,9 @@ test('refuses release when the reserved balance cannot cover the booking', () =>
   assert.throws(() => calculateWalletRelease({
     availableBalance: 500, reservedBalance: 100, reserveAmount: 250,
   }), (error) => error.status === 409 && /does not cover/.test(error.message));
+  assert.throws(() => calculateWalletRelease({
+    availableBalance: 500, reservedBalance: 249.99, reserveAmount: 250,
+  }), (error) => error.status === 409);
 });
 
 test('captures only when both booking reserve and wallet reserved balance cover the charge', () => {
@@ -22,6 +25,9 @@ test('captures only when both booking reserve and wallet reserved balance cover 
   }), { reservedAfter: 450, amount: 250 });
   assert.equal(calculateWalletCapture({
     reservedBalance: 100, reserveAmount: 300, captureAmount: 250,
+  }), null);
+  assert.equal(calculateWalletCapture({
+    reservedBalance: 249.99, reserveAmount: 300, captureAmount: 250,
   }), null);
   assert.equal(calculateWalletCapture({
     reservedBalance: 700, reserveAmount: 100, captureAmount: 250,
