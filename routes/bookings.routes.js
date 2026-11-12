@@ -8,6 +8,7 @@ const { sendProviderPush, sendProviderFcm, sendCustomerFcm } = require('../servi
 const { normalizeServiceCategory, getServiceBaseFare } = require('../services/catalog');
 const { resolveServiceCatalogBooking } = require('../services/service-catalog-booking');
 const { calculateRideFare } = require('../services/ride-pricing');
+const { calculateServiceSettlement } = require('../services/service-settlement');
 
 const SERVICE_TYPES = new Set(['ride', 'services']);
 const PROVIDER_TYPES = new Set(['bike', 'auto', 'car', 'general_worker', 'skilled_worker']);
@@ -1618,9 +1619,17 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Ride bookings currently use cash settlement' });
     }
-    const effectiveCommissionPercent = isService ? commissionPercent : 0;
-    const commission = Number((fare * effectiveCommissionPercent / 100).toFixed(2));
-    const providerAmount = Number((fare + approvedMaterialAmount + waitingFee - commission).toFixed(2));
+    const serviceSettlement = isService
+      ? calculateServiceSettlement({
+          serviceAmount: fare,
+          partnerPercent: 100 - commissionPercent,
+          approvedMaterialAmount,
+        })
+      : null;
+    const commission = isService ? serviceSettlement.platformCommission : 0;
+    const providerAmount = isService
+      ? Number((serviceSettlement.partnerTotal + waitingFee).toFixed(2))
+      : Number((fare + waitingFee).toFixed(2));
 
     if (isService) {
       const captured = await captureServiceWallet(client, Number(id), existing.rows[0].customer_id, totalServiceCharge);
