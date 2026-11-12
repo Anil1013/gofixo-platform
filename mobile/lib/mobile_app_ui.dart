@@ -1209,7 +1209,14 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
           const SizedBox(height:5),
           const Text('Choose additional services you can professionally deliver. New specialties remain unavailable for bookings until Gofixo verifies and approves them.',style:TextStyle(fontSize:11,color:gfMuted)),
           const SizedBox(height:10),
-          if(serviceCatalog.isEmpty) const Text('No active services are available right now. Refresh to try again.',style:TextStyle(fontSize:11,color:gfMuted))
+          if(serviceCatalog.isEmpty) Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            const Text('No active services are available right now.',style:TextStyle(fontSize:11,color:gfMuted)),
+            TextButton.icon(
+              onPressed:loading?null:_load,
+              icon:const Icon(Icons.refresh_rounded,size:16),
+              label:const Text('Refresh services'),
+            ),
+          ])
           else Wrap(spacing:7,runSpacing:7,children:serviceCatalog.map((item){
             final key=item['key']?.toString()??'';
             final label=item['label']?.toString()??key.replaceAll('_',' ');
