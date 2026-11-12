@@ -50,7 +50,8 @@ function calculateWalletAdjustment({ availableBalance, reservedBalance, currentR
     error.status = 409;
     throw error;
   }
-  const delta = money(newReserve - currentReserve, 'reserveDelta');
+  const rawDelta = newReserve - currentReserve;
+  const delta = Math.round((rawDelta + Math.sign(rawDelta) * Number.EPSILON) * 100) / 100;
   if (delta > available) return null;
   return Object.freeze({
     delta,
