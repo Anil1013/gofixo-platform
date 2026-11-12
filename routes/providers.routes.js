@@ -12,7 +12,7 @@ const { requireAdmin } = require('../middleware/admin');
 const { isValidPassword, PASSWORD_ERROR } = require('../utils/password');
 const { getVapidPublicKey } = require('../services/push');
 const { broadcastProviderLocation } = require('../services/realtime');
-const { normalizeServiceCategories, isServiceCategoryForProvider } = require('../services/catalog');
+const { isValidServiceCategoryKey } = require('../services/catalog');
 const { validateUploadFile } = require('../utils/fileValidation');
 const { createRateLimiter } = require('../utils/requestRateLimit');
 const providerRegisterLimit = createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 8, keyPrefix: 'provider-register' });
@@ -101,15 +101,13 @@ router.post('/register', providerRegisterLimit, async (req, res, next) => {
     }
 
     const serviceCategories = type === 'general_worker' || type === 'skilled_worker'
-      ? normalizeServiceCategories(service_categories)
+      ? [...new Set((Array.isArray(service_categories) ? service_categories : []).map((value) => String(value || '').trim().toLowerCase()))]
       : [];
     if ((type === 'general_worker' || type === 'skilled_worker') && serviceCategories.length === 0) {
       return res.status(400).json({ error: 'Select at least one home-service specialty before registering' });
     }
-    const invalidCategory = serviceCategories.find((category) => !isServiceCategoryForProvider(category, type));
-    if (invalidCategory) {
-      return res.status(400).json({ error: 'The selected specialty does not belong to this partner type: ' + invalidCategory });
-    }
+    const malformedCategory = serviceCategories.find((category) => !isValidServiceCategoryKey(category));
+    if (malformedCategory) return res.status(400).json({ error: 'Invalid service specialty key: ' + malformedCategory });
     if (!isValidPassword(password)) return res.status(400).json({ error: PASSWORD_ERROR });
 
     // generated_id pattern: RL-D-00231 (driver) or RL-W-00512 (worker).
@@ -121,6 +119,21 @@ router.post('/register', providerRegisterLimit, async (req, res, next) => {
     try {
       await client.query('BEGIN');
       inTransaction = true;
+
+      if (serviceCategories.length) {
+        const catalog = await client.query(
+          `SELECT category_key FROM service_catalog
+           WHERE category_key = ANY($1::text[]) AND provider_type = $2 AND is_active = true`,
+          [serviceCategories, type]
+        );
+        const allowed = new Set(catalog.rows.map((row) => row.category_key));
+        const invalid = serviceCategories.find((category) => !allowed.has(category));
+        if (invalid) {
+          await client.query('ROLLBACK');
+          inTransaction = false;
+          return res.status(400).json({ error: 'Selected service is inactive or belongs to a different partner type: ' + invalid });
+        }
+      }
 
       await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`gofixo-provider-id:${type}`]);
 
@@ -426,8 +439,7 @@ router.put('/me/skills', requireAuth(['provider']), async (req, res, next) => {
       const validRide = serviceType === 'ride' && ['bike', 'auto', 'car'].includes(skillKey) && accountType === skillKey;
       const validService = serviceType === 'services' &&
         ['general_worker', 'skilled_worker'].includes(accountType) &&
-        normalizeServiceCategories([skillKey]).includes(skillKey) &&
-        isServiceCategoryForProvider(skillKey, accountType);
+        isValidServiceCategoryKey(skillKey);
       if (!validRide && !validService) {
         return res.status(400).json({ error: `Invalid skill: ${skillKey}` });
       }
@@ -604,16 +616,19 @@ router.patch('/:id/availability', requireAuth(['provider']), async (req, res, ne
         return res.status(403).json({ error: 'KYC approval is required before going available' });
       }
       const approvedSkills = await pool.query(
-        `SELECT skill_key, service_type FROM provider_skills
-         WHERE provider_id = $1 AND kyc_status = 'approved' AND is_available = true`,
-        [req.params.id]
+        `SELECT ps.skill_key, ps.service_type
+         FROM provider_skills ps
+         LEFT JOIN service_catalog sc ON sc.category_key = ps.skill_key
+         WHERE ps.provider_id = $1 AND ps.kyc_status = 'approved' AND ps.is_available = true
+           AND (ps.service_type = 'ride' OR (sc.is_active = true AND sc.provider_type = $2))`,
+        [req.params.id, sub.rows[0].type]
       );
       const accountType = sub.rows[0].type;
       const hasValidApprovedSkill = approvedSkills.rows.some((skill) => {
         if (['bike', 'auto', 'car'].includes(accountType)) {
           return skill.service_type === 'ride' && skill.skill_key === accountType;
         }
-        return skill.service_type === 'services' && isServiceCategoryForProvider(skill.skill_key, accountType);
+        return skill.service_type === 'services';
       });
       if (!hasValidApprovedSkill) {
         return res.status(403).json({ error: 'At least one matching service specialty must be approved by Gofixo before going available' });
