@@ -12,7 +12,9 @@ function buildServiceQuote(input, visitFeeAmount = 0) {
   const visitFee = amount(visitFeeAmount, 'visitFeeAmount');
   const creditVisitFee = input.creditVisitFee === true;
   const visitFeeCreditAmount = creditVisitFee ? Math.min(labourAmount, visitFee) : 0;
-  const serviceAmount = Math.round((labourAmount - visitFeeCreditAmount + Number.EPSILON) * 100) / 100;
+  // The initial visit fee is already reserved at booking. If it is not credited,
+  // it remains part of the final service charge; if credited, subtract it from labour.
+  const serviceAmount = Math.round((labourAmount + (creditVisitFee ? -visitFeeCreditAmount : visitFee) + Number.EPSILON) * 100) / 100;
   if (serviceAmount <= 0) throw new RangeError('Labour amount must remain positive (greater than zero) after any visit-fee credit');
   const rawItems = input.materials === undefined ? [] : input.materials;
   if (!Array.isArray(rawItems) || rawItems.length > 50) throw new TypeError('materials must be an array with at most 50 items');
