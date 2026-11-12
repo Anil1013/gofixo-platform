@@ -2080,7 +2080,7 @@ class _ActiveState extends State<_Active>{
  final materialName=TextEditingController();
  final materialQuantity=TextEditingController(text:'1');
  final materialUnitPrice=TextEditingController();
- bool submitting=false; bool creditVisitFee=false;
+ bool submitting=false;
  @override void dispose(){pin.dispose();quoteDescription.dispose();quoteLabour.dispose();materialName.dispose();materialQuantity.dispose();materialUnitPrice.dispose();super.dispose();}
  Future<void> _navigateToTarget() async {
     final isService=widget.b['service_type']=='services';
@@ -2169,7 +2169,7 @@ class _ActiveState extends State<_Active>{
    }else if(materialUnitPrice.text.trim().isNotEmpty){ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Enter a material name or clear its price.')));return;}
    setState(()=>submitting=true);
    try{
-    await ApiService.proposeServiceQuote(widget.session.token,id,description:description,labourAmount:labour,materials:materials,creditVisitFee:creditVisitFee);
+    await ApiService.proposeServiceQuote(widget.session.token,id,description:description,labourAmount:labour,materials:materials,creditVisitFee:const {'electrician','plumber','ac_service','carpenter','appliance_repair','refrigerator_repair','washing_machine_repair','ro_water_purifier','geyser_repair'}.contains(widget.b['service_category']));
     if(mounted)ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Quote sent. Wait for the customer to approve it.')));
     await widget.changed();
    }catch(e){if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
@@ -2253,7 +2253,7 @@ class _ActiveState extends State<_Active>{
         const SizedBox(width:8),
         Expanded(child:TextField(controller:materialUnitPrice,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Unit price ₹'))),
       ]),
-      CheckboxListTile(contentPadding:EdgeInsets.zero,value:creditVisitFee,onChanged:submitting?null:(v)=>setState(()=>creditVisitFee=v??false),title:const Text('Credit visit fee against labour'),subtitle:const Text('Only when the repair is approved'),controlAffinity:ListTileControlAffinity.leading),
+      if(const {'electrician','plumber','ac_service','carpenter','appliance_repair','refrigerator_repair','washing_machine_repair','ro_water_purifier','geyser_repair'}.contains(widget.b['service_category']))const Text('Your inspection fee will be credited against approved repair labour.',style:TextStyle(fontSize:10,fontWeight:FontWeight.w700,color:gfGreen)),
       if(widget.b['service_quote_status']=='proposed')const Text('A quote is already waiting for customer approval. You can send a revised quote after their response.',style:TextStyle(fontSize:10,fontWeight:FontWeight.w700,color:gfMuted)),
       SizedBox(width:double.infinity,child:FilledButton(onPressed:submitting||widget.b['service_quote_status']=='proposed'?null:sendServiceQuote,style:FilledButton.styleFrom(backgroundColor:gfGreen),child:Text(submitting?'Sending…':'Send quote for customer approval →'))),
     ])),
