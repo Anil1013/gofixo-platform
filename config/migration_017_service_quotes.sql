@@ -1,9 +1,9 @@
 -- Home-service inspection quotes and customer approvals. Safe to rerun.
 CREATE TABLE IF NOT EXISTS service_job_quotes (
   id BIGSERIAL PRIMARY KEY,
-  booking_id BIGINT NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
-  provider_id BIGINT NOT NULL REFERENCES service_providers(id),
-  customer_id BIGINT NOT NULL REFERENCES customers(id),
+  booking_id INTEGER NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+  provider_id INTEGER NOT NULL REFERENCES service_providers(id),
+  customer_id INTEGER NOT NULL REFERENCES customers(id),
   status TEXT NOT NULL CHECK (status IN ('proposed','approved','declined','superseded')),
   description TEXT NOT NULL,
   labour_amount NUMERIC(12,2) NOT NULL CHECK (labour_amount >= 0),
