@@ -408,6 +408,7 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
               sq.service_quote_id, sq.service_quote_status, sq.service_quote_description,
               sq.service_quote_labour_amount, sq.service_quote_materials_amount,
               sq.service_quote_total_amount, sq.service_quote_materials,
+              COALESCE(approved_sq.approved_service_materials_amount, 0) AS approved_service_materials_amount,
               c.name AS customer_name,
               CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing', 'completed') THEN c.phone END AS customer_phone,
               CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing', 'completed') THEN c.profile_photo_url END AS customer_profile_photo_url
@@ -419,6 +420,11 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
                 total_amount AS service_quote_total_amount, materials AS service_quote_materials
          FROM service_job_quotes WHERE booking_id = b.id ORDER BY id DESC LIMIT 1
        ) sq ON true
+       LEFT JOIN LATERAL (
+         SELECT materials_amount AS approved_service_materials_amount
+         FROM service_job_quotes WHERE booking_id = b.id AND status = 'approved'
+         ORDER BY id DESC LIMIT 1
+       ) approved_sq ON true
        LEFT JOIN service_providers target_sp ON target_sp.id = $1
        WHERE (
          b.provider_id = $1
