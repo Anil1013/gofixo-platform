@@ -1425,6 +1425,11 @@ router.post('/:id/start', requireAuth(['provider']), async (req, res, next) => {
          AND provider_id = $2
          AND status IN ('accepted', 'arrived')
          AND start_pin = $3
+         AND NOT EXISTS (
+           SELECT 1 FROM service_job_quotes pending_quote
+            WHERE pending_quote.booking_id = bookings.id
+              AND pending_quote.status = 'proposed'
+         )
          AND (status <> 'arrived' OR arrived_at > NOW() - ($6 * INTERVAL '1 minute'))
        RETURNING id, service_type, customer_id, provider_id, pickup_location, status, created_at,
                  arrived_at, waiting_fee_amount, waiting_fee_status`,
