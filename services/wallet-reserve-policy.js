@@ -24,12 +24,20 @@ function calculateWalletRelease({ availableBalance, reservedBalance, reserveAmou
   });
 }
 
-function calculateWalletCapture({ reservedBalance, reserveAmount, captureAmount }) {
+function calculateWalletCapture({ availableBalance, reservedBalance, reserveAmount, captureAmount }) {
+  const available = money(availableBalance, 'availableBalance');
   const reserved = money(reservedBalance, 'reservedBalance');
   const originalReserve = money(reserveAmount, 'reserveAmount');
   const capture = money(captureAmount, 'captureAmount');
-  if (originalReserve < capture || reserved < capture) return null;
-  return Object.freeze({ reservedAfter: money(reserved - capture, 'reservedAfter'), amount: capture });
+  // Require the complete booking reserve and release any unused remainder.
+  if (originalReserve < capture || reserved < originalReserve) return null;
+  const unusedReserve = money(originalReserve - capture, 'unusedReserve');
+  return Object.freeze({
+    availableAfter: money(available + unusedReserve, 'availableAfter'),
+    reservedAfter: money(reserved - originalReserve, 'reservedAfter'),
+    amount: capture,
+    releasedAmount: unusedReserve,
+  });
 }
 
 function calculateWalletAdjustment({ availableBalance, reservedBalance, currentReserveAmount, newReserveAmount }) {
