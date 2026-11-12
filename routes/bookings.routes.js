@@ -104,8 +104,13 @@ async function releaseServiceWallet(client, bookingId, customerId, amount, reaso
   const releaseAmount = money(row.amount);
   const before = Number(row.available_balance);
   const reservedBefore = Number(row.reserved_balance);
+  if (!Number.isFinite(reservedBefore) || reservedBefore + 0.01 < releaseAmount) {
+    const error = new Error('Wallet reserved balance does not cover this booking release; no funds were changed.');
+    error.status = 409;
+    throw error;
+  }
   const after = money(before + releaseAmount);
-  const reservedAfter = money(Math.max(0, reservedBefore - releaseAmount));
+  const reservedAfter = money(reservedBefore - releaseAmount);
   await client.query('UPDATE wallets SET available_balance=$1, reserved_balance=$2, updated_at=NOW() WHERE id=$3', [after, reservedAfter, row.wallet_id]);
   await client.query(
     `INSERT INTO wallet_transactions
@@ -135,8 +140,9 @@ async function captureServiceWallet(client, bookingId, customerId, amount) {
   if (Number(row.amount) + 0.01 < captureAmount) return false;
   const before = Number(row.available_balance);
   const reservedBefore = Number(row.reserved_balance);
+  if (!Number.isFinite(reservedBefore) || reservedBefore + 0.01 < captureAmount) return false;
   const after = before;
-  const reservedAfter = money(Math.max(0, reservedBefore - captureAmount));
+  const reservedAfter = money(reservedBefore - captureAmount);
   await client.query('UPDATE wallets SET reserved_balance=$1, updated_at=NOW() WHERE id=$2', [reservedAfter, row.wallet_id]);
   await client.query(
     `INSERT INTO wallet_transactions
