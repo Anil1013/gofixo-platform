@@ -7,6 +7,7 @@ const {
   normalizeServiceCategory,
   normalizeServiceCategories,
   getServiceCatalog,
+  isValidServiceCategoryKey,
 } = require('../services/catalog');
 
 test('catalog has unique stable keys and HTTPS images for every home service', () => {
@@ -39,4 +40,12 @@ test('public catalog maps each service to its existing display base fare', () =>
   assert.equal(items.length, HOME_SERVICE_CATALOG.length);
   assert.equal(items.find((item) => item.key === 'cleaning').baseFare, 349);
   assert.equal(items.find((item) => item.key === 'elder_care').label, 'Senior & Disability Care');
+});
+
+test('dynamic service keys accept safe stable slugs without treating unknown keys as Other', () => {
+  assert.equal(isValidServiceCategoryKey('home_deep_cleaning'), true);
+  assert.equal(isValidServiceCategoryKey('senior_care_plus'), true);
+  assert.equal(isValidServiceCategoryKey('Home Cleaning'), false);
+  assert.equal(isValidServiceCategoryKey('../admin'), false);
+  assert.equal(isValidServiceCategoryKey(''), false);
 });
