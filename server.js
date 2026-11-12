@@ -19,6 +19,7 @@ const paymentTrackingRoutes = require('./routes/payment-tracking.routes');
 const pool = require('./config/db');
 const { attachRealtime } = require('./services/realtime');
 const serviceCatalogRoutes = require('./routes/service-catalog.routes');
+const serviceQuoteRoutes = require('./routes/service-quotes.routes');
 const { createRateLimiter } = require('./utils/requestRateLimit');
 
 const app = express();
@@ -143,6 +144,7 @@ async function googlePlacesRequest(url, fieldMask, body) {
 }
 
 app.use('/api/catalog', serviceCatalogRoutes);
+app.use('/api/service-quotes', serviceQuoteRoutes);
 
 app.get('/api/places/autocomplete', placesRateLimit, async (req, res) => {
   const input = String(req.query.input || '').trim();
