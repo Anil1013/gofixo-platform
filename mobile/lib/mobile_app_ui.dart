@@ -1091,6 +1091,21 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
       if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception:','').trim())));
     }finally{if(mounted)setState(()=>working=false);}
   }
+  Future<void> _setSpecialtyAvailability(Map<String,dynamic> skill,bool enabled)async{
+    if(working)return;
+    final key=skill['skill_key']?.toString()??'';
+    if(key.isEmpty)return;
+    setState(()=>working=true);
+    try{
+      final updated=await ApiService.setProviderSkillAvailability(widget.session.token,key,enabled);
+      if(mounted)setState((){
+        final index=providerSkills.indexWhere((item)=>item['skill_key']==key&&item['service_type']=='services');
+        if(index>=0)providerSkills[index]=updated;
+      });
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception:','').trim())));
+    }finally{if(mounted)setState(()=>working=false);}
+  }
   Future<void> _subscribe(Map<String,dynamic> plan)async{
     final id=int.tryParse(plan['id']?.toString()??'');
     if(id==null||working)return;
@@ -1204,8 +1219,27 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
               style:FilledButton.styleFrom(backgroundColor:gfGreen),
             )),
           ],
+          if(providerSkills.where((skill)=>skill['service_type']=='services').isNotEmpty)...[
+            const Divider(height:18),
+            const Text('YOUR SUBMITTED SPECIALTIES',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
+            ...providerSkills.where((skill)=>skill['service_type']=='services').map((skill){
+              final key=skill['skill_key']?.toString()??'';
+              final status=skill['kyc_status']?.toString()??'pending';
+              final catalogItem=serviceCatalog.where((item)=>item['key']==key).toList();
+              final label=catalogItem.isNotEmpty?catalogItem.first['label']?.toString()??key:key.replaceAll('_',' ');
+              final canEnable=status=='approved';
+              return SwitchListTile(
+                dense:true,
+                contentPadding:EdgeInsets.zero,
+                title:Text(label,style:const TextStyle(fontSize:12,fontWeight:FontWeight.w700)),
+                subtitle:Text(canEnable?(skill['is_available']==true?'Approved · accepting matching':'Approved · paused'):'Approval status: $status',style:const TextStyle(fontSize:10,color:gfMuted)),
+                value:canEnable&&skill['is_available']==true,
+                onChanged:canEnable&&!working?(value)=>_setSpecialtyAvailability(skill,value):null,
+              );
+            }),
+          ],
           const SizedBox(height:6),
-          const Text('Approved specialties can receive matching. Pending or rejected specialties cannot receive bookings.',style:TextStyle(fontSize:10,color:gfMuted)),
+          const Text('Only admin-approved and enabled specialties can receive matching.',style:TextStyle(fontSize:10,color:gfMuted)),
         ])),
       ],
       _ServiceInfo(title:'Nearby matching',icon:Icons.radar_rounded,enabled:approved),
