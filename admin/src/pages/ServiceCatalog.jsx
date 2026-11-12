@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiGet, apiPost, apiPut } from '../api';
+import { apiGet, apiPut } from '../api';
 
 const empty = { label: '', description: '', image_url: '', provider_type: 'general_worker', base_fare: 0, is_active: true, sort_order: 100 };
 
@@ -31,7 +31,7 @@ export default function ServiceCatalog() {
     const key = newService.key.trim().toLowerCase();
     setSaving('new'); setError(''); setNotice('');
     try {
-      await apiPost('/catalog/admin/services', { ...newService, category_key: key, base_fare: Number(newService.base_fare), sort_order: Number(newService.sort_order) });
+      await apiPut(`/catalog/admin/services/${encodeURIComponent(key)}`, { ...newService, base_fare: Number(newService.base_fare), sort_order: Number(newService.sort_order) });
       setNotice(`${newService.label} added. Partners can select it after the catalog refreshes.`);
       setNewService({ key: '', ...empty });
       await load();
