@@ -61,8 +61,9 @@ jobs:
               try {
                 await client.query('BEGIN');
                 await client.query(fs.readFileSync('config/migration_016_dynamic_service_catalog.sql', 'utf8'));
+                await client.query(fs.readFileSync('config/migration_017_service_quotes.sql', 'utf8'));
                 await client.query('COMMIT');
-                console.log('Dynamic service catalog migration 016 applied.');
+                console.log('Dynamic service catalog migration 016 and Home Service quotes migration 017 applied.');
               } catch (error) {
                 await client.query('ROLLBACK').catch(() => {});
                 throw error;
