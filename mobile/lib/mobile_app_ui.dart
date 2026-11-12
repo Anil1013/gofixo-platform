@@ -2068,6 +2068,12 @@ class _Incoming extends StatelessWidget{
   ]));
  }
 }
+class _QuoteMaterialRow{
+ final name=TextEditingController();
+ final quantity=TextEditingController(text:'1');
+ final unitPrice=TextEditingController();
+ void dispose(){name.dispose();quantity.dispose();unitPrice.dispose();}
+}
 class _Active extends StatefulWidget{
  final Session session; final Map<String,dynamic>b; final Future<void> Function({bool silent})changed;
  const _Active({required this.session,required this.b,required this.changed});
@@ -2077,11 +2083,11 @@ class _ActiveState extends State<_Active>{
  final pin=TextEditingController();
  final quoteDescription=TextEditingController();
  final quoteLabour=TextEditingController();
- final materialName=TextEditingController();
- final materialQuantity=TextEditingController(text:'1');
- final materialUnitPrice=TextEditingController();
+ final List<_QuoteMaterialRow> quoteMaterials=[_QuoteMaterialRow()];
  bool submitting=false;
- @override void dispose(){pin.dispose();quoteDescription.dispose();quoteLabour.dispose();materialName.dispose();materialQuantity.dispose();materialUnitPrice.dispose();super.dispose();}
+ @override void dispose(){pin.dispose();quoteDescription.dispose();quoteLabour.dispose();for(final item in quoteMaterials){item.dispose();}super.dispose();}
+ void addQuoteMaterial(){if(quoteMaterials.length>=50)return;setState(()=>quoteMaterials.add(_QuoteMaterialRow()));}
+ void removeQuoteMaterial(int index){if(quoteMaterials.length<=1)return;setState(()=>quoteMaterials.removeAt(index).dispose());}
  Future<void> _navigateToTarget() async {
     final isService=widget.b['service_type']=='services';
     final ongoing=widget.b['status']=='ongoing';
@@ -2159,14 +2165,21 @@ class _ActiveState extends State<_Active>{
    final labour=double.tryParse(quoteLabour.text.trim());
    final description=quoteDescription.text.trim();
    if(description.isEmpty||labour==null||labour<=0){ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Enter the work details and a valid labour amount.')));return;}
+   if(quoteMaterials.length>50){ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('You can add up to 50 material items.')));return;}
    final materials=<Map<String,dynamic>>[];
-   final name=materialName.text.trim();
-   final unit=double.tryParse(materialUnitPrice.text.trim());
-   final qty=double.tryParse(materialQuantity.text.trim());
-   if(name.isNotEmpty){
-    if(unit==null||unit<0||qty==null||qty<=0){ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Check material quantity and unit price.')));return;}
+   for(var index=0;index<quoteMaterials.length;index++){
+    final item=quoteMaterials[index];
+    final name=item.name.text.trim();
+    final quantityText=item.quantity.text.trim();
+    final priceText=item.unitPrice.text.trim();
+    if(name.isEmpty&&quantityText.isEmpty&&priceText.isEmpty)continue;
+    final qty=double.tryParse(quantityText);
+    final unit=double.tryParse(priceText);
+    if(name.isEmpty||qty==null||qty<=0||unit==null||unit<0){
+     ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text('Check material '+(index+1).toString()+': enter name, valid quantity and unit price.')));return;
+    }
     materials.add({'name':name,'quantity':qty,'unitPrice':unit});
-   }else if(materialUnitPrice.text.trim().isNotEmpty){ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Enter a material name or clear its price.')));return;}
+   }
    setState(()=>submitting=true);
    try{
     await ApiService.proposeServiceQuote(widget.session.token,id,description:description,labourAmount:labour,materials:materials,creditVisitFee:const {'electrician','plumber','ac_service','carpenter','appliance_repair','refrigerator_repair','washing_machine_repair','ro_water_purifier','geyser_repair'}.contains(widget.b['service_category']));
@@ -2247,12 +2260,26 @@ class _ActiveState extends State<_Active>{
       const SizedBox(height:6),
       TextField(controller:quoteLabour,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Labour amount (₹)')),
       const SizedBox(height:6),
-      TextField(controller:materialName,decoration:const InputDecoration(labelText:'Material name (optional)')),
-      Row(children:[
-        Expanded(child:TextField(controller:materialQuantity,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Qty'))),
-        const SizedBox(width:8),
-        Expanded(child:TextField(controller:materialUnitPrice,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Unit price ₹'))),
-      ]),
+      ...quoteMaterials.asMap().entries.map((entry){
+       final index=entry.key;final item=entry.value;
+       return Padding(padding:const EdgeInsets.only(bottom:8),child:Column(children:[
+        Row(children:[
+         Expanded(child:Text('Material '+(index+1).toString(),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:gfNavy))),
+         if(quoteMaterials.length>1)IconButton(tooltip:'Remove material',onPressed:submitting?null:()=>removeQuoteMaterial(index),icon:const Icon(Icons.delete_outline_rounded,color:Colors.red)),
+        ]),
+        TextField(controller:item.name,decoration:const InputDecoration(labelText:'Material name (optional)')),
+        Row(children:[
+         Expanded(child:TextField(controller:item.quantity,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Qty'))),
+         const SizedBox(width:8),
+         Expanded(child:TextField(controller:item.unitPrice,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Unit price ₹'))),
+        ]),
+       ]));
+      }),
+      Align(alignment:Alignment.centerLeft,child:TextButton.icon(
+       onPressed:submitting||quoteMaterials.length>=50?null:addQuoteMaterial,
+       icon:const Icon(Icons.add_circle_outline_rounded),
+       label:Text(quoteMaterials.length>=50?'Maximum 50 materials':'Add another material'),
+      )),
       if(const {'electrician','plumber','ac_service','carpenter','appliance_repair','refrigerator_repair','washing_machine_repair','ro_water_purifier','geyser_repair'}.contains(widget.b['service_category']))const Text('Your inspection fee will be credited against approved repair labour.',style:TextStyle(fontSize:10,fontWeight:FontWeight.w700,color:gfGreen)),
       if(widget.b['service_quote_status']=='proposed')const Text('A quote is already waiting for customer approval. You can send a revised quote after their response.',style:TextStyle(fontSize:10,fontWeight:FontWeight.w700,color:gfMuted)),
       SizedBox(width:double.infinity,child:FilledButton(onPressed:submitting||widget.b['service_quote_status']=='proposed'?null:sendServiceQuote,style:FilledButton.styleFrom(backgroundColor:gfGreen),child:Text(submitting?'Sending…':'Send quote for customer approval →'))),
