@@ -103,6 +103,7 @@ router.post('/register', providerRegisterLimit, async (req, res, next) => {
     const serviceCategories = type === 'general_worker' || type === 'skilled_worker'
       ? [...new Set((Array.isArray(service_categories) ? service_categories : []).map((value) => String(value || '').trim().toLowerCase()))]
       : [];
+    if (serviceCategories.length > 30) return res.status(400).json({ error: 'Select no more than 30 home-service specialties' });
     if ((type === 'general_worker' || type === 'skilled_worker') && serviceCategories.length === 0) {
       return res.status(400).json({ error: 'Select at least one home-service specialty before registering' });
     }
@@ -448,6 +449,20 @@ router.put('/me/skills', requireAuth(['provider']), async (req, res, next) => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+      const serviceKeys = normalized.filter((skill) => skill.service_type === 'services').map((skill) => skill.skill_key);
+      if (serviceKeys.length) {
+        const catalog = await client.query(
+          `SELECT category_key FROM service_catalog
+           WHERE category_key = ANY($1::text[]) AND provider_type = $2 AND is_active = true`,
+          [serviceKeys, accountType]
+        );
+        const allowed = new Set(catalog.rows.map((row) => row.category_key));
+        const invalid = serviceKeys.find((key) => !allowed.has(key));
+        if (invalid) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Selected service is inactive or belongs to a different partner type: ' + invalid });
+        }
+      }
       for (const skill of normalized) {
         await client.query(
           `INSERT INTO provider_skills (provider_id, skill_key, service_type, kyc_status, is_available)
