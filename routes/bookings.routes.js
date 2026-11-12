@@ -367,9 +367,18 @@ router.get('/mine', requireAuth(['customer']), async (req, res, next) => {
               CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing', 'completed') THEN sp.phone END AS provider_phone,
               CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing', 'completed') THEN (SELECT pd.file_url FROM provider_documents pd WHERE pd.provider_id = sp.id AND pd.doc_type = 'profile_photo' ORDER BY pd.uploaded_at DESC, pd.id DESC LIMIT 1) END AS provider_profile_photo_url,
               CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing') THEN sp.current_lat END AS provider_lat,
-              CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing') THEN sp.current_lng END AS provider_lng
+              CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing') THEN sp.current_lng END AS provider_lng,
+              sq.service_quote_id, sq.service_quote_status, sq.service_quote_description,
+              sq.service_quote_labour_amount, sq.service_quote_materials_amount,
+              sq.service_quote_total_amount, sq.service_quote_materials
        FROM bookings b
        LEFT JOIN service_providers sp ON b.provider_id = sp.id
+       LEFT JOIN LATERAL (
+         SELECT id AS service_quote_id, status AS service_quote_status, description AS service_quote_description,
+                labour_amount AS service_quote_labour_amount, materials_amount AS service_quote_materials_amount,
+                total_amount AS service_quote_total_amount, materials AS service_quote_materials
+         FROM service_job_quotes WHERE booking_id = b.id ORDER BY id DESC LIMIT 1
+       ) sq ON true
        WHERE b.customer_id = $1
        ORDER BY b.created_at DESC`,
       [req.user.id]
@@ -390,11 +399,20 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
               b.fare_amount, b.route_distance_km, b.duration_minutes, b.status, b.payment_confirmed_by_provider,
               b.arrived_at, b.waiting_fee_amount, b.waiting_fee_status,
               b.created_at, b.completed_at, b.pickup_lat, b.pickup_lng, b.drop_lat, b.drop_lng, b.offered_at,
+              sq.service_quote_id, sq.service_quote_status, sq.service_quote_description,
+              sq.service_quote_labour_amount, sq.service_quote_materials_amount,
+              sq.service_quote_total_amount, sq.service_quote_materials,
               c.name AS customer_name,
               CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing', 'completed') THEN c.phone END AS customer_phone,
               CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing', 'completed') THEN c.profile_photo_url END AS customer_profile_photo_url
        FROM bookings b
        LEFT JOIN customers c ON b.customer_id = c.id
+       LEFT JOIN LATERAL (
+         SELECT id AS service_quote_id, status AS service_quote_status, description AS service_quote_description,
+                labour_amount AS service_quote_labour_amount, materials_amount AS service_quote_materials_amount,
+                total_amount AS service_quote_total_amount, materials AS service_quote_materials
+         FROM service_job_quotes WHERE booking_id = b.id ORDER BY id DESC LIMIT 1
+       ) sq ON true
        LEFT JOIN service_providers target_sp ON target_sp.id = $1
        WHERE (
          b.provider_id = $1
