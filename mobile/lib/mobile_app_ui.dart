@@ -1044,6 +1044,9 @@ class _ProviderServicesTab extends StatefulWidget{
 class _ProviderServicesTabState extends State<_ProviderServicesTab>{
   List<Map<String,dynamic>> plans=[];
   List<Map<String,dynamic>> paymentRequests=[];
+  List<Map<String,dynamic>> serviceCatalog=[];
+  List<Map<String,dynamic>> providerSkills=[];
+  final Set<String> selectedNewSkills={};
   Map<String,dynamic>? subscription, paymentConfig;
   bool loading=true,working=false;
   @override void initState(){super.initState();_load();}
@@ -1051,6 +1054,12 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
     try{
       final all=await ApiService.plans();
       final type=widget.me['type']?.toString()??'';
+      List<Map<String,dynamic>> catalog=[];
+      List<Map<String,dynamic>> skills=[];
+      if(type=='general_worker'||type=='skilled_worker'){
+        try{catalog=await ApiService.serviceCatalog();}catch(_){}
+        try{skills=await ApiService.providerSkills(widget.session.token);}catch(_){}
+      }
       final id=int.tryParse(widget.me['id']?.toString()??'')??0;
       final current=await ApiService.subscription(widget.session.token,id);
       Map<String,dynamic>? config;
@@ -1059,12 +1068,28 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
       try{requests=await ApiService.mySubscriptionPayments(widget.session.token);}catch(_){}
       if(mounted)setState((){
         plans=all.where((p)=>p['provider_type']?.toString()==type).toList();
+        serviceCatalog=catalog.where((item)=>item['provider_type']?.toString()==type && item['is_active']==true).toList();
+        providerSkills=skills;
+        selectedNewSkills.clear();
         subscription=current;
         paymentConfig=config;
         paymentRequests=requests;
         loading=false;
       });
     }catch(_){if(mounted)setState(()=>loading=false);}
+  }
+  Future<void> _saveSpecialties()async{
+    if(working||selectedNewSkills.isEmpty)return;
+    setState(()=>working=true);
+    try{
+      final additions=selectedNewSkills.map((key)=>{'skill_key':key,'service_type':'services'}).toList();
+      final updated=await ApiService.updateProviderSkills(widget.session.token,additions);
+      if(mounted)setState(()=>providerSkills=updated);
+      selectedNewSkills.clear();
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('New specialties submitted. They will become available after Gofixo admin approval.')));
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception:','').trim())));
+    }finally{if(mounted)setState(()=>working=false);}
   }
   Future<void> _subscribe(Map<String,dynamic> plan)async{
     final id=int.tryParse(plan['id']?.toString()??'');
@@ -1149,6 +1174,40 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
       const SizedBox(height:12),
       _ServiceInfo(title:'Rides',icon:Icons.local_taxi_rounded,enabled:driver),
       _ServiceInfo(title:'Home & Lifestyle Services',icon:Icons.handyman_rounded,enabled:worker),
+      if(worker)...[
+        const SizedBox(height:10),
+        _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          const Text('MANAGE HOME-SERVICE SPECIALTIES',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
+          const SizedBox(height:5),
+          const Text('Choose additional services you can professionally deliver. New specialties remain unavailable for bookings until Gofixo verifies and approves them.',style:TextStyle(fontSize:11,color:gfMuted)),
+          const SizedBox(height:10),
+          if(serviceCatalog.isEmpty) const Text('No active services are available right now. Refresh to try again.',style:TextStyle(fontSize:11,color:gfMuted))
+          else Wrap(spacing:7,runSpacing:7,children:serviceCatalog.map((item){
+            final key=item['category_key']?.toString()??'';
+            final label=item['label']?.toString()??key.replaceAll('_',' ');
+            final current=providerSkills.where((skill)=>skill['service_type']=='services'&&skill['skill_key']==key).toList();
+            final exists=current.isNotEmpty;
+            final status=exists?current.first['kyc_status']?.toString()??'pending':'';
+            return FilterChip(
+              selected:exists||selectedNewSkills.contains(key),
+              onSelected:exists?null:(value)=>setState(()=>value?selectedNewSkills.add(key):selectedNewSkills.remove(key)),
+              label:Text(exists?'$label · $status':label),
+              avatar:Icon(exists?(status=='approved'?Icons.verified:Icons.hourglass_top):Icons.add_circle_outline,size:16),
+            );
+          }).toList()),
+          if(selectedNewSkills.isNotEmpty)...[
+            const SizedBox(height:10),
+            SizedBox(width:double.infinity,child:FilledButton.icon(
+              onPressed:working?null:_saveSpecialties,
+              icon:const Icon(Icons.send_rounded),
+              label:Text(working?'Submitting…':'Submit ${selectedNewSkills.length} new specialties for approval'),
+              style:FilledButton.styleFrom(backgroundColor:gfGreen),
+            )),
+          ],
+          const SizedBox(height:6),
+          const Text('Approved specialties can receive matching. Pending or rejected specialties cannot receive bookings.',style:TextStyle(fontSize:10,color:gfMuted)),
+        ])),
+      ],
       _ServiceInfo(title:'Nearby matching',icon:Icons.radar_rounded,enabled:approved),
       const SizedBox(height:12),
       _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
