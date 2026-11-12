@@ -1049,8 +1049,18 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
   final Set<String> selectedNewSkills={};
   Map<String,dynamic>? subscription, paymentConfig;
   bool loading=true,working=false;
+  int _loadGeneration=0;
   @override void initState(){super.initState();_load();}
+  @override void didUpdateWidget(covariant _ProviderServicesTab oldWidget){
+    super.didUpdateWidget(oldWidget);
+    final oldId=oldWidget.me['id']?.toString()??'';
+    final newId=widget.me['id']?.toString()??'';
+    final oldType=oldWidget.me['type']?.toString()??'';
+    final newType=widget.me['type']?.toString()??'';
+    if(oldId!=newId||oldType!=newType)_load();
+  }
   Future<void> _load()async{
+    final generation=++_loadGeneration;
     try{
       final all=await ApiService.plans();
       final type=widget.me['type']?.toString()??'';
@@ -1066,7 +1076,7 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
       List<Map<String,dynamic>> requests=[];
       try{config=await ApiService.subscriptionPaymentConfig(widget.session.token);}catch(_){}
       try{requests=await ApiService.mySubscriptionPayments(widget.session.token);}catch(_){}
-      if(mounted)setState((){
+      if(mounted&&generation==_loadGeneration)setState((){
         plans=all.where((p)=>p['provider_type']?.toString()==type).toList();
         serviceCatalog=catalog.where((item)=>item['providerType']?.toString()==type).toList();
         providerSkills=skills;
@@ -1076,7 +1086,7 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
         paymentRequests=requests;
         loading=false;
       });
-    }catch(_){if(mounted)setState(()=>loading=false);}
+    }catch(_){if(mounted&&generation==_loadGeneration)setState(()=>loading=false);}
   }
   Future<void> _saveSpecialties()async{
     if(working||selectedNewSkills.isEmpty)return;
