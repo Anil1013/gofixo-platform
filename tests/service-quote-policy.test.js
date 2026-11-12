@@ -20,6 +20,8 @@ test('does not credit visit fee unless customer-facing quote explicitly opts in'
   const q = buildServiceQuote({ description: 'Repair', labourAmount: 500 }, 299);
   assert.equal(q.serviceAmount, 500);
   assert.equal(q.visitFeeCreditAmount, 0);
+  assert.equal(q.serviceAmount, 799);
+  assert.equal(q.totalAmount, 799);
 });
 
 test('rejects malformed and excessive material entries', () => {
