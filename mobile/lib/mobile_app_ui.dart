@@ -2284,7 +2284,7 @@ class _ActiveState extends State<_Active>{
          Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
            const Text('UPFRONT FARE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
            Text('₹'+(widget.b['fare_amount']??0).toString(),style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:gfNavy)),
-           if(isHomeService&&(double.tryParse(widget.b['service_quote_materials_amount']?.toString()??'0')??0)>0)Text('Approved materials ₹'+(widget.b['service_quote_materials_amount']).toString(),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:gfGreen)),
+           if(isHomeService&&(double.tryParse(widget.b['approved_service_materials_amount']?.toString()??'0')??0)>0)Text('Approved materials ₹'+(widget.b['approved_service_materials_amount']).toString(),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:gfGreen)),
            if(waitingFee>0) Text('Waiting fee ₹'+waitingFee.toStringAsFixed(2),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:gfGreen)),
            Text(isHomeService?'Labour and customer-approved materials only':'Fare is locked to the customer estimate',style:const TextStyle(fontSize:10,color:gfMuted)),
          ])),
