@@ -98,7 +98,10 @@ async function releaseServiceWallet(client, bookingId, customerId, amount, reaso
   );
   if (!tx.rows.length) return false;
   const row = tx.rows[0];
-  const releaseAmount = money(amount || row.amount);
+  // The reserve ledger is authoritative: approved quotes may include materials
+  // in addition to bookings.fare_amount, so cancellation must release the full
+  // currently reserved amount rather than the original booking fare.
+  const releaseAmount = money(row.amount);
   const before = Number(row.available_balance);
   const reservedBefore = Number(row.reserved_balance);
   const after = money(before + releaseAmount);
