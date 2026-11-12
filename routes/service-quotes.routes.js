@@ -5,6 +5,7 @@ const pool = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
 const { sendCustomerFcm } = require('../services/push');
 const { buildServiceQuote } = require('../services/service-quote-policy');
+const { calculateWalletAdjustment } = require('../services/wallet-reserve-policy');
 
 const router = express.Router();
 const INSPECTION_CATEGORIES = new Set([
@@ -164,19 +165,27 @@ router.post('/:bookingId/respond', requireAuth(['customer']), async (req, res, n
       const w = wallet.rows[0];
       const oldReserve = money(reserve.rows[0].amount);
       const newReserve = money(quote.total_amount);
-      const delta = money(newReserve - oldReserve);
       const available = money(w.available_balance);
-      if (delta > available) {
+      let movement;
+      try {
+        movement = calculateWalletAdjustment({
+          availableBalance: available,
+          reservedBalance: w.reserved_balance,
+          currentReserveAmount: oldReserve,
+          newReserveAmount: newReserve,
+        });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        return res.status(error.status || 409).json({ error: error.message });
+      }
+      if (!movement) {
         await client.query('ROLLBACK');
         return res.status(402).json({ error: 'Insufficient Gofixo Wallet balance for this quote. Add funds before approving.' });
       }
       const reservedBefore = money(w.reserved_balance);
-      const availableAfter = money(available - delta);
-      const reservedAfter = money(reservedBefore + delta);
-      if (reservedAfter < 0) {
-        await client.query('ROLLBACK');
-        return res.status(409).json({ error: 'Wallet reserved balance does not match this booking. Contact Gofixo support before approving.' });
-      }
+      const delta = movement.delta;
+      const availableAfter = movement.availableAfter;
+      const reservedAfter = movement.reservedAfter;
       await client.query(
         'UPDATE wallets SET available_balance = $1, reserved_balance = $2, updated_at = NOW() WHERE id = $3',
         [availableAfter, reservedAfter, w.id]
