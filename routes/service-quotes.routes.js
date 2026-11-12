@@ -181,16 +181,20 @@ router.post('/:bookingId/respond', requireAuth(['customer']), async (req, res, n
         'UPDATE wallets SET available_balance = $1, reserved_balance = $2, updated_at = NOW() WHERE id = $3',
         [availableAfter, reservedAfter, w.id]
       );
-      await client.query(
-        `INSERT INTO wallet_transactions
-          (wallet_id, customer_id, booking_id, type, amount, balance_before, balance_after,
-           reserved_before, reserved_after, status, reference_id, metadata)
-         VALUES ($1,$2,$3,'SERVICE_QUOTE_ADJUSTMENT',$4,$5,$6,$7,$8,'success',$9,$10)
-         ON CONFLICT (type, reference_id) DO NOTHING`,
-        [w.id, booking.customer_id, booking.id, Math.abs(delta), available, availableAfter,
-          reservedBefore, reservedAfter, 'SERVICE_QUOTE_ADJUSTMENT_' + quote.id,
-          JSON.stringify({ quote_id: quote.id, direction: delta >= 0 ? 'reserve_more' : 'release_excess' })]
-      );
+      // wallet_transactions.amount is constrained to be positive. An exact
+      // quote match needs no ledger adjustment and must not insert a zero row.
+      if (Math.abs(delta) > 0) {
+        await client.query(
+          `INSERT INTO wallet_transactions
+            (wallet_id, customer_id, booking_id, type, amount, balance_before, balance_after,
+             reserved_before, reserved_after, status, reference_id, metadata)
+           VALUES ($1,$2,$3,'SERVICE_QUOTE_ADJUSTMENT',$4,$5,$6,$7,$8,'success',$9,$10)
+           ON CONFLICT (type, reference_id) DO NOTHING`,
+          [w.id, booking.customer_id, booking.id, Math.abs(delta), available, availableAfter,
+            reservedBefore, reservedAfter, 'SERVICE_QUOTE_ADJUSTMENT_' + quote.id,
+            JSON.stringify({ quote_id: quote.id, direction: delta > 0 ? 'reserve_more' : 'release_excess' })]
+        );
+      }
       await client.query('UPDATE wallet_transactions SET amount = $1 WHERE id = $2', [newReserve, reserve.rows[0].id]);
       await client.query(
         "UPDATE service_job_quotes SET status = 'superseded', updated_at = NOW() WHERE booking_id = $1 AND status = 'approved'",
