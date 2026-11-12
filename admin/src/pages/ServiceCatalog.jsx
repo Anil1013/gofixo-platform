@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiGet, apiPut } from '../api';
+import { apiGet, apiPost, apiPut } from '../api';
 
 const empty = { label: '', description: '', image_url: '', provider_type: 'general_worker', base_fare: 0, is_active: true, sort_order: 100 };
 
@@ -10,6 +10,7 @@ export default function ServiceCatalog() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [saving, setSaving] = useState('');
+  const [newService, setNewService] = useState({ key: '', ...empty });
 
   async function load() {
     setLoading(true); setError('');
@@ -24,6 +25,18 @@ export default function ServiceCatalog() {
 
   function change(key, field, value) {
     setDraft((old) => ({ ...old, [key]: { ...old[key], [field]: value } }));
+  }
+
+  async function addService() {
+    const key = newService.key.trim().toLowerCase();
+    setSaving('new'); setError(''); setNotice('');
+    try {
+      await apiPost('/catalog/admin/services', { ...newService, category_key: key, base_fare: Number(newService.base_fare), sort_order: Number(newService.sort_order) });
+      setNotice(`${newService.label} added. Partners can select it after the catalog refreshes.`);
+      setNewService({ key: '', ...empty });
+      await load();
+    } catch (e) { setError(e.message); }
+    finally { setSaving(''); }
   }
 
   async function save(key) {
@@ -48,7 +61,22 @@ export default function ServiceCatalog() {
     </div>
     {error && <p role="alert" style={{color:'#B42318'}}>{error}</p>}
     {notice && <p role="status" style={{color:'#16803C'}}>{notice}</p>}
-    {loading ? <p>Loading services…</p> : <div style={{display:'grid',gap:14}}>
+    {loading ? <p>Loading services…</p> : <>
+      <article style={{padding:16,marginBottom:14,border:'1px solid #D0D5DD',borderRadius:14,background:'#fff'}}>
+        <h2 style={{marginTop:0}}>Add a new service</h2>
+        <p style={{fontSize:13,color:'#667085'}}>Use a permanent key such as home_deep_cleaning. The key cannot be changed after creation.</p>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:10}}>
+          <label>Service key<input value={newService.key} onChange={e=>setNewService(v=>({...v,key:e.target.value}))} placeholder="home_deep_cleaning" /></label>
+          <label>Service name<input value={newService.label} onChange={e=>setNewService(v=>({...v,label:e.target.value}))} /></label>
+          <label>Image URL (HTTPS)<input value={newService.image_url} onChange={e=>setNewService(v=>({...v,image_url:e.target.value}))} /></label>
+          <label>Upfront booking amount (₹)<input type="number" min="0" value={newService.base_fare} onChange={e=>setNewService(v=>({...v,base_fare:e.target.value}))} /></label>
+          <label>Provider type<select value={newService.provider_type} onChange={e=>setNewService(v=>({...v,provider_type:e.target.value}))}><option value="general_worker">General worker</option><option value="skilled_worker">Skilled worker</option></select></label>
+          <label>Sort order<input type="number" min="0" value={newService.sort_order} onChange={e=>setNewService(v=>({...v,sort_order:e.target.value}))} /></label>
+          <label style={{gridColumn:'1 / -1'}}>Description<textarea rows="2" value={newService.description} onChange={e=>setNewService(v=>({...v,description:e.target.value}))} /></label>
+          <div><button disabled={saving==='new'} onClick={addService}>{saving==='new'?'Adding…':'Add service'}</button></div>
+        </div>
+      </article>
+      <div style={{display:'grid',gap:14}}>
       {items.map((item) => {
         const d = draft[item.category_key] || { ...empty, ...item };
         return <article key={item.category_key} style={{display:'grid',gridTemplateColumns:'110px minmax(0,1fr)',gap:16,padding:16,border:'1px solid #E5E7EB',borderRadius:14,background:'#fff'}}>
@@ -66,6 +94,7 @@ export default function ServiceCatalog() {
         </article>;
       })}
       {!items.length && <p>No services found. Apply migration 016 on the backend database first.</p>}
-    </div>}
+      </div>
+    </>}
   </section>;
 }
