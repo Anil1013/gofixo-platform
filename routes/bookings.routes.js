@@ -139,17 +139,18 @@ async function captureServiceWallet(client, bookingId, customerId, amount) {
   const row = tx.rows[0];
   const captureAmount = money(amount);
   if (Number(row.amount) + 0.01 < captureAmount) return false;
+  const before = Number(row.available_balance);
+  const reservedBefore = Number(row.reserved_balance);
   const movement = calculateWalletCapture({
-    reservedBalance: row.reserved_balance,
+    availableBalance: before,
+    reservedBalance: reservedBefore,
     reserveAmount: row.amount,
     captureAmount,
   });
   if (!movement) return false;
-  const before = Number(row.available_balance);
-  const reservedBefore = Number(row.reserved_balance);
-  const after = before;
+  const after = movement.availableAfter;
   const reservedAfter = movement.reservedAfter;
-  await client.query('UPDATE wallets SET reserved_balance=$1, updated_at=NOW() WHERE id=$2', [reservedAfter, row.wallet_id]);
+  await client.query('UPDATE wallets SET available_balance=$1, reserved_balance=$2, updated_at=NOW() WHERE id=$3', [after, reservedAfter, row.wallet_id]);
   await client.query(
     `INSERT INTO wallet_transactions
       (wallet_id, customer_id, booking_id, type, amount, balance_before, balance_after,
