@@ -2343,7 +2343,9 @@ class _Booking extends StatelessWidget{
       Text('PARTNER QUOTE · ${(b['service_quote_status']??'').toString().toUpperCase()}',style:const TextStyle(fontSize:10,fontWeight:FontWeight.w900,color:gfGreen)),
       const SizedBox(height:4),
       Text(b['service_quote_description']?.toString()??'',style:const TextStyle(fontSize:11,color:gfNavy)),
-      Text('Labour ₹${b['service_quote_labour_amount']??0} · Materials ₹${b['service_quote_materials_amount']??0}',style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:gfNavy)),
+      Text('Labour ₹${b['service_quote_labour_amount']??0}',style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:gfNavy)),
+      if((double.tryParse(b['service_quote_visit_fee_credit_amount']?.toString()??'0')??0)>0)Text('Visit fee credit −₹${b['service_quote_visit_fee_credit_amount']}',style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:gfGreen)),
+      Text('Net labour ₹${b['service_quote_service_amount']??b['service_quote_labour_amount']??0} · Materials ₹${b['service_quote_materials_amount']??0}',style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:gfNavy)),
       Text('Total ₹${b['service_quote_total_amount']??0}',style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy)),
       if(b['service_quote_materials'] is List)...(b['service_quote_materials'] as List).map((m)=>Text('• ${m['name']} × ${m['quantity']} — ₹${m['total']}',style:const TextStyle(fontSize:10,color:gfMuted))),
       if(b['service_quote_status']=='proposed'&&(s=='accepted'||s=='arrived'))Row(children:[
