@@ -2074,8 +2074,14 @@ class _Active extends StatefulWidget{
  @override State<_Active> createState()=>_ActiveState();
 }
 class _ActiveState extends State<_Active>{
- final pin=TextEditingController(); bool submitting=false;
- @override void dispose(){pin.dispose();super.dispose();}
+ final pin=TextEditingController();
+ final quoteDescription=TextEditingController();
+ final quoteLabour=TextEditingController();
+ final materialName=TextEditingController();
+ final materialQuantity=TextEditingController(text:'1');
+ final materialUnitPrice=TextEditingController();
+ bool submitting=false; bool creditVisitFee=false;
+ @override void dispose(){pin.dispose();quoteDescription.dispose();quoteLabour.dispose();materialName.dispose();materialQuantity.dispose();materialUnitPrice.dispose();super.dispose();}
  Future<void> _navigateToTarget() async {
     final isService=widget.b['service_type']=='services';
     final ongoing=widget.b['status']=='ongoing';
@@ -2149,6 +2155,26 @@ class _ActiveState extends State<_Active>{
    catch(e){if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
    finally{if(mounted)setState(()=>submitting=false);}
   }
+  Future<void>sendServiceQuote()async{
+   final labour=double.tryParse(quoteLabour.text.trim());
+   final description=quoteDescription.text.trim();
+   if(description.isEmpty||labour==null||labour<=0){ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Enter the work details and a valid labour amount.')));return;}
+   final materials=<Map<String,dynamic>>[];
+   final name=materialName.text.trim();
+   final unit=double.tryParse(materialUnitPrice.text.trim());
+   final qty=double.tryParse(materialQuantity.text.trim());
+   if(name.isNotEmpty){
+    if(unit==null||unit<0||qty==null||qty<=0){ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Check material quantity and unit price.')));return;}
+    materials.add({'name':name,'quantity':qty,'unitPrice':unit});
+   }else if(materialUnitPrice.text.trim().isNotEmpty){ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Enter a material name or clear its price.')));return;}
+   setState(()=>submitting=true);
+   try{
+    await ApiService.proposeServiceQuote(widget.session.token,id,description:description,labourAmount:labour,materials:materials,creditVisitFee:creditVisitFee);
+    if(mounted)ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Quote sent. Wait for the customer to approve it.')));
+    await widget.changed();
+   }catch(e){if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
+   finally{if(mounted)setState(()=>submitting=false);}
+  }
 
   return _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
    if(widget.b['customer_id']!=null) Row(children:[
@@ -2210,7 +2236,29 @@ class _ActiveState extends State<_Active>{
         style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:gfNavy)),
     ])),
    ],
-   if(accepted||arrived)...[
+   if(arrived&&isHomeService)...[
+    const SizedBox(height:8),
+    Container(width:double.infinity,padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(14)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      const Text('INSPECTION & CUSTOMER QUOTE',style:TextStyle(fontSize:10,fontWeight:FontWeight.w900,color:gfGreen)),
+      const SizedBox(height:5),
+      const Text('If extra repair work or parts are needed, send the customer a clear quote. Work and extra charges must wait for approval.',style:TextStyle(fontSize:11,color:gfMuted)),
+      const SizedBox(height:8),
+      TextField(controller:quoteDescription,decoration:const InputDecoration(labelText:'Work / inspection details')),
+      const SizedBox(height:6),
+      TextField(controller:quoteLabour,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Labour amount (₹)')),
+      const SizedBox(height:6),
+      TextField(controller:materialName,decoration:const InputDecoration(labelText:'Material name (optional)')),
+      Row(children:[
+        Expanded(child:TextField(controller:materialQuantity,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Qty'))),
+        const SizedBox(width:8),
+        Expanded(child:TextField(controller:materialUnitPrice,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Unit price ₹'))),
+      ]),
+      CheckboxListTile(contentPadding:EdgeInsets.zero,value:creditVisitFee,onChanged:submitting?null:(v)=>setState(()=>creditVisitFee=v??false),title:const Text('Credit visit fee against labour'),subtitle:const Text('Only when the repair is approved'),controlAffinity:ListTileControlAffinity.leading),
+      if(widget.b['service_quote_status']=='proposed')const Text('A quote is already waiting for customer approval. You can send a revised quote after their response.',style:TextStyle(fontSize:10,fontWeight:FontWeight.w700,color:gfMuted)),
+      SizedBox(width:double.infinity,child:FilledButton(onPressed:submitting||widget.b['service_quote_status']=='proposed'?null:sendServiceQuote,style:FilledButton.styleFrom(backgroundColor:gfGreen),child:Text(submitting?'Sending…':'Send quote for customer approval →'))),
+    ])),
+   ],
+   if((accepted||arrived)&&!(isHomeService&&widget.b['service_quote_status']=='proposed'))...[
     const SizedBox(height:4),
     Container(width:double.infinity,padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:const Color(0xFFFFF7E8),borderRadius:BorderRadius.circular(14)),child:Row(children:[
      const Icon(Icons.lock_outline_rounded,color:gfGreen),const SizedBox(width:8),Expanded(child:Text(accepted?'When you reach the pickup/service address, ask the customer for their 4-digit start PIN. You can enter it here.':'Ask the customer for the 4-digit start PIN. The trip/job begins only after verification.',style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:gfNavy)))
@@ -2236,8 +2284,9 @@ class _ActiveState extends State<_Active>{
          Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
            const Text('UPFRONT FARE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
            Text('₹'+(widget.b['fare_amount']??0).toString(),style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:gfNavy)),
+           if(isHomeService&&(double.tryParse(widget.b['service_quote_materials_amount']?.toString()??'0')??0)>0)Text('Approved materials ₹'+(widget.b['service_quote_materials_amount']).toString(),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:gfGreen)),
            if(waitingFee>0) Text('Waiting fee ₹'+waitingFee.toStringAsFixed(2),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:gfGreen)),
-           const Text('Fare is locked to the customer estimate',style:TextStyle(fontSize:10,color:gfMuted)),
+           Text(isHomeService?'Labour and customer-approved materials only':'Fare is locked to the customer estimate',style:const TextStyle(fontSize:10,color:gfMuted)),
          ])),
        ]),
      ),
@@ -2245,7 +2294,8 @@ class _ActiveState extends State<_Active>{
      SizedBox(width:double.infinity,child:FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:submitting?null:()async{
       final baseFare=double.tryParse(widget.b['fare_amount']?.toString()??'');
       final waitFee=double.tryParse(widget.b['waiting_fee_amount']?.toString()??'')??0;
-      final value=baseFare==null?null:double.parse((baseFare+waitFee).toStringAsFixed(2));
+      final materials=double.tryParse(widget.b['service_quote_materials_amount']?.toString()??'0')??0;
+      final value=baseFare==null?null:double.parse((baseFare+waitFee+(isHomeService?materials:0)).toStringAsFixed(2));
       if(value==null||value<=0){ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Locked fare is unavailable.')));return;}
       setState(()=>submitting=true);
       try{
@@ -2288,6 +2338,23 @@ class _Booking extends StatelessWidget{
     ],Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('#'+id+' · '+s.toUpperCase(),style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy)),if(b['provider_name']!=null)Text(b['provider_name'].toString(),style:const TextStyle(fontSize:11,color:gfMuted))])),Text('₹'+(b['fare_amount']??b['estimated_fare']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w900))]),
    if(isService)Text((b['service_category']?.toString()??'other').replaceAll('_',' ').toUpperCase(),style:const TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
    if(isService&&b['service_description']?.toString().trim().isNotEmpty==true)Container(width:double.infinity,margin:const EdgeInsets.only(top:5,bottom:5),padding:const EdgeInsets.all(9),decoration:BoxDecoration(color:const Color(0xFFEFFFF5),borderRadius:BorderRadius.circular(10)),child:Text(b['service_description'].toString(),style:const TextStyle(fontSize:11,height:1.3,color:gfNavy))),
+   if(isService&&b['service_quote_id']!=null)...[
+    Container(width:double.infinity,margin:const EdgeInsets.only(top:8),padding:const EdgeInsets.all(11),decoration:BoxDecoration(color:const Color(0xFFEFFFF5),borderRadius:BorderRadius.circular(12)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Text('PARTNER QUOTE · ${(b['service_quote_status']??'').toString().toUpperCase()}',style:const TextStyle(fontSize:10,fontWeight:FontWeight.w900,color:gfGreen)),
+      const SizedBox(height:4),
+      Text(b['service_quote_description']?.toString()??'',style:const TextStyle(fontSize:11,color:gfNavy)),
+      Text('Labour ₹${b['service_quote_labour_amount']??0} · Materials ₹${b['service_quote_materials_amount']??0}',style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:gfNavy)),
+      Text('Total ₹${b['service_quote_total_amount']??0}',style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy)),
+      if(b['service_quote_materials'] is List)...(b['service_quote_materials'] as List).map((m)=>Text('• ${m['name']} × ${m['quantity']} — ₹${m['total']}',style:const TextStyle(fontSize:10,color:gfMuted))),
+      if(b['service_quote_status']=='proposed'&&(s=='accepted'||s=='arrived'))Row(children:[
+        Expanded(child:OutlinedButton(onPressed:()async{try{await ApiService.respondServiceQuote(session.token,int.tryParse(id)??0,approve:false);await onChanged();}catch(e){ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}},child:const Text('Decline'))),
+        const SizedBox(width:8),
+        Expanded(child:FilledButton(onPressed:()async{try{await ApiService.respondServiceQuote(session.token,int.tryParse(id)??0,approve:true);await onChanged();}catch(e){ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}},style:FilledButton.styleFrom(backgroundColor:gfGreen),child:const Text('Approve & reserve'))),
+      ]),
+      if(b['service_quote_status']=='proposed'&&s!='accepted'&&s!='arrived')const Text('This quote can no longer be approved because the job has started.',style:TextStyle(fontSize:10,color:gfMuted)),
+    ])),
+   ],
+
    if(s=='no_provider')Container(width:double.infinity,margin:const EdgeInsets.only(top:7),padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:const Color(0xFFFFF7E8),borderRadius:BorderRadius.circular(10)),child:const Text('No eligible partner is available for this request. Any reserved service-wallet amount has been released. Please create a new booking.',style:TextStyle(fontSize:11,height:1.3,fontWeight:FontWeight.w700,color:gfNavy))),
    if(s=='cancelled')Container(width:double.infinity,margin:const EdgeInsets.only(top:7),padding:const EdgeInsets.all(9),decoration:BoxDecoration(color:const Color(0xFFFFF1F0),borderRadius:BorderRadius.circular(10)),child:const Text('This booking was cancelled.',style:TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:gfNavy))),
    Text(b['pickup_location']?.toString()??'',maxLines:1,overflow:TextOverflow.ellipsis),
