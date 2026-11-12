@@ -2267,7 +2267,7 @@ class _ActiveState extends State<_Active>{
          Expanded(child:Text('Material '+(index+1).toString(),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:gfNavy))),
          if(quoteMaterials.length>1)IconButton(tooltip:'Remove material',onPressed:submitting?null:()=>removeQuoteMaterial(index),icon:const Icon(Icons.delete_outline_rounded,color:Colors.red)),
         ]),
-        TextField(controller:item.name,decoration:const InputDecoration(labelText:'Material name (optional)')),
+        TextField(controller:item.name,decoration:const InputDecoration(labelText:'Material name (required)')),
         Row(children:[
          Expanded(child:TextField(controller:item.quantity,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Qty'))),
          const SizedBox(width:8),
