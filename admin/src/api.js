@@ -4,7 +4,6 @@ function getAdminKey() {
   return sessionStorage.getItem('gofixo_admin_key') || '';
 }
 
-// A wrong/missing admin key sends the admin back to the login screen
 function handleUnauthorized() {
   sessionStorage.removeItem('gofixo_admin_key');
   window.location.reload();
@@ -25,17 +24,11 @@ export async function apiGet(path) {
 export async function apiPost(path, body) {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-admin-key': getAdminKey(),
-    },
+    headers: { 'Content-Type': 'application/json', 'x-admin-key': getAdminKey() },
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401) {
-    handleUnauthorized();
-    throw new Error('Admin key incorrect — please log in again');
-  }
+  if (res.status === 401) { handleUnauthorized(); throw new Error('Admin key incorrect — please log in again'); }
   if (!res.ok) throw new Error(data.error || `API error: ${res.status}`);
   return data;
 }
@@ -43,17 +36,11 @@ export async function apiPost(path, body) {
 export async function apiPatch(path, body) {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-admin-key': getAdminKey(),
-    },
+    headers: { 'Content-Type': 'application/json', 'x-admin-key': getAdminKey() },
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401) {
-    handleUnauthorized();
-    throw new Error('Admin key incorrect — please log in again');
-  }
+  if (res.status === 401) { handleUnauthorized(); throw new Error('Admin key incorrect — please log in again'); }
   if (!res.ok) throw new Error(data.error || `API error: ${res.status}`);
   return data;
 }
@@ -62,10 +49,7 @@ export async function apiGetBlob(path) {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { 'x-admin-key': getAdminKey() },
   });
-  if (res.status === 401) {
-    handleUnauthorized();
-    throw new Error('Admin key incorrect — please log in again');
-  }
+  if (res.status === 401) { handleUnauthorized(); throw new Error('Admin key incorrect — please log in again'); }
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error || `API error: ${res.status}`);
@@ -80,10 +64,7 @@ export async function apiUpload(path, formData) {
     body: formData,
   });
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401) {
-    handleUnauthorized();
-    throw new Error('Admin key incorrect — please log in again');
-  }
+  if (res.status === 401) { handleUnauthorized(); throw new Error('Admin key incorrect — please log in again'); }
   if (!res.ok) throw new Error(data.error || `API error: ${res.status}`);
   return data;
 }
@@ -93,6 +74,17 @@ export async function apiPut(path, body) {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', 'x-admin-key': getAdminKey() },
     body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) { handleUnauthorized(); throw new Error('Admin key incorrect — please log in again'); }
+  if (!res.ok) throw new Error(data.error || `API error: ${res.status}`);
+  return data;
+}
+
+export async function apiDelete(path) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'DELETE',
+    headers: { 'x-admin-key': getAdminKey() },
   });
   const data = await res.json().catch(() => ({}));
   if (res.status === 401) { handleUnauthorized(); throw new Error('Admin key incorrect — please log in again'); }
