@@ -2249,16 +2249,18 @@ class _ActiveState extends State<_Active>{
       if(value==null||value<=0){ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Locked fare is unavailable.')));return;}
       setState(()=>submitting=true);
       try{
-       final result=await ApiService.confirmPayment(widget.session.token,id,value,paymentMethod:'cash');
+       final settlementMethod=isHomeService?'wallet':'cash';
+       final result=await ApiService.confirmPayment(widget.session.token,id,value,paymentMethod:settlementMethod);
        final tx=result['transaction'] is Map?Map<String,dynamic>.from(result['transaction'] as Map):const <String,dynamic>{};
        if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(
-         'Cash received ₹'+(tx['gross_amount']??value).toString()+' · Your earning ₹'+(tx['provider_earning_amount']??'').toString()
+         (isHomeService?'Gofixo Wallet settlement recorded ₹':'Cash received ₹')+
+         (tx['gross_amount']??value).toString()+' · Your earning ₹'+(tx['provider_earning_amount']??'').toString()
        )));
        await widget.changed();
      }
       catch(e){if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
       finally{if(mounted)setState(()=>submitting=false);}
-     },child:Text(submitting?'Saving…':'Confirm cash payment →'))),
+     },child:Text(submitting?'Saving…':isHomeService?'Confirm Gofixo Wallet settlement →':'Confirm cash payment →'))),
    ],
 
    const SizedBox(height:6),
