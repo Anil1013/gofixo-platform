@@ -81,9 +81,10 @@ export default function SubscriptionPayments() {
       ) : (
         <div className="topup-table-wrap">
           <table className="data-table topup-table">
-            <thead><tr><th>Partner</th><th>Plan</th><th>Amount</th><th>UTR / bank ref</th><th>Submitted</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody>{rows.map((row) => (
+            <thead><tr><th>Sr. No.</th><th>Partner</th><th>Plan</th><th>Amount</th><th>UTR / bank ref</th><th>Submitted</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody>{rows.map((row, index) => (
               <tr key={row.id}>
+                <td>{index + 1}</td>
                 <td><strong>{row.provider_name || 'Partner #' + row.provider_id}</strong><div className="sub-line">ID #{row.provider_id} · {row.provider_phone || row.generated_id || ''}</div></td>
                 <td><strong>{row.plan_name}</strong><div className="sub-line">{row.validity_days} days · earning cap {money(row.earning_cap)}</div></td>
                 <td><strong>{money(row.amount)}</strong></td>

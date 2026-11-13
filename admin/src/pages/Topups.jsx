@@ -213,6 +213,7 @@ export default function Topups() {
           <table className="data-table topup-table">
             <thead>
               <tr>
+                <th>Sr. No.</th>
                 <th>Customer</th>
                 <th>Amount</th>
                 <th>UTR / bank reference</th>
@@ -223,8 +224,9 @@ export default function Topups() {
               </tr>
             </thead>
             <tbody>
-              {requests.map((request) => (
+              {requests.map((request, index) => (
                 <tr key={request.id}>
+                  <td>{index + 1}</td>
                   <td>
                     <strong>{request.customer_name || ('Customer #' + request.customer_id)}</strong>
                     <div className="sub-line">ID #{request.customer_id}{request.phone ? ' · ' + request.phone : ''}</div>

@@ -158,11 +158,12 @@ export default function Customers() {
       ) : (
         <table className="data-table">
           <thead>
-            <tr><th>Photo</th><th>ID</th><th>Name</th><th>Phone</th><th>Password</th><th>Reset request</th><th>Action</th></tr>
+            <tr><th>Sr. No.</th><th>Photo</th><th>Customer ID</th><th>Name</th><th>Phone</th><th>Password</th><th>Reset request</th><th>Action</th></tr>
           </thead>
           <tbody>
-            {visible.map((c) => (
+            {visible.map((c, index) => (
               <tr key={c.id}>
+                <td>{index + 1}</td>
                 <td><CustomerPhoto id={c.id} /></td>
                 <td>#{c.id}</td>
                 <td>{c.name || '—'}</td>
@@ -172,7 +173,7 @@ export default function Customers() {
                 <td><button className="btn btn-view" onClick={() => openCustomer(c.id)}>View details</button></td>
               </tr>
             ))}
-            {visible.length === 0 && <tr><td colSpan="7">No customers found.</td></tr>}
+            {visible.length === 0 && <tr><td colSpan="8">No customers found.</td></tr>}
           </tbody>
         </table>
       )}

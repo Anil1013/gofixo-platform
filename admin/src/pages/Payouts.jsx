@@ -100,6 +100,7 @@ export default function Payouts() {
           <table className="data-table payments-table">
             <thead>
               <tr>
+                <th>Sr. No.</th>
                 <th>Payout / booking</th>
                 <th>Partner</th>
                 <th>Gross</th>
@@ -111,8 +112,9 @@ export default function Payouts() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
+              {rows.map((row, index) => (
                 <tr key={row.id}>
+                  <td>{index + 1}</td>
                   <td>
                     <strong>Payout #{row.id}</strong>
                     <div className="sub-line">Booking #{row.booking_id}</div>

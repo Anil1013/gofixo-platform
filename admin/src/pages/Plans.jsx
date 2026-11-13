@@ -22,6 +22,7 @@ export default function Plans() {
       <table className="data-table">
         <thead>
           <tr>
+            <th>Sr. No.</th>
             <th>Provider Type</th>
             <th>Plan</th>
             <th>Fee</th>
@@ -30,8 +31,9 @@ export default function Plans() {
           </tr>
         </thead>
         <tbody>
-          {plans.map((p) => (
+          {plans.map((p, index) => (
             <tr key={p.id}>
+              <td>{index + 1}</td>
               <td>{p.provider_type}</td>
               <td>{p.plan_name}</td>
               <td>₹{p.fee}</td>

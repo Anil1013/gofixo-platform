@@ -41,6 +41,7 @@ export default function Providers() {
 
   function load() {
     setLoading(true);
+    setError(null);
     apiGet('/providers')
       .then(setProviders)
       .catch((e) => setError(e.message))
@@ -136,11 +137,15 @@ export default function Providers() {
           <h2 style={{ marginBottom: 4 }}>Providers ({providers.length})</h2>
           <span style={{ color: '#B0A8BE' }}>Pending KYC: {pendingKyc}</span>
         </div>
-        <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search phone / provider ID / name" style={{ minWidth: 280 }} />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search phone / partner ID / name" style={{ minWidth: 240 }} />
+          <button type="button" className="btn btn-light" onClick={load} disabled={loading || updatingId !== null || !!updatingSkill}>{loading ? 'Refreshing…' : 'Refresh partners'}</button>
+        </div>
       </div>
       <table className="data-table">
         <thead>
           <tr>
+            <th>Sr. No.</th>
             <th>Photo</th>
             <th>ID</th>
             <th>Name</th>
@@ -156,8 +161,9 @@ export default function Providers() {
           </tr>
         </thead>
         <tbody>
-          {visibleProviders.map((p) => (
+          {visibleProviders.map((p, index) => (
             <tr key={p.id}>
+              <td>{index + 1}</td>
               <td><ProviderPhoto providerId={p.id} documentId={p.documents?.find((d) => d.doc_type === 'profile_photo')?.id} /></td>
               <td>{p.generated_id}</td>
               <td>{p.name}</td>
@@ -250,7 +256,7 @@ export default function Providers() {
           ))}
           {visibleProviders.length === 0 && (
             <tr>
-              <td colSpan="12">{providers.length === 0 ? 'No providers registered yet.' : 'No provider matches this search.'}</td>
+              <td colSpan="13">{providers.length === 0 ? 'No providers registered yet.' : 'No provider matches this search.'}</td>
             </tr>
           )}
         </tbody>
