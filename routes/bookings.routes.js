@@ -611,7 +611,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
             ...(price.addOnLines || []).map(line => `Add-on ${line.key} x${line.quantity}: ₹${line.total}`),
             `Reserved estimate: ₹${calculatedFare.toFixed(2)}`,
           ].filter(Boolean).join(' | ');
-          serviceDescription = [serviceDescription, summary].filter(Boolean).join(' | ').slice(0, 500);
+          serviceDescription = [serviceDescription.slice(0, 300), summary].filter(Boolean).join(' | ').slice(0, 500);
         }
       } catch (err) {
         // Rolling deployments may briefly run the old backend before migration 016.
