@@ -761,10 +761,10 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                 setCoords(null);
                 setRoute(null);
               }}
-              onKeyDown={(e) => { if (e.key === 'Enter' && category === 'ride') findPickup(); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') findPickup(); }}
               placeholder="Search area, street or building"
             />
-            {category === 'ride' && <button type="button" onClick={findPickup} disabled={pickupFinding}>{pickupFinding ? '…' : 'Find'}</button>}
+            <button type="button" onClick={findPickup} disabled={pickupFinding}>{pickupFinding ? '…' : 'Find'}</button>
           </div>
           <div className="input-grid-2">
             <input value={pickupPincode} onChange={(e) => setPickupPincode(e.target.value)} placeholder="PIN code" inputMode="numeric" />
