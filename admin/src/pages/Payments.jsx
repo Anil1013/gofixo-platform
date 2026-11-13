@@ -159,6 +159,7 @@ export default function Payments() {
           <table className="data-table payments-table">
             <thead>
               <tr>
+                <th>Sr. No.</th>
                 <th>Record ID / Source</th>
                 <th>Date & time (IST)</th>
                 <th>Customer</th>
@@ -169,8 +170,9 @@ export default function Payments() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
+              {rows.map((row, index) => (
                 <tr key={row.record_id}>
+                  <td>{index + 1}</td>
                   <td>
                     <strong>{row.record_id}</strong>
                     <div className="sub-line">{label(row.source)}</div>
