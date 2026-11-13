@@ -350,6 +350,63 @@ async function expireUnacceptedBookings() {
         await pool.query('UPDATE customers SET fcm_token = NULL WHERE id = $1 AND fcm_token = $2', [row.customer_id, row.fcm_token]);
       }
     }
+
+    // Expired requests must also be cleared from every partner alert that may
+    // have received the original offer. Do this after COMMIT so clients never
+    // dismiss a request whose database status is still "requested".
+    for (const row of expired.rows) {
+      const pushRows = await pool.query(
+        `SELECT p.id AS provider_id, p.fcm_token, pps.endpoint, pps.p256dh, pps.auth
+           FROM bookings b
+           JOIN service_providers p ON true
+           LEFT JOIN provider_push_subscriptions pps ON pps.provider_id = p.id
+          WHERE b.id = $1
+            AND p.type = b.provider_type
+            AND (p.fcm_token IS NOT NULL OR pps.endpoint IS NOT NULL)
+            AND EXISTS (
+              SELECT 1 FROM provider_skills skill
+               WHERE skill.provider_id = p.id
+                 AND skill.skill_key = CASE WHEN b.service_type = 'ride' THEN b.provider_type ELSE b.service_category END
+                 AND skill.service_type = b.service_type
+                 AND skill.kyc_status = 'approved'
+                 AND skill.is_available = true
+            )
+            AND NOT (p.id = ANY(COALESCE(b.declined_providers, '{}')))`,
+        [row.id]
+      );
+
+      for (const provider of pushRows.rows) {
+        const payload = {
+          type: 'booking_cancelled',
+          title: 'Gofixo — Request expired',
+          body: 'This request expired because no partner accepted it within 15 minutes.',
+          tag: `gofixo-booking-${row.id}`,
+          booking_id: row.id,
+          url: '/?provider=request',
+        };
+        if (provider.fcm_token) {
+          const fcmResult = await sendProviderFcm(provider.fcm_token, payload, { cancelled: true });
+          if (fcmResult && fcmResult.expired) {
+            await pool.query(
+              'UPDATE service_providers SET fcm_token = NULL WHERE id = $1 AND fcm_token = $2',
+              [provider.provider_id, provider.fcm_token]
+            );
+          }
+        }
+        if (provider.endpoint) {
+          const webResult = await sendProviderPush(
+            { endpoint: provider.endpoint, keys: { p256dh: provider.p256dh, auth: provider.auth } },
+            payload
+          );
+          if (webResult && webResult.expired) {
+            await pool.query(
+              'DELETE FROM provider_push_subscriptions WHERE provider_id = $1 AND endpoint = $2',
+              [provider.provider_id, provider.endpoint]
+            );
+          }
+        }
+      }
+    }
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     throw err;
