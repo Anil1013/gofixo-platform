@@ -33,6 +33,12 @@ function calculateServicePrice(rule, selection = {}) {
     ? rule.estimatedMinutes : null;
 
   if (mode === 'inspection_quote') {
+    if ((Array.isArray(rule.variants) && rule.variants.length > 0)
+      || (Array.isArray(rule.addOns) && rule.addOns.length > 0)
+      || selection.variantKey !== undefined
+      || (Array.isArray(selection.addOns) && selection.addOns.length > 0)) {
+      throw new TypeError('inspection_quote supports a visit fee only; variants and add-ons are not supported');
+    }
     return Object.freeze({
       pricingMode: mode,
       quantity: null,
