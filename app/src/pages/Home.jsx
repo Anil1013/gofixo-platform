@@ -583,7 +583,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
         </div>
         <div className="reference-service-cards">
           {previewServices.length === 0 ? <p className="booking-note">No home services are currently available.</p> : previewServices.map((item) => (
-            <button type="button" key={item.label} onClick={() => {
+            <button type="button" key={item.category} onClick={() => {
               setCategory('services');
               setProviderType(item.type);
               setServiceCategory(item.category);
@@ -661,7 +661,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                 {homeServiceCards.map((item) => (
                   <button
                     type="button"
-                    key={item.label}
+                    key={item.category}
                     className={`service-choice-card ${serviceCategory === item.category && !!work.trim() ? 'selected' : ''}`}
                     aria-pressed={serviceCategory === item.category && !!work.trim()}
                     onPointerDown={(e) => e.stopPropagation()}
