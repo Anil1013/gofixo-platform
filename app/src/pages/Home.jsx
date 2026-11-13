@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { apiPost, getRole, getToken, getUser } from '../api';
+import { apiGet, apiPost, getRole, getToken, getUser } from '../api';
 import ProfilePhoto from '../components/ProfilePhoto';
 import MapView from '../components/MapView';
 import { reverseGeocodeDetails, reverseGeocode, searchAddress, searchAddressSuggestions, getPlaceDetails, getRoute, formatDistance } from '../utils/geo';
@@ -109,6 +109,13 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
   const [location, setLocation] = useState('');
   const [work, setWork] = useState('');
   const [serviceCategory, setServiceCategory] = useState('');
+  const [serviceCatalog, setServiceCatalog] = useState([]);
+  const [serviceQuantity, setServiceQuantity] = useState(1);
+  const [serviceVariantKey, setServiceVariantKey] = useState('');
+  const [serviceAddOns, setServiceAddOns] = useState([]);
+  const [serviceQuote, setServiceQuote] = useState(null);
+  const [serviceQuoteError, setServiceQuoteError] = useState('');
+  const [serviceQuoteLoading, setServiceQuoteLoading] = useState(false);
   const [coords, setCoords] = useState(null);
   const [pickupPincode, setPickupPincode] = useState('');
   const [pickupArea, setPickupArea] = useState('');
@@ -137,6 +144,27 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
   }, [initialCategory]);
 
   useEffect(() => {
+    let active = true;
+    apiGet('/catalog/services').then((items) => {
+      if (!active || !Array.isArray(items)) return;
+      const mapped = items.map((item) => ({
+        label: item.label,
+        category: item.key,
+        type: item.providerType,
+        image: item.imageUrl,
+        baseFare: Number(item.baseFare || 0),
+        pricingRule: item.pricingRule || item.metadata?.pricingRule || null,
+        taskOptions: Array.isArray(item.metadata?.taskOptions) ? item.metadata.taskOptions : [],
+      }));
+      setServiceCatalog(mapped);
+      if (mapped.length && !mapped.some((item) => item.category === serviceCategory)) {
+        setServiceCategory(mapped[0].category);
+      }
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
     const query = destination.trim();
     if (query.length < 3) {
       setDestinationSuggestions([]);
@@ -148,6 +176,37 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
     }, 350);
     return () => clearTimeout(timer);
   }, [destination, coords]);
+
+  const homeServiceCards = serviceCatalog.length ? serviceCatalog : HOME_SERVICE_CARDS;
+  const selectedService = homeServiceCards.find((item) => item.category === serviceCategory) || null;
+  const pricingRule = selectedService?.pricingRule || null;
+
+  useEffect(() => {
+    if (category !== 'services' || !serviceCategory || !getToken() || getRole() !== 'customer') {
+      setServiceQuote(null);
+      setServiceQuoteError('');
+      return undefined;
+    }
+    let active = true;
+    const selection = {
+      quantity: serviceQuantity,
+      addOns: serviceAddOns,
+      ...(serviceVariantKey ? { variantKey: serviceVariantKey } : {}),
+    };
+    const timer = setTimeout(async () => {
+      setServiceQuoteLoading(true);
+      setServiceQuoteError('');
+      try {
+        const quote = await apiPost(`/catalog/${encodeURIComponent(serviceCategory)}/quote`, { selection }, true);
+        if (active) setServiceQuote(quote);
+      } catch (err) {
+        if (active) { setServiceQuote(null); setServiceQuoteError(err.message || 'Service estimate is unavailable.'); }
+      } finally {
+        if (active) setServiceQuoteLoading(false);
+      }
+    }, 250);
+    return () => { active = false; clearTimeout(timer); };
+  }, [category, serviceCategory, serviceQuantity, serviceVariantKey, serviceAddOns.join('|')]);
 
   const locationRequestRef = useRef(false);
   const destinationResolvedRef = useRef('');
@@ -327,6 +386,15 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
         return;
       }
 
+      const pricingSelection = category === 'services' ? {
+        quantity: serviceQuantity,
+        addOns: serviceAddOns,
+        ...(serviceVariantKey ? { variantKey: serviceVariantKey } : {}),
+      } : undefined;
+      if (category === 'services') {
+        const quote = await apiPost(`/catalog/${encodeURIComponent(serviceCategory || 'other')}/quote`, { selection: pricingSelection || {} }, true);
+        setServiceQuote(quote);
+      }
       const body = {
         service_type: category,
         provider_type: providerType,
@@ -334,6 +402,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
         drop_or_service_address: category === 'services' ? [location, pickupHouse, pickupStreet, pickupArea, pickupPincode].filter(Boolean).join(', ') : [destination, dropHouse, dropStreet, dropArea, dropPincode].filter(Boolean).join(', '),
         service_category: category === 'services' ? (serviceCategory || 'other') : undefined,
         service_description: category === 'services' ? work.trim() : undefined,
+        pricingSelection,
         pickup_lat: coords.lat,
         pickup_lng: coords.lng,
         drop_lat: category === 'ride' ? resolvedDestination.lat : undefined,
@@ -352,7 +421,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
 
   const estimatedFare = category === 'ride' && route ? calculateFare(providerType, route.distanceKm) : null;
   const currentUser = getUser() || {};
-  const previewServices = HOME_SERVICE_CARDS.slice(0, 4);
+  const previewServices = homeServiceCards.slice(0, 4);
 
   const markers = [];
   if (coords) markers.push({ lat: coords.lat, lng: coords.lng, emoji: '📍', color: '#EC4899' });
@@ -561,7 +630,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
             <div className="service-request-field service-request-field-top">
               <label>Select the service you need</label>
               <div className="service-choice-grid">
-                {HOME_SERVICE_CARDS.map((item) => (
+                {homeServiceCards.map((item) => (
                   <button
                     type="button"
                     key={item.label}
@@ -571,6 +640,10 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                     onClick={() => {
                       setProviderType(item.type);
                       setServiceCategory(item.category);
+                      setServiceQuantity(Number(item.pricingRule?.minimumQuantity || 1));
+                      setServiceVariantKey(item.pricingRule?.variants?.[0]?.key || '');
+                      setServiceAddOns([]);
+                      setServiceQuote(null);
                       setWork(item.label);
                       setError('');
                     }}
@@ -581,13 +654,54 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                   </button>
                 ))}
               </div>
+              {selectedService?.taskOptions?.length > 0 && (
+                <div className="service-task-options">
+                  <small>Suggested tasks</small>
+                  <div className="service-choice-grid">
+                    {selectedService.taskOptions.map((task) => (
+                      <button type="button" key={task} className={work === task ? 'selected' : ''} onClick={() => setWork(task)}>{task}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {pricingRule?.variants?.length > 0 && (
+                <label className="service-pricing-field">Choose package / size
+                  <select value={serviceVariantKey} onChange={(event) => setServiceVariantKey(event.target.value)}>
+                    {pricingRule.variants.map((variant) => <option key={variant.key} value={variant.key}>{variant.label || variant.key} · ₹{Number(variant.price || 0).toLocaleString('en-IN')}</option>)}
+                  </select>
+                </label>
+              )}
+              {pricingRule && pricingRule.pricingMode !== 'fixed' && pricingRule.pricingMode !== 'inspection_quote' && (
+                <label className="service-pricing-field">{pricingRule.unitLabel || 'Quantity'}
+                  <input type="number" min={pricingRule.minimumQuantity ?? 1} max={pricingRule.maximumQuantity ?? 1000} step={pricingRule.quantityStep ?? 1} value={serviceQuantity} onChange={(event) => setServiceQuantity(Number(event.target.value))} />
+                </label>
+              )}
+              {pricingRule?.addOns?.length > 0 && (
+                <div className="service-pricing-field"><strong>Optional add-ons</strong>
+                  {pricingRule.addOns.map((addon) => (
+                    <label key={addon.key} className="service-addon-option"><input type="checkbox" checked={serviceAddOns.includes(addon.key)} onChange={(event) => setServiceAddOns((current) => event.target.checked ? [...current, addon.key] : current.filter((key) => key !== addon.key))} /> {addon.label || addon.key} · ₹{Number(addon.price || 0).toLocaleString('en-IN')}</label>
+                  ))}
+                </div>
+              )}
+              {serviceQuoteLoading && <p className="booking-note">Calculating your service estimate…</p>}
+              {serviceQuoteError && <p className="auth-error">{serviceQuoteError}</p>}
+              {serviceQuote && (
+                <div className="ride-summary">
+                  <span>{serviceQuote.requiresQuote ? 'Inspection visit fee' : 'Estimated service amount'}{serviceQuote.requiresQuote ? ' · final repair quote after inspection' : ''}</span>
+                  <strong>₹{Number(serviceQuote.total || 0).toLocaleString('en-IN')}</strong>
+                </div>
+              )}
               <input
                 className="service-custom-input"
-                value={HOME_SERVICE_CARDS.some((item) => item.label === work) ? '' : work}
+                value={homeServiceCards.some((item) => item.label === work) ? '' : work}
                 onChange={(e) => {
                   setWork(e.target.value);
                   setProviderType(e.target.value.trim() ? 'skilled_worker' : 'general_worker');
                   setServiceCategory(e.target.value.trim() ? 'other' : '');
+                  setServiceQuantity(1);
+                  setServiceVariantKey('');
+                  setServiceAddOns([]);
+                  setServiceQuote(null);
                   setError('');
                 }}
                 placeholder="Or describe another service…"
