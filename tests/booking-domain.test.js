@@ -100,3 +100,21 @@ test('inspection pricing clearly returns a quote-required result', () => {
   assert.equal(quote.requiresQuote, true);
   assert.equal(quote.visitFeeCreditedOnApproval, true);
 });
+
+
+test('inspection quote rejects variants and add-ons that it cannot price', () => {
+  assert.throws(() => calculateServicePrice({
+    pricingMode: 'inspection_quote',
+    visitFee: 199,
+    variants: [{ key: 'standard', label: 'Standard', price: 499 }],
+  }), /inspection_quote supports a visit fee only/);
+  assert.throws(() => calculateServicePrice({
+    pricingMode: 'inspection_quote',
+    visitFee: 199,
+    addOns: [{ key: 'parts', label: 'Parts', price: 299 }],
+  }), /inspection_quote supports a visit fee only/);
+  assert.throws(() => calculateServicePrice({
+    pricingMode: 'inspection_quote',
+    visitFee: 199,
+  }, { addOns: ['parts'] }), /inspection_quote supports a visit fee only/);
+});
