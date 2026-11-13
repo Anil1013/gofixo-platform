@@ -2650,7 +2650,31 @@ class _Booking extends StatelessWidget{
         style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:gfNavy)));
     }),
    ],
-   if(s=='requested'||s=='accepted')Align(alignment:Alignment.centerRight,child:TextButton(onPressed:()async{await ApiService.cancelBooking(session.token,int.tryParse(id)??0);await onChanged();},child:const Text('Cancel'))),
+   if(s=='requested'||s=='accepted')Align(alignment:Alignment.centerRight,child:TextButton(
+    onPressed:()async{
+     final confirmed=await showDialog<bool>(
+      context:c,
+      builder:(dialogContext)=>AlertDialog(
+       title:const Text('Cancel this booking?'),
+       content:const Text('Are you sure you want to cancel this request? Any reserved home-service wallet amount will be released.'),
+       actions:[
+        TextButton(onPressed:()=>Navigator.pop(dialogContext,false),child:const Text('Keep booking')),
+        FilledButton(onPressed:()=>Navigator.pop(dialogContext,true),child:const Text('Yes, cancel')),
+       ],
+      ),
+     );
+     if(confirmed!=true||!c.mounted)return;
+     try{
+      await ApiService.cancelBooking(session.token,int.tryParse(id)??0);
+      if(c.mounted){
+       ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Booking cancelled successfully.')));
+       await onChanged();
+      }
+     }catch(e){
+      if(c.mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));
+     }
+    },
+    child:const Text('Cancel'))),
    if(s=='accepted'||s=='arrived'||s=='ongoing')Align(alignment:Alignment.centerRight,child:OutlinedButton.icon(onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>LiveTrackingPage(session:session,booking:b,isProvider:false))),icon:const Icon(Icons.location_searching),label:const Text('Track live')))
   ]));
  }
