@@ -79,3 +79,19 @@ test('rejects invalid quantities and unknown add-ons', () => {
   assert.throws(() => calculateServicePrice(rule, { quantity: 0 }), /positive number/);
   assert.throws(() => calculateServicePrice(rule, { quantity: 1, addOns: ['not-configured'] }), /Unknown add-on/);
 });
+
+test('supports admin-configured home-size packages such as 1BHK and 3BHK', () => {
+  const rule = {
+    pricingMode: 'fixed',
+    variants: [
+      { key: '1bhk', label: '1 BHK', price: 1299 },
+      { key: '2bhk', label: '2 BHK', price: 1699 },
+      { key: '3bhk', label: '3 BHK', price: 2199 },
+    ],
+  };
+  const result = calculateServicePrice(rule, { variantKey: '3bhk' });
+  assert.equal(result.total, 2199);
+  assert.equal(result.variantLabel, '3 BHK');
+  assert.equal(result.variantKey, '3bhk');
+  assert.throws(() => calculateServicePrice(rule, { variantKey: '5bhk' }), /valid service package/);
+});
