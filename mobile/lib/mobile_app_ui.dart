@@ -1736,7 +1736,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                  keyboardType:const TextInputType.numberWithOptions(decimal:true),
                  textAlign:TextAlign.center,
                  decoration:const InputDecoration(isDense:true,contentPadding:EdgeInsets.symmetric(vertical:10,horizontal:6),border:OutlineInputBorder()),
-                 onChanged:(value){final parsed=double.tryParse(value);if(parsed!=null&&parsed>0&&parsed<=1000){setState((){serviceQuantity=parsed;serviceQuote=null;});}},
+                 onChanged:(value){final parsed=double.tryParse(value);setState((){if(parsed!=null&&parsed>0&&parsed<=1000)serviceQuantity=parsed;serviceQuote=null;});},
                )),
              ]),
            ),
