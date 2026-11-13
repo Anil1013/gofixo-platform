@@ -1,18 +1,26 @@
-import { useState } from 'react';
-import { apiPost, setSession } from '../api';
+import { useEffect, useState } from 'react';
+import { apiGet, apiPost, setSession } from '../api';
 
 const HOME_SERVICE_SPECIALTIES = [
-  ['electrician', 'Electrician'],
-  ['plumber', 'Plumber'],
-  ['ac_service', 'AC Service'],
-  ['cleaning', 'Cleaning'],
-  ['painter', 'Painter'],
-  ['carpenter', 'Carpenter'],
-  ['appliance_repair', 'Appliance Repair'],
-  ['pest_control', 'Pest Control'],
-  ['packers_movers', 'Packers & Movers'],
-  ['salon_beauty', 'Salon & Beauty'],
+  ['electrician', 'Electrician'], ['plumber', 'Plumber'], ['ac_service', 'AC Service'],
+  ['cleaning', 'Cleaning'], ['painter', 'Painter'], ['carpenter', 'Carpenter'],
+  ['appliance_repair', 'Appliance Repair'], ['refrigerator_repair', 'Refrigerator Repair'],
+  ['washing_machine_repair', 'Washing Machine Repair'], ['ro_water_purifier', 'RO & Water Purifier'],
+  ['cctv_security', 'CCTV & Security'], ['internet_wifi', 'Internet & Wi-Fi'],
+  ['geyser_repair', 'Geyser Repair'], ['pest_control', 'Pest Control'],
+  ['packers_movers', 'Packers & Movers'], ['salon_beauty', 'Salon & Beauty'],
+  ['cook', 'Cook'], ['gardener', 'Gardener'], ['laundry', 'Laundry'],
+  ['driver', 'Personal Driver'], ['tutor', 'Tutor'], ['babysitter', 'Babysitter'],
+  ['elder_care', 'Senior & Disability Care'], ['other', 'Other Service'],
 ];
+
+const GENERAL_SERVICE_KEYS = new Set([
+  'cleaning', 'pest_control', 'packers_movers', 'salon_beauty', 'cook', 'gardener',
+  'laundry', 'driver', 'tutor', 'babysitter', 'elder_care', 'other',
+]);
+const FALLBACK_SERVICE_OPTIONS = HOME_SERVICE_SPECIALTIES.map(([key, label]) => ({
+  key, label, providerType: GENERAL_SERVICE_KEYS.has(key) ? 'general_worker' : 'skilled_worker',
+}));
 
 const PROVIDER_TYPES = [
   { value: 'bike', label: 'Bike driver' },
@@ -30,9 +38,27 @@ export default function Auth({ onAuthed }) {
   const [password, setPassword] = useState('');
   const [providerType, setProviderType] = useState('bike');
   const [serviceCategories, setServiceCategories] = useState([]);
+  const [serviceOptions, setServiceOptions] = useState(FALLBACK_SERVICE_OPTIONS);
+  const [serviceCatalogLoaded, setServiceCatalogLoaded] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    apiGet('/catalog/services').then((items) => {
+      if (!active || !Array.isArray(items)) return;
+      setServiceOptions(items.map((item) => ({ key: item.key, label: item.label, providerType: item.providerType })));
+      setServiceCatalogLoaded(true);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    setServiceCategories((current) => current.filter((key) => (
+      serviceOptions.some((item) => item.key === key && item.providerType === providerType)
+    )));
+  }, [providerType, serviceOptions]);
 
   async function submit(e) {
     e.preventDefault();
@@ -103,7 +129,7 @@ export default function Auth({ onAuthed }) {
         {mode === 'register' && role === 'provider' && (
           <>
             <label>What do you do?</label>
-            <select value={providerType} onChange={(e) => { setProviderType(e.target.value); if (['bike', 'auto', 'car'].includes(e.target.value)) setServiceCategories([]); }}>
+            <select value={providerType} onChange={(e) => setProviderType(e.target.value)}>
               {PROVIDER_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
               ))}
@@ -112,7 +138,7 @@ export default function Auth({ onAuthed }) {
               <>
                 <label>Home-service specialties</label>
                 <div className="service-specialty-grid">
-                  {HOME_SERVICE_SPECIALTIES.map(([value, label]) => (
+                  {serviceOptions.filter((item) => item.providerType === providerType).map(({ key: value, label }) => (
                     <label key={value} className="service-specialty-option">
                       <input
                         type="checkbox"
@@ -127,6 +153,7 @@ export default function Auth({ onAuthed }) {
                     </label>
                   ))}
                 </div>
+                {serviceCatalogLoaded && serviceOptions.filter((item) => item.providerType === providerType).length === 0 && <small className="auth-help">No active services are available for this partner type yet.</small>}
                 <small className="auth-help">Select the services you are qualified to accept.</small>
               </>
             )}
@@ -181,7 +208,7 @@ export default function Auth({ onAuthed }) {
 
       <section className="public-info" aria-label="Pricing and policies">
         <h2>Transparent pricing</h2>
-        <p>Home-service visit charge: <strong>₹250 per booking</strong>, even if work is not completed. Parts, labour and additional work may cost extra and should be explained before work starts.</p>
+        <p>Service estimates are shown before booking. Any inspection fee, labour, parts or additional work depends on the selected service and must be shown for customer approval.</p>
         <nav className="public-info-links" aria-label="Public information">
           <a href="/pricing.html">Pricing</a>
           <a href="/terms.html">Terms &amp; Conditions</a>
