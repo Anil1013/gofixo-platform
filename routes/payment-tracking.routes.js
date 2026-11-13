@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const pool = require('../config/db');
 const { requireAdmin } = require('../middleware/admin');
+const { validateInitialStatus, validateStatusTransition } = require('../services/payment-tracking-policy');
 
 const router = express.Router();
 router.use(requireAdmin);
@@ -102,7 +103,8 @@ router.post('/transactions', async (req, res, next) => {
     const direction = String(req.body?.direction || '').trim();
     const transactionType = String(req.body?.transaction_type || 'other').trim();
     const amount = Number(req.body?.amount);
-    const status = String(req.body?.status || 'pending_verification').trim();
+    const requestedStatus = String(req.body?.status || '').trim();
+    const status = requestedStatus || (direction === 'out' ? 'payout_pending' : 'pending_verification');
     const bookingId = req.body?.booking_id == null || req.body.booking_id === '' ? null : Number(req.body.booking_id);
     const customerId = req.body?.customer_id == null || req.body.customer_id === '' ? null : Number(req.body.customer_id);
     const providerId = req.body?.provider_id == null || req.body.provider_id === '' ? null : Number(req.body.provider_id);
@@ -113,6 +115,8 @@ router.post('/transactions', async (req, res, next) => {
     if (!DIRECTIONS.has(direction)) return res.status(400).json({ error: 'direction must be in or out' });
     if (!TYPES.has(transactionType)) return res.status(400).json({ error: 'Invalid transaction_type' });
     if (!STATUSES.has(status)) return res.status(400).json({ error: 'Invalid transaction status' });
+    const initialStatusError = validateInitialStatus(direction, status);
+    if (initialStatusError) return res.status(400).json({ error: initialStatusError });
     if (!Number.isFinite(amount) || amount <= 0 || amount > 10000000) return res.status(400).json({ error: 'amount must be between ₹0.01 and ₹10000000' });
     if (occurredAt && Number.isNaN(occurredAt.getTime())) return res.status(400).json({ error: 'occurred_at must be a valid ISO date/time with timezone' });
     for (const [name, value] of [['booking_id', bookingId], ['customer_id', customerId], ['provider_id', providerId]]) {
@@ -124,18 +128,19 @@ router.post('/transactions', async (req, res, next) => {
       await client.query('BEGIN');
       const code = 'GFX-' + Date.now().toString(36).toUpperCase() + '-' + crypto.randomBytes(3).toString('hex').toUpperCase();
       const actor = getActor(req);
-      const verified = status === 'verified' || status === 'paid';
+      // Creation records a claim or a pending transfer only. Verification is a separate
+      // audited action and cannot be bypassed by supplying a pre-approved status.
       const result = await client.query(
         `INSERT INTO payment_tracking_transactions
           (transaction_code, direction, transaction_type, amount, status, booking_id, customer_id, provider_id,
            payment_method, bank_reference, occurred_at, received_at, verified_at, verified_by, notes, created_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
-                 CASE WHEN $2 = 'in' AND $12 THEN NOW() ELSE NULL END,
-                 CASE WHEN $12 THEN NOW() ELSE NULL END,
-                 CASE WHEN $12 THEN $13 ELSE NULL END,$14,$13)
+                 NULL,
+                 NULL,
+                 NULL,$13,$12)
          RETURNING *`,
         [code, direction, transactionType, Number(amount.toFixed(2)), status, bookingId, customerId, providerId,
-         method, reference, occurredAt, verified, actor, notes]
+         method, reference, occurredAt, actor, notes]
       );
       await client.query(
         `INSERT INTO payment_tracking_audit (transaction_id, action, new_status, actor, details)
@@ -173,6 +178,17 @@ router.patch('/transactions/:id/status', async (req, res, next) => {
       if (old.status === 'paid' && status !== 'paid' && status !== 'refunded') {
         await client.query('ROLLBACK');
         return res.status(409).json({ error: 'Paid transaction can only remain paid or be marked refunded' });
+      }
+      const effectiveReference = reference || old.bank_reference;
+      const transitionError = validateStatusTransition({
+        direction: old.direction,
+        currentStatus: old.status,
+        nextStatus: status,
+        bankReference: effectiveReference,
+      });
+      if (transitionError) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: transitionError });
       }
       const actor = getActor(req);
       const verified = status === 'verified' || status === 'paid';
