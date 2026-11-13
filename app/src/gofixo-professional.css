@@ -19,3 +19,43 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  .screen{padding:16px}
  .bottom-nav button{min-width:0;padding:11px 3px;font-size:10px}
 }
+
+/* Live service catalog pricing controls */
+.service-pricing-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+  color: #18352a;
+  font-size: 13px;
+  font-weight: 750;
+}
+.service-pricing-field select,
+.service-pricing-field input[type="number"] {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #d7e4dc;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  color: #172b4d;
+  font: inherit;
+}
+.service-addon-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 8px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 650;
+}
+.service-task-options {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+.service-task-options > small {
+  color: #64748b;
+  font-weight: 750;
+}
