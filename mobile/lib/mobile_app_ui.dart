@@ -1374,8 +1374,9 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
       if(entry['key']?.toString()==serviceCategory){item=entry;break;}
     }
     if(!mounted)return;
+    final foundItem=item;
     setState((){
-      servicePricingRule=item!=null&&item['pricingRule'] is Map?Map<String,dynamic>.from(item['pricingRule'] as Map):null;
+      servicePricingRule=foundItem!=null&&foundItem['pricingRule'] is Map?Map<String,dynamic>.from(foundItem['pricingRule'] as Map):null;
       final variants=servicePricingRule?['variants'];
       selectedPricingVariant=variants is List&&variants.isNotEmpty?(variants.first as Map)['key']?.toString():null;
       selectedPricingAddOns.clear();
