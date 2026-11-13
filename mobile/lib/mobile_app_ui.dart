@@ -1050,7 +1050,30 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
   Map<String,dynamic>? subscription, paymentConfig;
   bool loading=true,working=false;
   int _loadGeneration=0;
-  @override void initState(){super.initState();_load();}
+  Timer? _catalogRefreshTimer;
+  bool _catalogRefreshing=false;
+  @override void initState(){
+    super.initState();
+    _load();
+    // Keep partner specialty choices in sync with Admin catalog edits while the app stays open.
+    _catalogRefreshTimer=Timer.periodic(const Duration(seconds:45),(_)=>_refreshServiceCatalog());
+  }
+  @override void dispose(){_catalogRefreshTimer?.cancel();super.dispose();}
+  Future<void> _refreshServiceCatalog()async{
+    if(!mounted||_catalogRefreshing)return;
+    _catalogRefreshing=true;
+    try{
+      final catalog=await ApiService.serviceCatalog();
+      if(!mounted)return;
+      final type=widget.me['type']?.toString()??'';
+      final next=catalog.where((item)=>item['providerType']?.toString()==type).toList();
+      setState(()=>serviceCatalog=next);
+    }catch(_){
+      // Keep the last known catalog visible during temporary network failures.
+    }finally{
+      _catalogRefreshing=false;
+    }
+  }
   @override void didUpdateWidget(covariant _ProviderServicesTab oldWidget){
     super.didUpdateWidget(oldWidget);
     // The parent refreshes the provider profile as KYC/account data changes.
@@ -1999,13 +2022,20 @@ class _Services extends StatefulWidget{
 }
 class _ServicesState extends State<_Services>{
   List<Map<String,dynamic>> items=[];
-  @override void initState(){super.initState();_load();}
+  Timer? _refreshTimer;
+  @override void initState(){
+    super.initState();
+    _load();
+    // Admin catalog changes reach an already-open customer app without an APK update.
+    _refreshTimer=Timer.periodic(const Duration(seconds:45),(_)=>_load());
+  }
+  @override void dispose(){_refreshTimer?.cancel();super.dispose();}
   Future<void> _load()async{
     try{
       final remote=await ApiService.serviceCatalog();
       if(mounted)setState(()=>items=remote);
     }catch(_){
-      if(mounted)setState(()=>items=List<Map<String,dynamic>>.from(_Services._fallback));
+      if(mounted&&items.isEmpty)setState(()=>items=List<Map<String,dynamic>>.from(_Services._fallback));
     }
   }
   String _groupFor(String key) {
