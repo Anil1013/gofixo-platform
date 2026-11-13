@@ -684,7 +684,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                   </div>
                 </div>
               )}
-              {pricingRule?.variants?.length > 0 && (
+              {pricingRule?.pricingMode !== 'inspection_quote' && pricingRule?.variants?.length > 0 && (
                 <label className="service-pricing-field">Choose package / size
                   <select value={serviceVariantKey} onChange={(event) => setServiceVariantKey(event.target.value)}>
                     {pricingRule.variants.map((variant) => <option key={variant.key} value={variant.key}>{variant.label || variant.key} · ₹{Number(variant.price || 0).toLocaleString('en-IN')}</option>)}
@@ -696,7 +696,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                   <input type="number" min={pricingRule.minimumQuantity ?? 1} max={pricingRule.maximumQuantity ?? 1000} step={pricingRule.quantityStep ?? 1} value={serviceQuantity} onChange={(event) => setServiceQuantity(Number(event.target.value))} />
                 </label>
               )}
-              {pricingRule?.addOns?.length > 0 && (
+              {pricingRule?.pricingMode !== 'inspection_quote' && pricingRule?.addOns?.length > 0 && (
                 <div className="service-pricing-field"><strong>Optional add-ons</strong>
                   {pricingRule.addOns.map((addon) => (
                     <label key={addon.key} className="service-addon-option"><input type="checkbox" checked={serviceAddOns.includes(addon.key)} onChange={(event) => setServiceAddOns((current) => event.target.checked ? [...current, addon.key] : current.filter((key) => key !== addon.key))} /> {addon.label || addon.key} · ₹{Number(addon.price || 0).toLocaleString('en-IN')}</label>
@@ -717,7 +717,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                 onChange={(e) => {
                   setWork(e.target.value);
                   setServiceCategory(e.target.value.trim() ? 'other' : '');
-                  setProviderType(selectedService?.type || 'general_worker');
+                  setProviderType(homeServiceCards.find((item) => item.category === 'other')?.type || 'general_worker');
                   setServiceQuantity(1);
                   setServiceVariantKey('');
                   setServiceAddOns([]);
