@@ -52,11 +52,19 @@ router.post('/:key/quote', requireAuth(['customer']), async (req, res, next) => 
   try {
     const key = String(req.params.key || '').trim().toLowerCase();
     if (!isValidServiceCategoryKey(key)) return res.status(400).json({ error: 'Unknown service category' });
-    const result = await pool.query(
-      `SELECT label, base_fare, is_active, metadata FROM service_catalog WHERE category_key = $1`,
-      [key]
-    );
-    const row = result.rows[0];
+    let row;
+    try {
+      const result = await pool.query(
+        `SELECT label, base_fare, is_active, metadata FROM service_catalog WHERE category_key = $1`,
+        [key]
+      );
+      row = result.rows[0];
+    } catch (dbError) {
+      if (dbError.code !== '42P01') throw dbError;
+      const legacy = HOME_SERVICE_CATALOG.find((item) => item.key === key);
+      if (!legacy) return res.status(503).json({ error: 'Service catalog is updating. Please try again shortly.' });
+      row = { label: legacy.label, base_fare: getServiceBaseFare(key), is_active: true, metadata: {} };
+    }
     if (!row || row.is_active !== true) return res.status(409).json({ error: 'This service is not available for new bookings' });
     const configuredRule = row.metadata?.pricingRule;
     const rule = configuredRule || { pricingMode: 'fixed', unitPrice: Number(row.base_fare), unitLabel: 'service' };
