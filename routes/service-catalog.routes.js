@@ -127,6 +127,13 @@ router.put('/admin/services/:key', requireAdmin, async (req, res, next) => {
     const isActive = body.is_active;
     const metadata = body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata)
       ? body.metadata : {};
+    if (metadata.taskOptions !== undefined) {
+      if (!Array.isArray(metadata.taskOptions) || metadata.taskOptions.length > 30
+        || metadata.taskOptions.some((item) => typeof item !== 'string' || !item.trim() || item.trim().length > 80)) {
+        return res.status(400).json({ error: 'Task suggestions must be an array of up to 30 non-empty labels, each 80 characters or fewer.' });
+      }
+      metadata.taskOptions = [...new Set(metadata.taskOptions.map((item) => item.trim()))];
+    }
     if (metadata.pricingRule !== undefined) {
       try {
         const rule = metadata.pricingRule;
