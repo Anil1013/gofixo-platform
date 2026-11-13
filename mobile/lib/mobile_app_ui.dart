@@ -1445,6 +1445,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
     final a=double.tryParse(p['lat']?.toString()??''),b=double.tryParse(p['lng']?.toString()??'');
     if(a==null||b==null)throw Exception('Destination not found.');
     if(isService){
+      if(servicePricingRule==null)await _loadServicePricingRule();
       final quote=await ApiService.quoteService(widget.session.token,serviceCategory,quantity:serviceQuantity,addOns:selectedPricingAddOns,variantKey:selectedPricingVariant);
       if(mounted)setState((){
         place=p;
