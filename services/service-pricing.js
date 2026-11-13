@@ -65,8 +65,16 @@ function calculateServicePrice(rule, selection = {}) {
     throw new RangeError(`quantity must follow increments of ${step}`);
   }
 
-  const unitPrice = positiveMoney(rule.unitPrice, 'unitPrice');
-  const rawBase = mode === 'fixed' ? unitPrice : unitPrice * quantity;
+  let selectedVariant = null;
+  if (Array.isArray(rule.variants) && rule.variants.length) {
+    const variantKey = selection.variantKey;
+    selectedVariant = rule.variants.find((item) => item && item.key === variantKey);
+    if (!selectedVariant) throw new TypeError('Select a valid service package or size');
+  }
+  const unitPrice = selectedVariant
+    ? positiveMoney(selectedVariant.price, 'variant.price')
+    : positiveMoney(rule.unitPrice, 'unitPrice');
+  const rawBase = selectedVariant || mode === 'fixed' ? unitPrice : unitPrice * quantity;
   const baseAmount = roundMoney(Math.max(minimumCharge, rawBase) + visitFee);
 
   const allowedAddOns = new Map((Array.isArray(rule.addOns) ? rule.addOns : [])
@@ -97,7 +105,9 @@ function calculateServicePrice(rule, selection = {}) {
   return Object.freeze({
     pricingMode: mode,
     quantity,
-    unitLabel: rule.unitLabel || 'service',
+    unitLabel: selectedVariant?.unitLabel || rule.unitLabel || 'service',
+    variantKey: selectedVariant?.key || null,
+    variantLabel: selectedVariant?.label || null,
     baseAmount,
     addOnsAmount,
     addOnLines: Object.freeze(addOnLines),
