@@ -10,14 +10,14 @@ export default function ServiceCatalog() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [saving, setSaving] = useState('');
-  const [newService, setNewService] = useState({ key: '', ...empty });
+  const [newService, setNewService] = useState({ key: '', ...empty, pricing_rule_json: '' });
 
   async function load() {
     setLoading(true); setError('');
     try {
       const rows = await apiGet('/catalog/admin/services');
       setItems(rows);
-      setDraft(Object.fromEntries(rows.map((row) => [row.category_key, { ...row, base_fare: Number(row.base_fare) }])));
+      setDraft(Object.fromEntries(rows.map((row) => [row.category_key, { ...row, base_fare: Number(row.base_fare), pricing_rule_json: row.metadata?.pricingRule ? JSON.stringify(row.metadata.pricingRule, null, 2) : '' }])));
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   }
@@ -33,11 +33,15 @@ export default function ServiceCatalog() {
       setError('Service key and service name are required.');
       return;
     }
+    let pricingRule = null;
+    try { pricingRule = newService.pricing_rule_json.trim() ? JSON.parse(newService.pricing_rule_json) : null; }
+    catch (_) { setError('Pricing rule must be valid JSON.'); return; }
+    if (pricingRule && (typeof pricingRule !== 'object' || Array.isArray(pricingRule))) { setError('Pricing rule must be a JSON object.'); return; }
     setSaving('new'); setError(''); setNotice('');
     try {
-      await apiPut(`/catalog/admin/services/${encodeURIComponent(key)}`, { ...newService, base_fare: Number(newService.base_fare), sort_order: Number(newService.sort_order) });
+      await apiPut(`/catalog/admin/services/${encodeURIComponent(key)}`, { ...newService, metadata: pricingRule ? { pricingRule } : {}, base_fare: Number(newService.base_fare), sort_order: Number(newService.sort_order) });
       setNotice(`${newService.label} added. Partners can select it after the catalog refreshes.`);
-      setNewService({ key: '', ...empty });
+      setNewService({ key: '', ...empty, pricing_rule_json: '' });
       await load();
     } catch (e) { setError(e.message); }
     finally { setSaving(''); }
@@ -45,12 +49,16 @@ export default function ServiceCatalog() {
 
   async function save(key) {
     const item = draft[key];
+    let pricingRule = null;
+    try { pricingRule = item.pricing_rule_json?.trim() ? JSON.parse(item.pricing_rule_json) : null; }
+    catch (_) { setError('Pricing rule must be valid JSON.'); return; }
+    if (pricingRule && (typeof pricingRule !== 'object' || Array.isArray(pricingRule))) { setError('Pricing rule must be a JSON object.'); return; }
     setSaving(key); setError(''); setNotice('');
     try {
       await apiPut(`/catalog/admin/services/${encodeURIComponent(key)}`, {
         label: item.label, description: item.description, image_url: item.image_url,
         provider_type: item.provider_type, base_fare: Number(item.base_fare),
-        is_active: item.is_active, sort_order: Number(item.sort_order), metadata: item.metadata || {},
+        is_active: item.is_active, sort_order: Number(item.sort_order), metadata: pricingRule ? { ...(item.metadata || {}), pricingRule } : {},
       });
       setNotice(`${item.label} saved. Public catalog will refresh shortly.`);
       await load();
@@ -107,6 +115,7 @@ export default function ServiceCatalog() {
           <label>Provider type<select value={newService.provider_type} onChange={e=>setNewService(v=>({...v,provider_type:e.target.value}))}><option value="general_worker">General worker</option><option value="skilled_worker">Skilled worker</option></select></label>
           <label>Sort order<input type="number" min="0" value={newService.sort_order} onChange={e=>setNewService(v=>({...v,sort_order:e.target.value}))} /></label>
           <label style={{gridColumn:'1 / -1'}}>Description<textarea rows="2" value={newService.description} onChange={e=>setNewService(v=>({...v,description:e.target.value}))} /></label>
+          <label style={{gridColumn:'1 / -1'}}>Dynamic pricing rule JSON (optional)<textarea rows="5" value={newService.pricing_rule_json} onChange={e=>setNewService(v=>({...v,pricing_rule_json:e.target.value}))} placeholder={'{"pricingMode":"per_unit","unitPrice":349,"unitLabel":"room","minimumQuantity":1,"maximumQuantity":20,"quantityStep":1,"addOns":[{"key":"deep_clean","label":"Deep cleaning","price":199}]}'} /></label>
           <div><button disabled={saving==='new'} onClick={addService}>{saving==='new'?'Adding…':'Add service'}</button></div>
         </div>
       </article>
@@ -128,6 +137,7 @@ export default function ServiceCatalog() {
               <label>Sort order<input type="number" min="0" value={d.sort_order ?? 100} onChange={(e)=>change(item.category_key,'sort_order',e.target.value)} /></label>
               <label style={{display:'flex',alignItems:'center',gap:8}}><input type="checkbox" checked={!!d.is_active} onChange={(e)=>change(item.category_key,'is_active',e.target.checked)} /> Visible to customers</label>
               <label style={{gridColumn:'1 / -1'}}>Description<textarea rows="2" value={d.description || ''} onChange={(e)=>change(item.category_key,'description',e.target.value)} /></label>
+              <label style={{gridColumn:'1 / -1'}}>Dynamic pricing rule JSON (optional)<textarea rows="5" value={d.pricing_rule_json || ''} onChange={(e)=>change(item.category_key,'pricing_rule_json',e.target.value)} placeholder={'{"pricingMode":"per_unit","unitPrice":349,"unitLabel":"room","minimumQuantity":1,"maximumQuantity":20,"quantityStep":1,"addOns":[]}'}/></label>
               <div style={{gridColumn:'1 / -1',display:'flex',gap:8,flexWrap:'wrap'}}>
                 <button disabled={busy} onClick={()=>save(item.category_key)}>{busy?'Saving…':'Save changes'}</button>
                 {item.is_active
