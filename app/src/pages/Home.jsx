@@ -582,7 +582,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
           <button type="button" onClick={() => { setCategory('services'); setProviderType('general_worker'); setServiceCategory('other'); setWork(''); setShowBooking(true); }}>See all →</button>
         </div>
         <div className="reference-service-cards">
-          {previewServices.map((item) => (
+          {previewServices.length === 0 ? <p className="booking-note">No home services are currently available.</p> : previewServices.map((item) => (
             <button type="button" key={item.label} onClick={() => {
               setCategory('services');
               setProviderType(item.type);
@@ -699,7 +699,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                   </select>
                 </label>
               )}
-              {pricingRule && pricingRule.pricingMode !== 'fixed' && pricingRule.pricingMode !== 'inspection_quote' && (
+              {pricingRule && pricingRule.pricingMode !== 'fixed' && pricingRule.pricingMode !== 'inspection_quote' && !pricingRule.variants?.length && (
                 <label className="service-pricing-field">{pricingRule.unitLabel || 'Quantity'}
                   <input type="number" min={pricingRule.minimumQuantity ?? 1} max={pricingRule.maximumQuantity ?? 1000} step={pricingRule.quantityStep ?? 1} value={serviceQuantity} onChange={(event) => setServiceQuantity(Number(event.target.value))} />
                 </label>
