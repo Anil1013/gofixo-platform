@@ -1363,7 +1363,7 @@ class ReferenceBookingPage extends StatefulWidget{
 class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  GoogleMapController? mapController;
  StreamSubscription<Position>? locationSub;
- final dest=TextEditingController();final pickupController=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your current location…';String serviceCategory='other',serviceDescription='';final List<String> selectedCleaningTasks=[];final List<String> selectedServiceTasks=[];double serviceQuantity=1;final quantityController=TextEditingController(text:'1');Map<String,dynamic>? serviceQuote;Map<String,dynamic>? servicePricingRule;final List<String> selectedPricingAddOns=[];Position? pos;Map<String,dynamic>? place,pickupPlace;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[],pickupSuggestions=[];Set<Polyline> routePolylines={};List<Map<String,dynamic>> routeSteps=[];LatLng? destinationPoint,pickupPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce,pickupDebounce;LatLng? lastReversePoint;
+ final dest=TextEditingController();final pickupController=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your current location…';String serviceCategory='other',serviceDescription='';final List<String> selectedCleaningTasks=[];final List<String> selectedServiceTasks=[];double serviceQuantity=1;final quantityController=TextEditingController(text:'1');Map<String,dynamic>? serviceQuote;Map<String,dynamic>? servicePricingRule;String? selectedPricingVariant;final List<String> selectedPricingAddOns=[];Position? pos;Map<String,dynamic>? place,pickupPlace;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[],pickupSuggestions=[];Set<Polyline> routePolylines={};List<Map<String,dynamic>> routeSteps=[];LatLng? destinationPoint,pickupPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce,pickupDebounce;LatLng? lastReversePoint;
  @override void initState(){super.initState();type=widget.type;serviceCategory=widget.serviceCategory??'other';serviceDescription=widget.serviceDescription??'';serviceDesc.text=serviceDescription;_loadServicePricingRule();WidgetsBinding.instance.addPostFrameCallback((_)=>locate());}
  Future<void> _loadServicePricingRule()async{
   if(!isService)return;
@@ -1376,6 +1376,8 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
     if(!mounted)return;
     setState((){
       servicePricingRule=item!=null&&item['pricingRule'] is Map?Map<String,dynamic>.from(item['pricingRule'] as Map):null;
+      final variants=servicePricingRule?['variants'];
+      selectedPricingVariant=variants is List&&variants.isNotEmpty?(variants.first as Map)['key']?.toString():null;
       selectedPricingAddOns.clear();
     });
   }catch(_){}
@@ -1443,7 +1445,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
     final a=double.tryParse(p['lat']?.toString()??''),b=double.tryParse(p['lng']?.toString()??'');
     if(a==null||b==null)throw Exception('Destination not found.');
     if(isService){
-      final quote=await ApiService.quoteService(widget.session.token,serviceCategory,quantity:serviceQuantity,addOns:selectedPricingAddOns);
+      final quote=await ApiService.quoteService(widget.session.token,serviceCategory,quantity:serviceQuantity,addOns:selectedPricingAddOns,variantKey:selectedPricingVariant);
       if(mounted)setState((){
         place=p;
         serviceQuote=quote;
@@ -1735,6 +1737,24 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                  decoration:const InputDecoration(isDense:true,contentPadding:EdgeInsets.symmetric(vertical:10,horizontal:6),border:OutlineInputBorder()),
                  onChanged:(value){final parsed=double.tryParse(value);if(parsed!=null&&parsed>0&&parsed<=1000){setState((){serviceQuantity=parsed;serviceQuote=null;});}},
                )),
+             ]),
+           ),
+         if(isService&&servicePricingRule?['variants'] is List&&(servicePricingRule!['variants'] as List).isNotEmpty)
+           Container(
+             margin:const EdgeInsets.only(bottom:8),
+             padding:const EdgeInsets.all(12),
+             decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(16)),
+             child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+               const Text('Choose package / home size',style:TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
+               const SizedBox(height:6),
+               Wrap(spacing:7,runSpacing:4,children:[
+                 for(final variant in (servicePricingRule!['variants'] as List).whereType<Map>())
+                   ChoiceChip(
+                     label:Text('${variant['label']??variant['key']} · ₹${variant['price']??0}'),
+                     selected:selectedPricingVariant==variant['key']?.toString(),
+                     onSelected:(selected){if(selected)setState((){selectedPricingVariant=variant['key']?.toString();serviceQuote=null;});},
+                   ),
+               ]),
              ]),
            ),
          if(isService&&servicePricingRule?['addOns'] is List&&(servicePricingRule!['addOns'] as List).isNotEmpty)
