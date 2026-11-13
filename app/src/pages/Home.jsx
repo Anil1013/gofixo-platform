@@ -159,6 +159,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
       setServiceCatalog(mapped);
       if (mapped.length && !mapped.some((item) => item.category === serviceCategory)) {
         setServiceCategory(mapped[0].category);
+        setProviderType(mapped[0].type || 'general_worker');
       }
     }).catch(() => {});
     return () => { active = false; };
@@ -207,6 +208,20 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
     }, 250);
     return () => { active = false; clearTimeout(timer); };
   }, [category, serviceCategory, serviceQuantity, serviceVariantKey, serviceAddOns.join('|')]);
+
+  useEffect(() => {
+    if (category !== 'services' || !selectedService) return;
+    const rule = selectedService.pricingRule;
+    const minimum = Number(rule?.minimumQuantity || 1);
+    const maximum = Number(rule?.maximumQuantity || 1000);
+    setServiceQuantity((current) => current < minimum || current > maximum ? minimum : current);
+    if (Array.isArray(rule?.variants) && rule.variants.length) {
+      if (!rule.variants.some((variant) => variant.key === serviceVariantKey)) setServiceVariantKey(rule.variants[0].key);
+    } else {
+      setServiceVariantKey('');
+    }
+    setServiceAddOns([]);
+  }, [category, serviceCategory, serviceCatalog]);
 
   const locationRequestRef = useRef(false);
   const destinationResolvedRef = useRef('');
@@ -564,6 +579,11 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
               setCategory('services');
               setProviderType(item.type);
               setServiceCategory(item.category);
+              setProviderType(item.type);
+              setServiceQuantity(Number(item.pricingRule?.minimumQuantity || 1));
+              setServiceVariantKey(item.pricingRule?.variants?.[0]?.key || '');
+              setServiceAddOns([]);
+              setServiceQuote(null);
               setWork(item.label);
               setShowBooking(true);
             }}>
@@ -696,8 +716,8 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                 value={homeServiceCards.some((item) => item.label === work) ? '' : work}
                 onChange={(e) => {
                   setWork(e.target.value);
-                  setProviderType(e.target.value.trim() ? 'skilled_worker' : 'general_worker');
                   setServiceCategory(e.target.value.trim() ? 'other' : '');
+                  setProviderType(selectedService?.type || 'general_worker');
                   setServiceQuantity(1);
                   setServiceVariantKey('');
                   setServiceAddOns([]);
