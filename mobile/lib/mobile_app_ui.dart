@@ -1363,8 +1363,20 @@ class ReferenceBookingPage extends StatefulWidget{
 class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  GoogleMapController? mapController;
  StreamSubscription<Position>? locationSub;
- final dest=TextEditingController();final pickupController=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your current location…';String serviceCategory='other',serviceDescription='';final List<String> selectedCleaningTasks=[];final List<String> selectedServiceTasks=[];int serviceQuantity=1;Map<String,dynamic>? serviceQuote;Position? pos;Map<String,dynamic>? place,pickupPlace;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[],pickupSuggestions=[];Set<Polyline> routePolylines={};List<Map<String,dynamic>> routeSteps=[];LatLng? destinationPoint,pickupPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce,pickupDebounce;LatLng? lastReversePoint;
- @override void initState(){super.initState();type=widget.type;serviceCategory=widget.serviceCategory??'other';serviceDescription=widget.serviceDescription??'';serviceDesc.text=serviceDescription;WidgetsBinding.instance.addPostFrameCallback((_)=>locate());}
+ final dest=TextEditingController();final pickupController=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your current location…';String serviceCategory='other',serviceDescription='';final List<String> selectedCleaningTasks=[];final List<String> selectedServiceTasks=[];int serviceQuantity=1;Map<String,dynamic>? serviceQuote;Map<String,dynamic>? servicePricingRule;final List<String> selectedPricingAddOns=[];Position? pos;Map<String,dynamic>? place,pickupPlace;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[],pickupSuggestions=[];Set<Polyline> routePolylines={};List<Map<String,dynamic>> routeSteps=[];LatLng? destinationPoint,pickupPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce,pickupDebounce;LatLng? lastReversePoint;
+ @override void initState(){super.initState();type=widget.type;serviceCategory=widget.serviceCategory??'other';serviceDescription=widget.serviceDescription??'';serviceDesc.text=serviceDescription;_loadServicePricingRule();WidgetsBinding.instance.addPostFrameCallback((_)=>locate());}
+ Future<void> _loadServicePricingRule()async{
+  if(!isService)return;
+  try{
+    final catalog=await ApiService.serviceCatalog();
+    final item=catalog.where((entry)=>entry['key']?.toString()==serviceCategory).firstOrNull;
+    if(!mounted)return;
+    setState((){
+      servicePricingRule=item?['pricingRule'] is Map?Map<String,dynamic>.from(item!['pricingRule'] as Map):null;
+      selectedPricingAddOns.clear();
+    });
+  }catch(_){}
+ }
  @override void dispose(){debounce?.cancel();pickupDebounce?.cancel();locationSub?.cancel();dest.dispose();pickupController.dispose();serviceDesc.dispose();super.dispose();}
  List<String> get serviceTaskOptions {
   const tasks=<String,List<String>>{
@@ -1423,7 +1435,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
     final a=double.tryParse(p['lat']?.toString()??''),b=double.tryParse(p['lng']?.toString()??'');
     if(a==null||b==null)throw Exception('Destination not found.');
     if(isService){
-      final quote=await ApiService.quoteService(widget.session.token,serviceCategory,quantity:serviceQuantity);
+      final quote=await ApiService.quoteService(widget.session.token,serviceCategory,quantity:serviceQuantity,addOns:selectedPricingAddOns);
       if(mounted)setState((){
         place=p;
         serviceQuote=quote;
@@ -1696,7 +1708,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                )).toList(),
              ),
            ),
-         if(isService)
+         if(isService&&servicePricingRule!=null&&!['fixed','inspection_quote'].contains(servicePricingRule!['pricingMode']))
            Container(
              margin:const EdgeInsets.only(bottom:8),
              padding:const EdgeInsets.all(12),
@@ -1709,6 +1721,27 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                IconButton(onPressed:busy||serviceQuantity<=1?null:(){setState(()=>serviceQuantity--);},icon:const Icon(Icons.remove_circle_outline)),
                Text('$serviceQuantity',style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy)),
                IconButton(onPressed:busy||serviceQuantity>=100?null:(){setState(()=>serviceQuantity++);},icon:const Icon(Icons.add_circle_outline,color:gfGreen)),
+             ]),
+           ),
+         if(isService&&servicePricingRule?['addOns'] is List&&(servicePricingRule!['addOns'] as List).isNotEmpty)
+           Container(
+             margin:const EdgeInsets.only(bottom:8),
+             padding:const EdgeInsets.all(12),
+             decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(16)),
+             child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+               const Text('Optional add-ons',style:TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
+               Wrap(spacing:7,children:[
+                 for(final addon in (servicePricingRule!['addOns'] as List).whereType<Map>())
+                   FilterChip(
+                     label:Text('${addon['label']??addon['key']} · ₹${addon['price']??0}'),
+                     selected:selectedPricingAddOns.contains(addon['key']?.toString()),
+                     onSelected:(selected){setState((){
+                       final key=addon['key']?.toString()??'';
+                       if(selected&&!selectedPricingAddOns.contains(key))selectedPricingAddOns.add(key);
+                       if(!selected)selectedPricingAddOns.remove(key);
+                     });},
+                   ),
+               ]),
              ]),
            ),
          if(isService&&serviceTaskOptions.isNotEmpty)
