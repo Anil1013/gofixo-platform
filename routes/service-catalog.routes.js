@@ -78,8 +78,8 @@ router.post('/:key/quote', requireAuth(['customer']), async (req, res, next) => 
   }
 });
 
-// Admin catalog management. Price here is the displayed legacy/base fare only;
-// booking quote/pricing activation remains a separate reviewed release.
+// Admin catalog management. The base fare is the upfront reservation amount;
+// metadata.pricingRule is used by customer quotes and revalidated at booking time.
 router.get('/admin/services', requireAdmin, async (req, res, next) => {
   try {
     const result = await pool.query(
