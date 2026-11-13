@@ -41,6 +41,7 @@ export default function Providers() {
 
   function load() {
     setLoading(true);
+    setError(null);
     apiGet('/providers')
       .then(setProviders)
       .catch((e) => setError(e.message))
@@ -136,7 +137,10 @@ export default function Providers() {
           <h2 style={{ marginBottom: 4 }}>Providers ({providers.length})</h2>
           <span style={{ color: '#B0A8BE' }}>Pending KYC: {pendingKyc}</span>
         </div>
-        <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search phone / provider ID / name" style={{ minWidth: 280 }} />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search phone / partner ID / name" style={{ minWidth: 240 }} />
+          <button type="button" className="btn btn-light" onClick={load} disabled={loading || updatingId !== null || !!updatingSkill}>{loading ? 'Refreshing…' : 'Refresh partners'}</button>
+        </div>
       </div>
       <table className="data-table">
         <thead>
