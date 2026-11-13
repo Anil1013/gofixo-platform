@@ -370,7 +370,7 @@ router.get('/', requireAdmin, async (req, res, next) => {
     const offset = (page - 1) * limit;
     const [result, count] = await Promise.all([
       pool.query(
-        `SELECT b.*, sp.name AS provider_name, sp.generated_id AS provider_generated_id, sp.phone AS provider_phone,
+        `SELECT b.*, payout.payout_status AS partner_payout_status, sp.name AS provider_name, sp.generated_id AS provider_generated_id, sp.phone AS provider_phone,
                 c.name AS customer_name, c.phone AS customer_phone,
                 c.profile_photo_url AS customer_profile_photo_url,
                 (SELECT pd.id FROM provider_documents pd WHERE pd.provider_id = sp.id AND pd.doc_type = 'profile_photo' ORDER BY pd.uploaded_at DESC, pd.id DESC LIMIT 1) AS provider_profile_photo_document_id,
@@ -378,6 +378,13 @@ router.get('/', requireAdmin, async (req, res, next) => {
          FROM bookings b
          LEFT JOIN service_providers sp ON b.provider_id = sp.id
          LEFT JOIN customers c ON b.customer_id = c.id
+         LEFT JOIN LATERAL (
+           SELECT pp.payout_status
+           FROM partner_payouts pp
+           WHERE pp.booking_id = b.id
+           ORDER BY pp.id DESC
+           LIMIT 1
+         ) payout ON true
          ORDER BY b.created_at DESC, b.id DESC
          LIMIT $1 OFFSET $2`,
         [limit, offset]
