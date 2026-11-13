@@ -1369,10 +1369,13 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
   if(!isService)return;
   try{
     final catalog=await ApiService.serviceCatalog();
-    final item=catalog.where((entry)=>entry['key']?.toString()==serviceCategory).firstOrNull;
+    Map<String,dynamic>? item;
+    for(final entry in catalog){
+      if(entry['key']?.toString()==serviceCategory){item=entry;break;}
+    }
     if(!mounted)return;
     setState((){
-      servicePricingRule=item?['pricingRule'] is Map?Map<String,dynamic>.from(item!['pricingRule'] as Map):null;
+      servicePricingRule=item!=null&&item['pricingRule'] is Map?Map<String,dynamic>.from(item['pricingRule'] as Map):null;
       selectedPricingAddOns.clear();
     });
   }catch(_){}
