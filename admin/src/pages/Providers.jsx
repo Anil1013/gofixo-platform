@@ -141,6 +141,7 @@ export default function Providers() {
       <table className="data-table">
         <thead>
           <tr>
+            <th>Sr. No.</th>
             <th>Photo</th>
             <th>ID</th>
             <th>Name</th>
@@ -156,8 +157,9 @@ export default function Providers() {
           </tr>
         </thead>
         <tbody>
-          {visibleProviders.map((p) => (
+          {visibleProviders.map((p, index) => (
             <tr key={p.id}>
+              <td>{index + 1}</td>
               <td><ProviderPhoto providerId={p.id} documentId={p.documents?.find((d) => d.doc_type === 'profile_photo')?.id} /></td>
               <td>{p.generated_id}</td>
               <td>{p.name}</td>
@@ -250,7 +252,7 @@ export default function Providers() {
           ))}
           {visibleProviders.length === 0 && (
             <tr>
-              <td colSpan="12">{providers.length === 0 ? 'No providers registered yet.' : 'No provider matches this search.'}</td>
+              <td colSpan="13">{providers.length === 0 ? 'No providers registered yet.' : 'No provider matches this search.'}</td>
             </tr>
           )}
         </tbody>
