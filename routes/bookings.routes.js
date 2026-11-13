@@ -589,9 +589,17 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
           return res.status(status).json({ error: bookingPolicy.error });
         }
         const pricingRule = catalogResult.rows[0]?.metadata?.pricingRule;
-        const price = pricingRule
-          ? calculateServicePrice(pricingRule, pricingSelection)
-          : { total: bookingPolicy.baseFare, quantity: null, pricingMode: 'fixed', addOnLines: [] };
+        let price;
+        try {
+          price = pricingRule
+            ? calculateServicePrice(pricingRule, pricingSelection)
+            : { total: bookingPolicy.baseFare, quantity: null, pricingMode: 'fixed', addOnLines: [] };
+        } catch (pricingError) {
+          if (pricingError instanceof TypeError || pricingError instanceof RangeError) {
+            return res.status(400).json({ error: pricingError.message });
+          }
+          throw pricingError;
+        }
         calculatedFare = money(price.total);
         if (!Number.isFinite(calculatedFare) || calculatedFare < 0 || calculatedFare > 100000) {
           return res.status(400).json({ error: 'Calculated service price is outside the supported range' });
