@@ -82,7 +82,6 @@ const HOME_SERVICE_CARDS = [
   { label: 'AC Service', category: 'ac_service', type: 'skilled_worker', image: 'https://imagedelivery.net/xaKlCos5cTg_1RWzIu_h-A/63023f11-6fa4-41a7-ca68-748ee14fc600/public' },
   { label: 'Cleaning', category: 'cleaning', type: 'general_worker', image: 'https://www.trueprocleaners.com/imgs/oc-house-cleaning-european-01.webp' },
   { label: 'Carpenter', category: 'carpenter', type: 'skilled_worker', image: 'https://images.unsplash.com/photo-1756736668332-e921516c1305?auto=format&fit=crop&w=700&q=82' },
-  { label: 'Home Repair', category: 'other', type: 'skilled_worker', image: 'https://manitasenbarcelona.com/images/sobre-nosotros-manitas-barcelona.jpg' },
   { label: 'Appliance Repair', category: 'appliance_repair', type: 'skilled_worker', image: 'https://www.trueprocleaners.com/imgs/oc-house-cleaning-european-01.webp' },
   { label: 'More', category: 'other', type: 'general_worker', image: 'https://allhomerepairs247.com/images/woman-ipad-red.webp' },
 ];
