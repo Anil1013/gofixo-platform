@@ -1516,6 +1516,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
   }catch(_){} }
  double _fare(String t,double d){final base=t=='bike'?30:t=='auto'?40:60;final min=base;final slabs=t=='bike'?[[10,6],[20,5.5],[30,5],[50,4.5],[double.infinity,4.5]]:t=='auto'?[[10,7.5],[20,6.5],[30,6],[50,5.5],[double.infinity,5.5]]:[[10,9.5],[20,9],[30,8],[50,6.5],[100,5],[double.infinity,2.5]];var left=d,prev=0.0,total=0.0;for(final x in slabs){final limit=x[0].toDouble(),rate=x[1].toDouble();final take=left<=0?0.0:(left<limit-prev?left:limit-prev);if(take>0)total+=take*rate;left-=take;prev=limit;if(left<=0)break;}return (base+total).clamp(min,double.infinity).roundToDouble();}
  Future<void>book()async{
+  if(isService&&serviceQuote==null){_snack('Please calculate the latest service estimate before requesting the booking.');return;}
   if(pickupPoint==null)return;
   if(!isService&&(km==null||fare==null))return;
   final selectedTasks=serviceCategory=='cleaning'?selectedCleaningTasks:selectedServiceTasks;
@@ -1850,7 +1851,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                    ),
                    FilledButton(
                      style:FilledButton.styleFrom(backgroundColor:gfGreen),
-                     onPressed:busy?null:book,
+                     onPressed:busy||(isService&&serviceQuote==null)?null:book,
                      child:const Text('Request'),
                    ),
                  ],
