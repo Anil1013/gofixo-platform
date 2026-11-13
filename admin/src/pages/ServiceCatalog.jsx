@@ -179,7 +179,10 @@ export default function ServiceCatalog() {
           <h1>Service Catalog</h1>
           <p>Manage the services customers see and partners can accept. Display numbers follow the saved order.</p>
         </div>
-        <button className="catalog-refresh" type="button" onClick={load} disabled={loading}>{loading ? 'Refreshing…' : '↻ Refresh catalog'}</button>
+        <div className="catalog-header-actions">
+          <button className="btn btn-approve" type="button" onClick={() => document.getElementById('catalog-add-service')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>+ Add service</button>
+          <button className="catalog-refresh" type="button" onClick={load} disabled={loading}>{loading ? 'Refreshing…' : '↻ Refresh catalog'}</button>
+        </div>
       </header>
 
       <div className="catalog-stats">
@@ -196,7 +199,7 @@ export default function ServiceCatalog() {
       {error && <div className="topup-alert topup-alert-error" role="alert">{error}</div>}
       {notice && <div className="topup-alert topup-alert-success" role="status">{notice}</div>}
 
-      <form className="catalog-add-card" onSubmit={addService}>
+      <form id="catalog-add-service" className="catalog-add-card" onSubmit={addService}>
         <div className="catalog-section-heading">
           <div><span className="catalog-eyebrow">NEW ENTRY</span><h2>Add a service</h2></div>
           <span className="catalog-required">* Required fields</span>
@@ -255,7 +258,7 @@ export default function ServiceCatalog() {
                   <div className="catalog-card-actions">
                     <button className="btn btn-approve" type="button" disabled={busy} onClick={() => save(item.category_key)}>{busy ? 'Saving…' : 'Save changes'}</button>
                     {item.is_active
-                      ? <button className="btn btn-reject" type="button" disabled={busy} onClick={() => setArchived(item, false)}>Archive service</button>
+                      ? <button className="btn btn-reject" type="button" disabled={busy} onClick={() => setArchived(item, false)}>Delete / hide service</button>
                       : <button className="btn btn-light" type="button" disabled={busy} onClick={() => setArchived(item, true)}>Restore service</button>}
                   </div>
                 </div>
