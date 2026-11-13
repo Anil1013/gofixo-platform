@@ -33,6 +33,10 @@ export default function ServiceCatalog() {
       setError('Service key and service name are required.');
       return;
     }
+    if (!Number.isFinite(Number(newService.base_fare)) || Number(newService.base_fare) <= 0) {
+      setError('Upfront booking amount must be greater than ₹0 so a customer wallet reservation can be created.');
+      return;
+    }
     let pricingRule = null;
     try { pricingRule = newService.pricing_rule_json.trim() ? JSON.parse(newService.pricing_rule_json) : null; }
     catch (_) { setError('Pricing rule must be valid JSON.'); return; }
@@ -49,6 +53,10 @@ export default function ServiceCatalog() {
 
   async function save(key) {
     const item = draft[key];
+    if (!Number.isFinite(Number(item.base_fare)) || Number(item.base_fare) <= 0) {
+      setError('Upfront booking amount must be greater than ₹0 so a customer wallet reservation can be created.');
+      return;
+    }
     let pricingRule = null;
     try { pricingRule = item.pricing_rule_json?.trim() ? JSON.parse(item.pricing_rule_json) : null; }
     catch (_) { setError('Pricing rule must be valid JSON.'); return; }
@@ -114,7 +122,7 @@ export default function ServiceCatalog() {
           <label>Service key<input value={newService.key} onChange={e=>setNewService(v=>({...v,key:e.target.value}))} placeholder="home_deep_cleaning" /></label>
           <label>Service name<input value={newService.label} onChange={e=>setNewService(v=>({...v,label:e.target.value}))} /></label>
           <label>Image URL (HTTPS)<input value={newService.image_url} onChange={e=>setNewService(v=>({...v,image_url:e.target.value}))} /></label>
-          <label>Upfront booking amount (₹)<input type="number" min="0" value={newService.base_fare} onChange={e=>setNewService(v=>({...v,base_fare:e.target.value}))} /></label>
+          <label>Upfront booking amount (₹)<input type="number" min="0.01" step="0.01" value={newService.base_fare} onChange={e=>setNewService(v=>({...v,base_fare:e.target.value}))} /></label>
           <label>Provider type<select value={newService.provider_type} onChange={e=>setNewService(v=>({...v,provider_type:e.target.value}))}><option value="general_worker">General worker</option><option value="skilled_worker">Skilled worker</option></select></label>
           <label>Sort order<input type="number" min="0" value={newService.sort_order} onChange={e=>setNewService(v=>({...v,sort_order:e.target.value}))} /></label>
           <label style={{gridColumn:'1 / -1'}}>Description<textarea rows="2" value={newService.description} onChange={e=>setNewService(v=>({...v,description:e.target.value}))} /></label>
@@ -135,7 +143,7 @@ export default function ServiceCatalog() {
             <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:10}}>
               <label>Service name<input value={d.label || ''} onChange={(e)=>change(item.category_key,'label',e.target.value)} /></label>
               <label>Image URL<input value={d.image_url || ''} onChange={(e)=>change(item.category_key,'image_url',e.target.value)} /></label>
-              <label>Upfront booking amount (₹)<input type="number" min="0" value={d.base_fare ?? 0} onChange={(e)=>change(item.category_key,'base_fare',e.target.value)} /></label>
+              <label>Upfront booking amount (₹)<input type="number" min="0.01" step="0.01" value={d.base_fare ?? 0} onChange={(e)=>change(item.category_key,'base_fare',e.target.value)} /></label>
               <label>Provider type<select value={d.provider_type} onChange={(e)=>change(item.category_key,'provider_type',e.target.value)}><option value="general_worker">General worker</option><option value="skilled_worker">Skilled worker</option></select></label>
               <label>Sort order<input type="number" min="0" value={d.sort_order ?? 100} onChange={(e)=>change(item.category_key,'sort_order',e.target.value)} /></label>
               <label style={{display:'flex',alignItems:'center',gap:8}}><input type="checkbox" checked={!!d.is_active} onChange={(e)=>change(item.category_key,'is_active',e.target.checked)} /> Visible to customers</label>
