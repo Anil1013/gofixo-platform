@@ -55,7 +55,6 @@ export default function ProviderHome({ onLogout }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [pin, setPin] = useState('');
-  const [fareAmount, setFareAmount] = useState('');
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [secondsLeft, setSecondsLeft] = useState(null);
@@ -169,9 +168,6 @@ export default function ProviderHome({ onLogout }) {
   }, [profile?.id, profile?.kyc_status, profile?.is_available, activeBooking?.id]);
 
   useEffect(() => {
-    if (activeBooking?.status === 'ongoing' && activeBooking.fare_amount) {
-      setFareAmount(String(Number(activeBooking.fare_amount)));
-    }
     if (!activeBooking || activeBooking.status !== 'accepted') {
       setPickupRoute(null);
       return;
@@ -458,12 +454,11 @@ export default function ProviderHome({ onLogout }) {
     setError('');
     try {
       await apiPost(`/bookings/${activeBooking.id}/confirm-payment`, {
-        fare_amount: Number(fareAmount),
+        payment_method: activeBooking.service_type === 'services' ? 'wallet' : 'cash',
         rating: rating || undefined,
         comment: comment || undefined,
       }, true);
       await updateCurrentLocation(false).catch(() => {});
-      setFareAmount('');
       setRating(0);
       setComment('');
       loadAll();
@@ -489,6 +484,12 @@ export default function ProviderHome({ onLogout }) {
 
   const providerTypeLabel = profile.type === 'general_worker' ? 'Home Services' : profile.type === 'skilled_worker' ? 'Skilled Expert' : (profile.type || 'bike').replaceAll('_', ' ');
   const ratingValue = profile.avg_rating ? Number(profile.avg_rating).toFixed(1) : '—';
+  const completionIsService = activeBooking?.service_type === 'services';
+  const completionMaterials = completionIsService ? Number(activeBooking?.approved_service_materials_amount || 0) : 0;
+  const completionWaitingFee = activeBooking && !completionIsService && ['due', 'accruing'].includes(activeBooking.waiting_fee_status)
+    ? Number(activeBooking.waiting_fee_amount || 0) : 0;
+  const completionAmount = activeBooking
+    ? Number(activeBooking.fare_amount || 0) + completionMaterials + completionWaitingFee : 0;
   const eligibleSkillOptions = partnerSkillOptions.filter((option) => (
     option.service_type === 'ride'
       ? option.key === profile.type
@@ -681,11 +682,14 @@ export default function ProviderHome({ onLogout }) {
 
       {activeBooking && activeBooking.status === 'ongoing' && (
         <section className="provider-job-panel">
-          <div className="job-panel-head"><div><span className="section-kicker">TRIP IN PROGRESS</span><h2>Complete the booking</h2></div><span className="job-live-pill">● ONGOING</span></div>
-          <div className="earning-highlight"><span>YOUR FARE</span><strong>₹{fareAmount || '—'}</strong><small>Confirm the amount received from customer</small></div>
-          <label>Fare amount (₹)</label>
-          <input className="provider-input" value={fareAmount} onChange={(e) => setFareAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="Enter final fare" inputMode="decimal" />
-          {activeBooking.fare_amount && <p className="route-info">Customer estimate: ₹{Number(activeBooking.fare_amount).toLocaleString('en-IN')}</p>}
+          <div className="job-panel-head"><div><span className="section-kicker">BOOKING IN PROGRESS</span><h2>Complete the booking</h2></div><span className="job-live-pill">● ONGOING</span></div>
+          <div className="earning-highlight">
+            <span>{completionIsService ? 'CUSTOMER WALLET CHARGE' : 'CASH COLLECTION'}</span>
+            <strong>₹{completionAmount.toLocaleString('en-IN')}</strong>
+            <small>{completionIsService ? 'Approved service amount and materials will be captured from the Gofixo Wallet.' : 'Locked ride fare, including any eligible waiting fee.'}</small>
+          </div>
+          {completionMaterials > 0 && <p className="route-info">Approved materials: ₹{completionMaterials.toLocaleString('en-IN')}</p>}
+          {completionWaitingFee > 0 && <p className="route-info">Waiting fee: ₹{completionWaitingFee.toLocaleString('en-IN')}</p>}
           <label>Rate the customer</label>
           <div className="stars provider-stars">
             {[1, 2, 3, 4, 5].map((n) => (
@@ -693,7 +697,7 @@ export default function ProviderHome({ onLogout }) {
             ))}
           </div>
           <input className="provider-input" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Optional feedback" maxLength={500} />
-          <button className="cta provider-main-cta" onClick={completeBooking} disabled={busy || !fareAmount}>Confirm payment received →</button>
+          <button className="cta provider-main-cta" onClick={completeBooking} disabled={busy || completionAmount <= 0}>{busy ? 'Please wait…' : completionIsService ? 'Complete service & settle wallet →' : 'Confirm cash received →'}</button>
         </section>
       )}
     </div>
