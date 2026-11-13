@@ -23,19 +23,42 @@ export default function Bookings() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
+  const [totalBookings, setTotalBookings] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await apiGet('/bookings');
-      setBookings(Array.isArray(data) ? data : []);
+      const data = await apiGet('/bookings?page=1&limit=50');
+      setBookings(Array.isArray(data?.items) ? data.items : []);
+      setTotalBookings(Number(data?.total || 0));
+      setHasMore(!!data?.hasMore);
     } catch (e) {
       setError(e.message || 'Bookings could not be loaded.');
     } finally {
       setLoading(false);
     }
   }, []);
+
+  async function loadMore() {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    setError('');
+    try {
+      const nextPage = Math.floor(bookings.length / 50) + 1;
+      const data = await apiGet('/bookings?page=' + nextPage + '&limit=50');
+      const nextItems = Array.isArray(data?.items) ? data.items : [];
+      setBookings((current) => [...current, ...nextItems]);
+      setTotalBookings(Number(data?.total || 0));
+      setHasMore(!!data?.hasMore);
+    } catch (e) {
+      setError(e.message || 'More bookings could not be loaded.');
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   useEffect(() => { load(); }, [load]);
 
@@ -55,7 +78,7 @@ export default function Bookings() {
   return (
     <div>
       <div className="page-head-row">
-        <div><h2>Bookings ({visibleBookings.length})</h2><p className="page-subtitle">Search by booking, customer, partner or service. Times are shown in IST.</p></div>
+        <div><h2>Bookings ({visibleBookings.length} shown / {totalBookings} total)</h2><p className="page-subtitle">Search by booking, customer, partner or service. Times are shown in IST.</p></div>
         <button className="btn btn-approve" type="button" onClick={load} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh bookings'}</button>
       </div>
       <div className="payments-toolbar">
@@ -97,6 +120,13 @@ export default function Bookings() {
           </tbody>
         </table>
       </div>
+      {hasMore && (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
+          <button className="btn btn-light" type="button" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? 'Loading more…' : 'Load 50 more bookings'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
