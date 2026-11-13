@@ -425,7 +425,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
         drop_or_service_address: category === 'services' ? [location, pickupHouse, pickupStreet, pickupArea, pickupPincode].filter(Boolean).join(', ') : [destination, dropHouse, dropStreet, dropArea, dropPincode].filter(Boolean).join(', '),
         service_category: category === 'services' ? (serviceCategory || 'other') : undefined,
         service_description: category === 'services' ? work.trim() : undefined,
-        pricingSelection,
+        pricing_selection: pricingSelection,
         pickup_lat: coords.lat,
         pickup_lng: coords.lng,
         drop_lat: category === 'ride' ? resolvedDestination.lat : undefined,
