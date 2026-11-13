@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiGet, apiGetBlob } from '../api';
 
 
@@ -20,21 +20,51 @@ function AdminPhoto({ kind, id, documentId }) {
 export default function Bookings() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('all');
 
-  useEffect(() => {
-    apiGet('/bookings')
-      .then(setBookings)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await apiGet('/bookings');
+      setBookings(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setError(e.message || 'Bookings could not be loaded.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  if (loading) return <p>Loading bookings...</p>;
-  if (error) return <p style={{ color: 'red' }}>Error: {error}</p>;
+  useEffect(() => { load(); }, [load]);
+
+  const visibleBookings = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return bookings.filter((booking) => {
+      const matchesStatus = status === 'all' || String(booking.status || '').toLowerCase() === status;
+      const matchesSearch = !query || [
+        booking.id, booking.service_type, booking.service_category, booking.provider_name,
+        booking.provider_generated_id, booking.provider_phone, booking.customer_name,
+        booking.customer_id, booking.customer_phone, booking.pickup_location, booking.drop_or_service_address,
+      ].filter(Boolean).some((value) => String(value).toLowerCase().includes(query));
+      return matchesStatus && matchesSearch;
+    });
+  }, [bookings, search, status]);
 
   return (
     <div>
-      <h2>Bookings ({bookings.length})</h2>
+      <div className="page-head-row">
+        <div><h2>Bookings ({visibleBookings.length})</h2><p className="page-subtitle">Search by booking, customer, partner or service. Times are shown in IST.</p></div>
+        <button className="btn btn-approve" type="button" onClick={load} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh bookings'}</button>
+      </div>
+      <div className="payments-toolbar">
+        <label className="payments-search">Search bookings<input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Booking ID, name, phone, service, address…" /></label>
+        <label>Status<select value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="all">All statuses</option><option value="requested">Requested</option><option value="accepted">Accepted</option><option value="arrived">Arrived</option><option value="ongoing">Ongoing</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="no_provider">No provider</option>
+        </select></label>
+      </div>
+      {error && <div className="topup-alert topup-alert-error" role="alert">{error}</div>}
       <div style={{ overflowX: 'auto' }}>
         <table className="data-table">
           <thead><tr>
@@ -43,7 +73,7 @@ export default function Bookings() {
             <th>Fare</th><th>Status</th><th>Created</th><th>Completed</th>
           </tr></thead>
           <tbody>
-            {bookings.map((b, index) => (
+            {visibleBookings.map((b, index) => (
               <tr key={b.id}>
                 <td>{index + 1}</td><td>{b.id}</td>
                 <td><div>{b.service_type}</div>{b.service_category && <div className="sub-line">{String(b.service_category).replaceAll('_', ' ')}</div>}</td>
@@ -59,11 +89,11 @@ export default function Bookings() {
                 <td>{b.route_distance_km ? `${Number(b.route_distance_km).toFixed(1)} km` : '—'}</td>
                 <td>{b.fare_amount ? `₹${b.fare_amount}` : '—'}</td>
                 <td><span className={`badge badge-${b.status}`}>{b.status}</span></td>
-                <td>{b.created_at ? new Date(b.created_at).toLocaleString() : '—'}</td>
-                <td>{b.completed_at ? new Date(b.completed_at).toLocaleString() : '—'}</td>
+                <td>{b.created_at ? new Date(b.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST' : '—'}</td>
+                <td>{b.completed_at ? new Date(b.completed_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST' : '—'}</td>
               </tr>
             ))}
-            {bookings.length === 0 && <tr><td colSpan="14">No bookings yet.</td></tr>}
+            {visibleBookings.length === 0 && <tr><td colSpan="14">{bookings.length === 0 ? 'No bookings yet.' : 'No bookings match this search or status.'}</td></tr>}
           </tbody>
         </table>
       </div>
