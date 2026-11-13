@@ -7,6 +7,7 @@ const { requireAdmin } = require('../middleware/admin');
 const { sendProviderPush, sendProviderFcm, sendCustomerFcm } = require('../services/push');
 const { normalizeServiceCategory, getServiceBaseFare, isValidServiceCategoryKey } = require('../services/catalog');
 const { resolveServiceCatalogBooking } = require('../services/service-catalog-booking');
+const { calculateServicePrice } = require('../services/service-pricing');
 const { calculateRideFare } = require('../services/ride-pricing');
 const { calculateServiceSettlement } = require('../services/service-settlement');
 const { calculateWalletRelease, calculateWalletCapture } = require('../services/wallet-reserve-policy');
@@ -508,6 +509,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       route_distance_km,
       service_category: rawServiceCategory,
       service_description: rawServiceDescription,
+      pricing_selection: rawPricingSelection,
     } = req.body;
     const customer_id = req.user.id;
 
@@ -530,9 +532,11 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
     const serviceCategory = service_type === 'services'
       ? String(rawServiceCategory || '').trim().toLowerCase()
       : null;
-    const serviceDescription = service_type === 'services'
+    let serviceDescription = service_type === 'services'
       ? String(rawServiceDescription ?? '').trim().slice(0, 500)
       : null;
+    const pricingSelection = rawPricingSelection && typeof rawPricingSelection === 'object' && !Array.isArray(rawPricingSelection)
+      ? rawPricingSelection : {};
     if (service_type === 'services' && !isValidServiceCategoryKey(serviceCategory)) {
       return res.status(400).json({ error: 'Select a valid home-service category from the service catalog.' });
     }
@@ -572,7 +576,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       // stale app book a category that an admin has disabled.
       try {
         const catalogResult = await pool.query(
-          `SELECT provider_type, base_fare, is_active
+          `SELECT provider_type, base_fare, is_active, metadata
              FROM service_catalog
             WHERE category_key = $1`,
           [serviceCategory]
@@ -584,7 +588,23 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
             : catalogResult.rows[0].provider_type !== provider_type ? 400 : 503;
           return res.status(status).json({ error: bookingPolicy.error });
         }
-        calculatedFare = bookingPolicy.baseFare;
+        const pricingRule = catalogResult.rows[0]?.metadata?.pricingRule;
+        const price = pricingRule
+          ? calculateServicePrice(pricingRule, pricingSelection)
+          : { total: bookingPolicy.baseFare, quantity: null, pricingMode: 'fixed', addOnLines: [] };
+        calculatedFare = money(price.total);
+        if (!Number.isFinite(calculatedFare) || calculatedFare < 0 || calculatedFare > 100000) {
+          return res.status(400).json({ error: 'Calculated service price is outside the supported range' });
+        }
+        if (pricingRule) {
+          const summary = [
+            `Pricing: ${price.pricingMode}`,
+            price.quantity !== null ? `Quantity: ${price.quantity} ${price.unitLabel || ''}`.trim() : '',
+            ...(price.addOnLines || []).map(line => `Add-on ${line.key} x${line.quantity}: ₹${line.total}`),
+            `Reserved estimate: ₹${calculatedFare.toFixed(2)}`,
+          ].filter(Boolean).join(' | ');
+          serviceDescription = [serviceDescription, summary].filter(Boolean).join(' | ').slice(0, 500);
+        }
       } catch (err) {
         // Rolling deployments may briefly run the old backend before migration 016.
         // Fall back only when the table is genuinely absent, never on DB outages.
