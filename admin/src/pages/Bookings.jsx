@@ -93,7 +93,7 @@ export default function Bookings() {
           <thead><tr>
             <th>Sr. No.</th><th>Booking ID</th><th>Service</th><th>Provider</th><th>Provider photo</th><th>Customer</th><th>Customer photo</th>
             <th>Pickup</th><th>Destination / Service</th><th>Distance</th>
-            <th>Fare</th><th>Status</th><th>Created</th><th>Completed</th>
+            <th>Fare</th><th>Payment</th><th>Platform fee</th><th>Partner earning</th><th>Payout</th><th>Status</th><th>Created</th><th>Completed</th>
           </tr></thead>
           <tbody>
             {visibleBookings.map((b, index) => (
@@ -110,13 +110,17 @@ export default function Bookings() {
                   {b.drop_lat != null && b.drop_lng != null && <div className="sub-line">{Number(b.drop_lat).toFixed(6)}, {Number(b.drop_lng).toFixed(6)}</div>}
                 </td>
                 <td>{b.route_distance_km ? `${Number(b.route_distance_km).toFixed(1)} km` : '—'}</td>
-                <td>{b.fare_amount ? `₹${b.fare_amount}` : '—'}</td>
+                <td>{b.fare_amount != null ? `₹${Number(b.fare_amount).toFixed(2)}` : '—'}</td>
+                <td><div>{b.payment_method || '—'}</div><div className="sub-line">{b.payment_status || 'unpaid / pending'}</div></td>
+                <td>{b.commission_amount != null ? `₹${Number(b.commission_amount).toFixed(2)}` : '—'}</td>
+                <td>{b.provider_earning_amount != null ? `₹${Number(b.provider_earning_amount).toFixed(2)}` : '—'}</td>
+                <td>{b.partner_payout_status ? String(b.partner_payout_status).replaceAll('_', ' ') : (b.service_type === 'services' && b.status === 'completed' ? 'Not recorded' : '—')}</td>
                 <td><span className={`badge badge-${b.status}`}>{b.status}</span></td>
                 <td>{b.created_at ? new Date(b.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST' : '—'}</td>
                 <td>{b.completed_at ? new Date(b.completed_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST' : '—'}</td>
               </tr>
             ))}
-            {visibleBookings.length === 0 && <tr><td colSpan="14">{bookings.length === 0 ? 'No bookings yet.' : 'No bookings match this search or status.'}</td></tr>}
+            {visibleBookings.length === 0 && <tr><td colSpan="18">{bookings.length === 0 ? 'No bookings yet.' : 'No bookings match this search or status.'}</td></tr>}
           </tbody>
         </table>
       </div>
