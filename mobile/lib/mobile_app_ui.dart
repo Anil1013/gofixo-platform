@@ -1418,6 +1418,11 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  void search(String v){debounce?.cancel();place=null;final q=v.trim();if(q.length<2){setState(()=>suggestions=[]);return;}debounce=Timer(const Duration(milliseconds:450),()async{try{final s=await ApiService.placeAutocomplete(q);if(mounted&&dest.text.trim()==q)setState(()=>suggestions=s);}catch(_){try{final points=await locationFromAddress(q);if(points.isNotEmpty&&mounted&&dest.text.trim()==q){final p=points.first;setState(()=>suggestions=[{'type':'native','placeId':'native:${p.latitude},${p.longitude}','text':q,'mainText':q,'secondaryText':'Device address search'}]);}}catch(_){if(mounted&&dest.text.trim()==q)setState(()=>suggestions=[]);}}});}
  Future<void>select(Map<String,dynamic>s)async{final id=s['placeId']?.toString();if(id==null||id.isEmpty)return;setState(()=>busy=true);try{if(id.startsWith('native:')){final parts=id.substring(7).split(',');final lat=double.tryParse(parts.isNotEmpty?parts[0]:'');final lng=double.tryParse(parts.length>1?parts[1]:'');if(lat==null||lng==null)throw Exception('Unable to read the selected address.');final d=<String,dynamic>{'address':s['text']?.toString()??'','lat':lat,'lng':lng};if(mounted){setState((){place=d;dest.text=d['address']?.toString()??'';suggestions=[];destinationPoint=LatLng(lat,lng);});_fitMapToPoints();}return;}Map<String,dynamic> d;try{d=await ApiService.placeDetails(id);}catch(_){final points=await locationFromAddress(s['text']?.toString()??'');if(points.isEmpty)throw Exception('Address service is unavailable. Please try a landmark or PIN code.');final x=points.first;d=<String,dynamic>{'address':s['text']?.toString()??'','lat':x.latitude,'lng':x.longitude};}if(mounted){final lat=double.tryParse(d['lat']?.toString()??'');final lng=double.tryParse(d['lng']?.toString()??'');setState((){place=d;dest.text=d['address']?.toString()??s['text']?.toString()??'';suggestions=[];if(lat!=null&&lng!=null)destinationPoint=LatLng(lat,lng);});if(destinationPoint!=null)_fitMapToPoints();}}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
  Future<void>calculate()async{
+  if(isService){
+    final parsed=double.tryParse(quantityController.text.trim());
+    if(parsed==null||parsed<=0||parsed>1000){_snack('Enter a valid service quantity.');return;}
+    serviceQuantity=parsed;
+  }
   // A manually selected pickup is valid even when GPS permission is denied
   // or the device cannot acquire a current position.
   if(pos==null&&pickupPoint==null)await locate();
@@ -1727,7 +1732,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                  keyboardType:const TextInputType.numberWithOptions(decimal:true),
                  textAlign:TextAlign.center,
                  decoration:const InputDecoration(isDense:true,contentPadding:EdgeInsets.symmetric(vertical:10,horizontal:6),border:OutlineInputBorder()),
-                 onChanged:(value){final parsed=double.tryParse(value);if(parsed!=null&&parsed>0&&parsed<=1000){serviceQuantity=parsed;}},
+                 onChanged:(value){final parsed=double.tryParse(value);if(parsed!=null&&parsed>0&&parsed<=1000){setState((){serviceQuantity=parsed;serviceQuote=null;});}},
                )),
              ]),
            ),
@@ -1747,6 +1752,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                        final key=addon['key']?.toString()??'';
                        if(selected&&!selectedPricingAddOns.contains(key))selectedPricingAddOns.add(key);
                        if(!selected)selectedPricingAddOns.remove(key);
+                       serviceQuote=null;
                      });},
                    ),
                ]),
