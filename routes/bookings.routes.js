@@ -365,18 +365,27 @@ if (typeof unacceptedExpiryTimer.unref === 'function') unacceptedExpiryTimer.unr
 // List all bookings (admin panel only — contains customer phone numbers and PINs)
 router.get('/', requireAdmin, async (req, res, next) => {
   try {
-    const result = await pool.query(
-      `SELECT b.*, sp.name AS provider_name, sp.generated_id AS provider_generated_id, sp.phone AS provider_phone,
-              c.name AS customer_name, c.phone AS customer_phone,
-              c.profile_photo_url AS customer_profile_photo_url,
-              (SELECT pd.id FROM provider_documents pd WHERE pd.provider_id = sp.id AND pd.doc_type = 'profile_photo' ORDER BY pd.uploaded_at DESC, pd.id DESC LIMIT 1) AS provider_profile_photo_document_id,
-              (SELECT pd.file_url FROM provider_documents pd WHERE pd.provider_id = sp.id AND pd.doc_type = 'profile_photo' ORDER BY pd.uploaded_at DESC, pd.id DESC LIMIT 1) AS provider_profile_photo_url
-       FROM bookings b
-       LEFT JOIN service_providers sp ON b.provider_id = sp.id
-       LEFT JOIN customers c ON b.customer_id = c.id
-       ORDER BY b.created_at DESC LIMIT 100`
-    );
-    res.json(result.rows);
+    const page = Math.max(1, Math.min(100000, Number.parseInt(req.query.page, 10) || 1));
+    const limit = Math.max(1, Math.min(100, Number.parseInt(req.query.limit, 10) || 50));
+    const offset = (page - 1) * limit;
+    const [result, count] = await Promise.all([
+      pool.query(
+        `SELECT b.*, sp.name AS provider_name, sp.generated_id AS provider_generated_id, sp.phone AS provider_phone,
+                c.name AS customer_name, c.phone AS customer_phone,
+                c.profile_photo_url AS customer_profile_photo_url,
+                (SELECT pd.id FROM provider_documents pd WHERE pd.provider_id = sp.id AND pd.doc_type = 'profile_photo' ORDER BY pd.uploaded_at DESC, pd.id DESC LIMIT 1) AS provider_profile_photo_document_id,
+                (SELECT pd.file_url FROM provider_documents pd WHERE pd.provider_id = sp.id AND pd.doc_type = 'profile_photo' ORDER BY pd.uploaded_at DESC, pd.id DESC LIMIT 1) AS provider_profile_photo_url
+         FROM bookings b
+         LEFT JOIN service_providers sp ON b.provider_id = sp.id
+         LEFT JOIN customers c ON b.customer_id = c.id
+         ORDER BY b.created_at DESC, b.id DESC
+         LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      ),
+      pool.query('SELECT COUNT(*)::int AS total FROM bookings')
+    ]);
+    const total = Number(count.rows[0]?.total || 0);
+    res.json({ items: result.rows, total, page, limit, hasMore: offset + result.rows.length < total });
   } catch (err) {
     next(err);
   }
