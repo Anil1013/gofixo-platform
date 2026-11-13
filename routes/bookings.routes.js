@@ -5,8 +5,12 @@ const crypto = require('crypto');
 const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
 const { sendProviderPush, sendProviderFcm, sendCustomerFcm } = require('../services/push');
-const { normalizeServiceCategory, getServiceBaseFare } = require('../services/catalog');
+const { normalizeServiceCategory, getServiceBaseFare, isValidServiceCategoryKey } = require('../services/catalog');
+const { resolveServiceCatalogBooking } = require('../services/service-catalog-booking');
+const { calculateServicePrice } = require('../services/service-pricing');
 const { calculateRideFare } = require('../services/ride-pricing');
+const { calculateServiceSettlement } = require('../services/service-settlement');
+const { calculateWalletRelease, calculateWalletCapture } = require('../services/wallet-reserve-policy');
 
 const SERVICE_TYPES = new Set(['ride', 'services']);
 const PROVIDER_TYPES = new Set(['bike', 'auto', 'car', 'general_worker', 'skilled_worker']);
@@ -96,11 +100,19 @@ async function releaseServiceWallet(client, bookingId, customerId, amount, reaso
   );
   if (!tx.rows.length) return false;
   const row = tx.rows[0];
-  const releaseAmount = money(amount || row.amount);
+  // The reserve ledger is authoritative: approved quotes may include materials
+  // in addition to bookings.fare_amount, so cancellation must release the full
+  // currently reserved amount rather than the original booking fare.
+  const movement = calculateWalletRelease({
+    availableBalance: row.available_balance,
+    reservedBalance: row.reserved_balance,
+    reserveAmount: row.amount,
+  });
+  const releaseAmount = movement.amount;
   const before = Number(row.available_balance);
   const reservedBefore = Number(row.reserved_balance);
-  const after = money(before + releaseAmount);
-  const reservedAfter = money(Math.max(0, reservedBefore - releaseAmount));
+  const after = movement.availableAfter;
+  const reservedAfter = movement.reservedAfter;
   await client.query('UPDATE wallets SET available_balance=$1, reserved_balance=$2, updated_at=NOW() WHERE id=$3', [after, reservedAfter, row.wallet_id]);
   await client.query(
     `INSERT INTO wallet_transactions
@@ -130,9 +142,16 @@ async function captureServiceWallet(client, bookingId, customerId, amount) {
   if (Number(row.amount) + 0.01 < captureAmount) return false;
   const before = Number(row.available_balance);
   const reservedBefore = Number(row.reserved_balance);
-  const after = before;
-  const reservedAfter = money(Math.max(0, reservedBefore - captureAmount));
-  await client.query('UPDATE wallets SET reserved_balance=$1, updated_at=NOW() WHERE id=$2', [reservedAfter, row.wallet_id]);
+  const movement = calculateWalletCapture({
+    availableBalance: before,
+    reservedBalance: reservedBefore,
+    reserveAmount: row.amount,
+    captureAmount,
+  });
+  if (!movement) return false;
+  const after = movement.availableAfter;
+  const reservedAfter = movement.reservedAfter;
+  await client.query('UPDATE wallets SET available_balance=$1, reserved_balance=$2, updated_at=NOW() WHERE id=$3', [after, reservedAfter, row.wallet_id]);
   await client.query(
     `INSERT INTO wallet_transactions
       (wallet_id, customer_id, booking_id, type, amount, balance_before, balance_after,
@@ -366,9 +385,20 @@ router.get('/mine', requireAuth(['customer']), async (req, res, next) => {
               CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing', 'completed') THEN sp.phone END AS provider_phone,
               CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing', 'completed') THEN (SELECT pd.file_url FROM provider_documents pd WHERE pd.provider_id = sp.id AND pd.doc_type = 'profile_photo' ORDER BY pd.uploaded_at DESC, pd.id DESC LIMIT 1) END AS provider_profile_photo_url,
               CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing') THEN sp.current_lat END AS provider_lat,
-              CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing') THEN sp.current_lng END AS provider_lng
+              CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing') THEN sp.current_lng END AS provider_lng,
+              sq.service_quote_id, sq.service_quote_status, sq.service_quote_description,
+              sq.service_quote_labour_amount, sq.service_quote_visit_fee_credit_amount,
+              sq.service_quote_service_amount, sq.service_quote_materials_amount,
+              sq.service_quote_total_amount, sq.service_quote_materials
        FROM bookings b
        LEFT JOIN service_providers sp ON b.provider_id = sp.id
+       LEFT JOIN LATERAL (
+         SELECT id AS service_quote_id, status AS service_quote_status, description AS service_quote_description,
+                labour_amount AS service_quote_labour_amount, visit_fee_credit_amount AS service_quote_visit_fee_credit_amount,
+                service_amount AS service_quote_service_amount, materials_amount AS service_quote_materials_amount,
+                total_amount AS service_quote_total_amount, materials AS service_quote_materials
+         FROM service_job_quotes WHERE booking_id = b.id ORDER BY id DESC LIMIT 1
+       ) sq ON true
        WHERE b.customer_id = $1
        ORDER BY b.created_at DESC`,
       [req.user.id]
@@ -389,11 +419,26 @@ router.get('/mine/provider', requireAuth(['provider']), async (req, res, next) =
               b.fare_amount, b.route_distance_km, b.duration_minutes, b.status, b.payment_confirmed_by_provider,
               b.arrived_at, b.waiting_fee_amount, b.waiting_fee_status,
               b.created_at, b.completed_at, b.pickup_lat, b.pickup_lng, b.drop_lat, b.drop_lng, b.offered_at,
+              sq.service_quote_id, sq.service_quote_status, sq.service_quote_description,
+              sq.service_quote_labour_amount, sq.service_quote_materials_amount,
+              sq.service_quote_total_amount, sq.service_quote_materials,
+              COALESCE(approved_sq.approved_service_materials_amount, 0) AS approved_service_materials_amount,
               c.name AS customer_name,
               CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing', 'completed') THEN c.phone END AS customer_phone,
               CASE WHEN b.status IN ('accepted', 'arrived', 'ongoing', 'completed') THEN c.profile_photo_url END AS customer_profile_photo_url
        FROM bookings b
        LEFT JOIN customers c ON b.customer_id = c.id
+       LEFT JOIN LATERAL (
+         SELECT id AS service_quote_id, status AS service_quote_status, description AS service_quote_description,
+                labour_amount AS service_quote_labour_amount, materials_amount AS service_quote_materials_amount,
+                total_amount AS service_quote_total_amount, materials AS service_quote_materials
+         FROM service_job_quotes WHERE booking_id = b.id ORDER BY id DESC LIMIT 1
+       ) sq ON true
+       LEFT JOIN LATERAL (
+         SELECT materials_amount AS approved_service_materials_amount
+         FROM service_job_quotes WHERE booking_id = b.id AND status = 'approved'
+         ORDER BY id DESC LIMIT 1
+       ) approved_sq ON true
        LEFT JOIN service_providers target_sp ON target_sp.id = $1
        WHERE (
          b.provider_id = $1
@@ -464,6 +509,7 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
       route_distance_km,
       service_category: rawServiceCategory,
       service_description: rawServiceDescription,
+      pricing_selection: rawPricingSelection,
     } = req.body;
     const customer_id = req.user.id;
 
@@ -484,13 +530,15 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
     }
 
     const serviceCategory = service_type === 'services'
-      ? normalizeServiceCategory(rawServiceCategory)
+      ? String(rawServiceCategory || '').trim().toLowerCase()
       : null;
-    const serviceDescription = service_type === 'services'
+    let serviceDescription = service_type === 'services'
       ? String(rawServiceDescription ?? '').trim().slice(0, 500)
       : null;
-    if (service_type === 'services' && !serviceCategory) {
-      return res.status(400).json({ error: 'service_category is required for home services' });
+    const pricingSelection = rawPricingSelection && typeof rawPricingSelection === 'object' && !Array.isArray(rawPricingSelection)
+      ? rawPricingSelection : {};
+    if (service_type === 'services' && !isValidServiceCategoryKey(serviceCategory)) {
+      return res.status(400).json({ error: 'Select a valid home-service category from the service catalog.' });
     }
     if (service_type === 'services' && !serviceDescription) {
       return res.status(400).json({ error: 'service_description is required for home services' });
@@ -523,11 +571,58 @@ router.post('/', requireAuth(['customer']), async (req, res, next) => {
     let calculatedFare = null;
 
     if (service_type === 'services') {
-      // Home-service bookings must carry a locked starting fare so the existing
-      // completion/earning lifecycle works for every universal service category.
-      // The provider may inspect the job before accepting, but the customer-facing
-      // base price is server-authoritative and cannot be rewritten at completion.
-      calculatedFare = getServiceBaseFare(serviceCategory);
+      // The selected category, worker type, visibility and display base fare are
+      // authoritative on the server. Never trust a client-supplied fare or let a
+      // stale app book a category that an admin has disabled.
+      try {
+        const catalogResult = await pool.query(
+          `SELECT provider_type, base_fare, is_active, metadata
+             FROM service_catalog
+            WHERE category_key = $1`,
+          [serviceCategory]
+        );
+        const bookingPolicy = resolveServiceCatalogBooking(catalogResult.rows[0], provider_type);
+        if (bookingPolicy.error) {
+          const status = !catalogResult.rows[0] || catalogResult.rows[0].is_active !== true
+            ? 409
+            : catalogResult.rows[0].provider_type !== provider_type ? 400 : 503;
+          return res.status(status).json({ error: bookingPolicy.error });
+        }
+        const pricingRule = catalogResult.rows[0]?.metadata?.pricingRule;
+        let price;
+        try {
+          price = pricingRule
+            ? calculateServicePrice(pricingRule, pricingSelection)
+            : { total: bookingPolicy.baseFare, quantity: null, pricingMode: 'fixed', addOnLines: [] };
+        } catch (pricingError) {
+          if (pricingError instanceof TypeError || pricingError instanceof RangeError) {
+            return res.status(400).json({ error: pricingError.message });
+          }
+          throw pricingError;
+        }
+        calculatedFare = money(price.total);
+        if (!Number.isFinite(calculatedFare) || calculatedFare < 0 || calculatedFare > 100000) {
+          return res.status(400).json({ error: 'Calculated service price is outside the supported range' });
+        }
+        if (pricingRule) {
+          const summary = [
+            `Pricing: ${price.pricingMode}`,
+            price.quantity !== null ? `Quantity: ${price.quantity} ${price.unitLabel || ''}`.trim() : '',
+            ...(price.addOnLines || []).map(line => `Add-on ${line.key} x${line.quantity}: ₹${line.total}`),
+            `Reserved estimate: ₹${calculatedFare.toFixed(2)}`,
+          ].filter(Boolean).join(' | ');
+          serviceDescription = [serviceDescription.slice(0, 300), summary].filter(Boolean).join(' | ').slice(0, 500);
+        }
+      } catch (err) {
+        // Rolling deployments may briefly run the old backend before migration 016.
+        // Fall back only when the table is genuinely absent, never on DB outages.
+        if (err.code !== '42P01') throw err;
+        // Legacy fallback is limited to bundled categories; dynamic categories require migration 016.
+        if (normalizeServiceCategory(serviceCategory) !== serviceCategory) {
+          return res.status(503).json({ error: 'Service catalog is updating. Please try again shortly.' });
+        }
+        calculatedFare = getServiceBaseFare(serviceCategory);
+      }
     }
 
     let routeDistance = null;
@@ -1383,6 +1478,11 @@ router.post('/:id/start', requireAuth(['provider']), async (req, res, next) => {
          AND provider_id = $2
          AND status IN ('accepted', 'arrived')
          AND start_pin = $3
+         AND NOT EXISTS (
+           SELECT 1 FROM service_job_quotes pending_quote
+            WHERE pending_quote.booking_id = bookings.id
+              AND pending_quote.status = 'proposed'
+         )
          AND (status <> 'arrived' OR arrived_at > NOW() - ($6 * INTERVAL '1 minute'))
        RETURNING id, service_type, customer_id, provider_id, pickup_location, status, created_at,
                  arrived_at, waiting_fee_amount, waiting_fee_status`,
@@ -1514,13 +1614,13 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
 
     const configuredCommission = Number(process.env.GOFIXO_COMMISSION_PERCENT || 20);
     const commissionPercent = Number.isFinite(configuredCommission)
-      ? Math.min(50, Math.max(0, configuredCommission))
+      ? Math.min(50, Math.max(20, configuredCommission))
       : 20;
 
     await client.query('BEGIN');
 
     const existing = await client.query(
-      'SELECT provider_id, customer_id, service_type, status, fare_amount, payment_status, waiting_fee_amount, waiting_fee_status FROM bookings WHERE id = $1 FOR UPDATE',
+      `SELECT b.provider_id, b.customer_id, b.service_type, b.status, b.fare_amount, b.payment_status, b.waiting_fee_amount, b.waiting_fee_status, COALESCE(q.materials_amount, 0) AS approved_material_amount FROM bookings b LEFT JOIN LATERAL (SELECT materials_amount FROM service_job_quotes WHERE booking_id = b.id AND status = 'approved' ORDER BY id DESC LIMIT 1) q ON true WHERE b.id = $1 FOR UPDATE OF b`,
       [id]
     );
     if (existing.rows.length === 0) {
@@ -1550,7 +1650,9 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
     const isService = existing.rows[0].service_type === 'services';
     const waitingFee = !isService && ['due', 'accruing'].includes(existing.rows[0].waiting_fee_status)
       ? Number(Number(existing.rows[0].waiting_fee_amount || 0).toFixed(2)) : 0;
-    const totalCharge = Number((lockedFare + waitingFee).toFixed(2));
+    const approvedMaterialAmount = isService ? Number(existing.rows[0].approved_material_amount || 0) : 0;
+    const totalServiceCharge = Number((lockedFare + approvedMaterialAmount).toFixed(2));
+    const totalCharge = Number((totalServiceCharge + waitingFee).toFixed(2));
     if (submittedFare !== null && Math.abs(submittedFare - totalCharge) > 0.01) {
       await client.query('ROLLBACK');
       return res.status(409).json({ error: waitingFee > 0
@@ -1567,12 +1669,20 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Ride bookings currently use cash settlement' });
     }
-    const effectiveCommissionPercent = isService ? commissionPercent : 0;
-    const commission = Number((fare * effectiveCommissionPercent / 100).toFixed(2));
-    const providerAmount = Number((fare + waitingFee - commission).toFixed(2));
+    const serviceSettlement = isService
+      ? calculateServiceSettlement({
+          serviceAmount: fare,
+          partnerPercent: 100 - commissionPercent,
+          approvedMaterialAmount,
+        })
+      : null;
+    const commission = isService ? serviceSettlement.platformCommission : 0;
+    const providerAmount = isService
+      ? Number((serviceSettlement.partnerTotal + waitingFee).toFixed(2))
+      : Number((fare + waitingFee).toFixed(2));
 
     if (isService) {
-      const captured = await captureServiceWallet(client, Number(id), existing.rows[0].customer_id, fare);
+      const captured = await captureServiceWallet(client, Number(id), existing.rows[0].customer_id, totalServiceCharge);
       if (!captured) {
         await client.query('ROLLBACK');
         return res.status(409).json({ error: 'Wallet reservation is missing or does not cover this service amount' });
@@ -1587,15 +1697,15 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
            payment_status = 'paid',
            commission_amount = $2,
            provider_earning_amount = $3,
-           waiting_fee_status = CASE WHEN $7 > 0 THEN 'paid' ELSE waiting_fee_status END,
+           waiting_fee_status = CASE WHEN $6 > 0 THEN 'paid' ELSE waiting_fee_status END,
            completed_at = NOW()
-       WHERE id = $5
-         AND provider_id = $6
+       WHERE id = $4
+         AND provider_id = $5
          AND status = 'ongoing'
        RETURNING id, service_type, customer_id, provider_id, pickup_location, fare_amount,
                  payment_method, payment_status, commission_amount, provider_earning_amount,
                  waiting_fee_amount, waiting_fee_status, status, completed_at`,
-      [paymentMethod, commission, providerAmount, fare, id, req.user.id, waitingFee]
+      [paymentMethod, commission, providerAmount, id, req.user.id, waitingFee]
     );
 
     if (booking.rows.length === 0) {
@@ -1628,7 +1738,7 @@ router.post('/:id/confirm-payment', requireAuth(['provider']), async (req, res, 
           (booking_id, provider_id, gross_amount, platform_fee, payout_amount, payout_method, payout_status)
          VALUES ($1,$2,$3,$4,$5,'bank_or_upi','pending')
          ON CONFLICT (booking_id) DO NOTHING`,
-        [id, req.user.id, fare, commission, providerAmount]
+        [id, req.user.id, totalServiceCharge, commission, providerAmount]
       );
     }
 

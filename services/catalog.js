@@ -101,6 +101,10 @@ function normalizeServiceCategory(value) {
   return HOME_SERVICE_CATEGORY_KEYS.has(key) ? key : 'other';
 }
 
+function isValidServiceCategoryKey(value) {
+  return typeof value === 'string' && /^[a-z][a-z0-9_]{1,59}$/.test(value);
+}
+
 function normalizeServiceCategories(values) {
   const list = Array.isArray(values) ? values : [];
   return [...new Set(list.map(normalizeServiceCategory).filter(Boolean))];
@@ -128,4 +132,5 @@ module.exports = {
   getServiceCatalog,
   getServiceBaseFare,
   isServiceCategoryForProvider,
+  isValidServiceCategoryKey,
 };

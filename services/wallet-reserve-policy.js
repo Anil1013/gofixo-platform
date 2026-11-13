@@ -1,0 +1,65 @@
+'use strict';
+
+function money(value, field) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount < 0 || amount > 1000000000) {
+    throw new TypeError(`${field} must be a valid non-negative wallet amount`);
+  }
+  return Math.round((amount + Number.EPSILON) * 100) / 100;
+}
+
+function calculateWalletRelease({ availableBalance, reservedBalance, reserveAmount }) {
+  const available = money(availableBalance, 'availableBalance');
+  const reserved = money(reservedBalance, 'reservedBalance');
+  const amount = money(reserveAmount, 'reserveAmount');
+  if (reserved < amount) {
+    const error = new Error('Wallet reserved balance does not cover this booking release; no funds were changed.');
+    error.status = 409;
+    throw error;
+  }
+  return Object.freeze({
+    availableAfter: money(available + amount, 'availableAfter'),
+    reservedAfter: money(reserved - amount, 'reservedAfter'),
+    amount,
+  });
+}
+
+function calculateWalletCapture({ availableBalance, reservedBalance, reserveAmount, captureAmount }) {
+  const available = money(availableBalance, 'availableBalance');
+  const reserved = money(reservedBalance, 'reservedBalance');
+  const originalReserve = money(reserveAmount, 'reserveAmount');
+  const capture = money(captureAmount, 'captureAmount');
+  // Require the complete booking reserve and release any unused remainder.
+  if (originalReserve < capture || reserved < originalReserve) return null;
+  const unusedReserve = money(originalReserve - capture, 'unusedReserve');
+  return Object.freeze({
+    availableAfter: money(available + unusedReserve, 'availableAfter'),
+    reservedAfter: money(reserved - originalReserve, 'reservedAfter'),
+    amount: capture,
+    releasedAmount: unusedReserve,
+  });
+}
+
+function calculateWalletAdjustment({ availableBalance, reservedBalance, currentReserveAmount, newReserveAmount }) {
+  const available = money(availableBalance, 'availableBalance');
+  const reserved = money(reservedBalance, 'reservedBalance');
+  const currentReserve = money(currentReserveAmount, 'currentReserveAmount');
+  const newReserve = money(newReserveAmount, 'newReserveAmount');
+  if (reserved < currentReserve) {
+    const error = new Error('Wallet reserved balance does not cover this booking current reserve; no funds were changed.');
+    error.status = 409;
+    throw error;
+  }
+  const rawDelta = newReserve - currentReserve;
+  const delta = Math.round((rawDelta + Math.sign(rawDelta) * Number.EPSILON) * 100) / 100;
+  if (delta > available) return null;
+  return Object.freeze({
+    delta,
+    availableAfter: money(available - delta, 'availableAfter'),
+    reservedAfter: money(reserved + delta, 'reservedAfter'),
+    currentReserve,
+    newReserve,
+  });
+}
+
+module.exports = { calculateWalletRelease, calculateWalletCapture, calculateWalletAdjustment };

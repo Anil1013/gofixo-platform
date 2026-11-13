@@ -1044,27 +1044,103 @@ class _ProviderServicesTab extends StatefulWidget{
 class _ProviderServicesTabState extends State<_ProviderServicesTab>{
   List<Map<String,dynamic>> plans=[];
   List<Map<String,dynamic>> paymentRequests=[];
+  List<Map<String,dynamic>> serviceCatalog=[];
+  List<Map<String,dynamic>> providerSkills=[];
+  final Set<String> selectedNewSkills={};
   Map<String,dynamic>? subscription, paymentConfig;
   bool loading=true,working=false;
-  @override void initState(){super.initState();_load();}
+  int _loadGeneration=0;
+  Timer? _catalogRefreshTimer;
+  bool _catalogRefreshing=false;
+  @override void initState(){
+    super.initState();
+    _load();
+    // Keep partner specialty choices in sync with Admin catalog edits while the app stays open.
+    _catalogRefreshTimer=Timer.periodic(const Duration(seconds:45),(_)=>_refreshServiceCatalog());
+  }
+  @override void dispose(){_catalogRefreshTimer?.cancel();super.dispose();}
+  Future<void> _refreshServiceCatalog()async{
+    if(!mounted||_catalogRefreshing)return;
+    _catalogRefreshing=true;
+    try{
+      final catalog=await ApiService.serviceCatalog();
+      if(!mounted)return;
+      final type=widget.me['type']?.toString()??'';
+      final next=catalog.where((item)=>item['providerType']?.toString()==type).toList();
+      setState(()=>serviceCatalog=next);
+    }catch(_){
+      // Keep the last known catalog visible during temporary network failures.
+    }finally{
+      _catalogRefreshing=false;
+    }
+  }
+  @override void didUpdateWidget(covariant _ProviderServicesTab oldWidget){
+    super.didUpdateWidget(oldWidget);
+    // The parent refreshes the provider profile as KYC/account data changes.
+    // Reload the service catalog and submitted specialties whenever that profile
+    // or the authenticated session changes, not only when the provider ID changes.
+    if(oldWidget.me!=widget.me||
+       oldWidget.session.token!=widget.session.token||
+       oldWidget.session.user['id']!=widget.session.user['id']){
+      _load();
+    }
+  }
   Future<void> _load()async{
+    final generation=++_loadGeneration;
     try{
       final all=await ApiService.plans();
       final type=widget.me['type']?.toString()??'';
+      List<Map<String,dynamic>> catalog=[];
+      List<Map<String,dynamic>> skills=[];
+      if(type=='general_worker'||type=='skilled_worker'){
+        try{catalog=await ApiService.serviceCatalog();}catch(_){}
+        try{skills=await ApiService.providerSkills(widget.session.token);}catch(_){}
+      }
       final id=int.tryParse(widget.me['id']?.toString()??'')??0;
       final current=await ApiService.subscription(widget.session.token,id);
       Map<String,dynamic>? config;
       List<Map<String,dynamic>> requests=[];
       try{config=await ApiService.subscriptionPaymentConfig(widget.session.token);}catch(_){}
       try{requests=await ApiService.mySubscriptionPayments(widget.session.token);}catch(_){}
-      if(mounted)setState((){
+      if(mounted&&generation==_loadGeneration)setState((){
         plans=all.where((p)=>p['provider_type']?.toString()==type).toList();
+        serviceCatalog=catalog.where((item)=>item['providerType']?.toString()==type).toList();
+        providerSkills=skills;
+        selectedNewSkills.clear();
         subscription=current;
         paymentConfig=config;
         paymentRequests=requests;
         loading=false;
       });
-    }catch(_){if(mounted)setState(()=>loading=false);}
+    }catch(_){if(mounted&&generation==_loadGeneration)setState(()=>loading=false);}
+  }
+  Future<void> _saveSpecialties()async{
+    if(working||selectedNewSkills.isEmpty)return;
+    setState(()=>working=true);
+    try{
+      final additions=selectedNewSkills.map((key)=>{'skill_key':key,'service_type':'services'}).toList();
+      final updated=await ApiService.updateProviderSkills(widget.session.token,additions);
+      if(mounted)setState(()=>providerSkills=updated);
+      selectedNewSkills.clear();
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('New specialties submitted. They will become available after Gofixo admin approval.')));
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception:','').trim())));
+    }finally{if(mounted)setState(()=>working=false);}
+  }
+  Future<void> _setSpecialtyAvailability(Map<String,dynamic> skill,bool enabled)async{
+    if(working)return;
+    final key=skill['skill_key']?.toString()??'';
+    if(key.isEmpty)return;
+    setState(()=>working=true);
+    try{
+      final updated=await ApiService.setProviderSkillAvailability(widget.session.token,key,enabled);
+      if(mounted)setState((){
+        final index=providerSkills.indexWhere((item)=>item['skill_key']==key&&item['service_type']=='services');
+        if(index>=0)providerSkills[index]=updated;
+      });
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception:','').trim())));
+    }finally{if(mounted)setState(()=>working=false);}
   }
   Future<void> _subscribe(Map<String,dynamic> plan)async{
     final id=int.tryParse(plan['id']?.toString()??'');
@@ -1149,6 +1225,66 @@ class _ProviderServicesTabState extends State<_ProviderServicesTab>{
       const SizedBox(height:12),
       _ServiceInfo(title:'Rides',icon:Icons.local_taxi_rounded,enabled:driver),
       _ServiceInfo(title:'Home & Lifestyle Services',icon:Icons.handyman_rounded,enabled:worker),
+      if(worker)...[
+        const SizedBox(height:10),
+        _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          const Text('MANAGE HOME-SERVICE SPECIALTIES',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
+          const SizedBox(height:5),
+          const Text('Choose additional services you can professionally deliver. New specialties remain unavailable for bookings until Gofixo verifies and approves them.',style:TextStyle(fontSize:11,color:gfMuted)),
+          const SizedBox(height:10),
+          if(serviceCatalog.isEmpty) Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            const Text('No active services are available right now.',style:TextStyle(fontSize:11,color:gfMuted)),
+            TextButton.icon(
+              onPressed:loading?null:_load,
+              icon:const Icon(Icons.refresh_rounded,size:16),
+              label:const Text('Refresh services'),
+            ),
+          ])
+          else Wrap(spacing:7,runSpacing:7,children:serviceCatalog.map((item){
+            final key=item['key']?.toString()??'';
+            final label=item['label']?.toString()??key.replaceAll('_',' ');
+            final current=providerSkills.where((skill)=>skill['service_type']=='services'&&skill['skill_key']==key).toList();
+            final exists=current.isNotEmpty;
+            final status=exists?current.first['kyc_status']?.toString()??'pending':'';
+            return FilterChip(
+              selected:exists||selectedNewSkills.contains(key),
+              onSelected:exists?null:(value)=>setState(()=>value?selectedNewSkills.add(key):selectedNewSkills.remove(key)),
+              label:Text(exists?'$label · $status':label),
+              avatar:Icon(exists?(status=='approved'?Icons.verified:Icons.hourglass_top):Icons.add_circle_outline,size:16),
+            );
+          }).toList()),
+          if(selectedNewSkills.isNotEmpty)...[
+            const SizedBox(height:10),
+            SizedBox(width:double.infinity,child:FilledButton.icon(
+              onPressed:working?null:_saveSpecialties,
+              icon:const Icon(Icons.send_rounded),
+              label:Text(working?'Submitting…':'Submit ${selectedNewSkills.length} new specialties for approval'),
+              style:FilledButton.styleFrom(backgroundColor:gfGreen),
+            )),
+          ],
+          if(providerSkills.where((skill)=>skill['service_type']=='services').isNotEmpty)...[
+            const Divider(height:18),
+            const Text('YOUR SUBMITTED SPECIALTIES',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
+            ...providerSkills.where((skill)=>skill['service_type']=='services').map((skill){
+              final key=skill['skill_key']?.toString()??'';
+              final status=skill['kyc_status']?.toString()??'pending';
+              final catalogItem=serviceCatalog.where((item)=>item['key']==key).toList();
+              final label=catalogItem.isNotEmpty?catalogItem.first['label']?.toString()??key:key.replaceAll('_',' ');
+              final canEnable=status=='approved';
+              return SwitchListTile(
+                dense:true,
+                contentPadding:EdgeInsets.zero,
+                title:Text(label,style:const TextStyle(fontSize:12,fontWeight:FontWeight.w700)),
+                subtitle:Text(canEnable?(skill['is_available']==true?'Approved · accepting matching':'Approved · paused'):'Approval status: $status',style:const TextStyle(fontSize:10,color:gfMuted)),
+                value:canEnable&&skill['is_available']==true,
+                onChanged:canEnable&&!working?(value)=>_setSpecialtyAvailability(skill,value):null,
+              );
+            }),
+          ],
+          const SizedBox(height:6),
+          const Text('Only admin-approved and enabled specialties can receive matching.',style:TextStyle(fontSize:10,color:gfMuted)),
+        ])),
+      ],
       _ServiceInfo(title:'Nearby matching',icon:Icons.radar_rounded,enabled:approved),
       const SizedBox(height:12),
       _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -1250,9 +1386,27 @@ class ReferenceBookingPage extends StatefulWidget{
 class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  GoogleMapController? mapController;
  StreamSubscription<Position>? locationSub;
- final dest=TextEditingController();final pickupController=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your current location…';String serviceCategory='other',serviceDescription='';final List<String> selectedCleaningTasks=[];final List<String> selectedServiceTasks=[];Position? pos;Map<String,dynamic>? place,pickupPlace;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[],pickupSuggestions=[];Set<Polyline> routePolylines={};List<Map<String,dynamic>> routeSteps=[];LatLng? destinationPoint,pickupPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce,pickupDebounce;LatLng? lastReversePoint;
- @override void initState(){super.initState();type=widget.type;serviceCategory=widget.serviceCategory??'other';serviceDescription=widget.serviceDescription??'';serviceDesc.text=serviceDescription;WidgetsBinding.instance.addPostFrameCallback((_)=>locate());}
- @override void dispose(){debounce?.cancel();pickupDebounce?.cancel();locationSub?.cancel();dest.dispose();pickupController.dispose();serviceDesc.dispose();super.dispose();}
+ final dest=TextEditingController();final pickupController=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your current location…';String serviceCategory='other',serviceDescription='';final List<String> selectedCleaningTasks=[];final List<String> selectedServiceTasks=[];double serviceQuantity=1;final quantityController=TextEditingController(text:'1');Map<String,dynamic>? serviceQuote;Map<String,dynamic>? servicePricingRule;String? selectedPricingVariant;final List<String> selectedPricingAddOns=[];Position? pos;Map<String,dynamic>? place,pickupPlace;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[],pickupSuggestions=[];Set<Polyline> routePolylines={};List<Map<String,dynamic>> routeSteps=[];LatLng? destinationPoint,pickupPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce,pickupDebounce;LatLng? lastReversePoint;
+ @override void initState(){super.initState();type=widget.type;serviceCategory=widget.serviceCategory??'other';serviceDescription=widget.serviceDescription??'';serviceDesc.text=serviceDescription;_loadServicePricingRule();WidgetsBinding.instance.addPostFrameCallback((_)=>locate());}
+ Future<void> _loadServicePricingRule()async{
+  if(!isService)return;
+  try{
+    final catalog=await ApiService.serviceCatalog();
+    Map<String,dynamic>? item;
+    for(final entry in catalog){
+      if(entry['key']?.toString()==serviceCategory){item=entry;break;}
+    }
+    if(!mounted)return;
+    final foundItem=item;
+    setState((){
+      servicePricingRule=foundItem!=null&&foundItem['pricingRule'] is Map?Map<String,dynamic>.from(foundItem['pricingRule'] as Map):null;
+      final variants=servicePricingRule?['variants'];
+      selectedPricingVariant=variants is List&&variants.isNotEmpty?(variants.first as Map)['key']?.toString():null;
+      selectedPricingAddOns.clear();
+    });
+  }catch(_){}
+ }
+ @override void dispose(){debounce?.cancel();pickupDebounce?.cancel();locationSub?.cancel();dest.dispose();pickupController.dispose();serviceDesc.dispose();quantityController.dispose();super.dispose();}
  List<String> get serviceTaskOptions {
   const tasks=<String,List<String>>{
    'cleaning':['Bathroom cleaning','Utensil washing','Kitchen cleaning','Bedroom cleaning','Living room cleaning','Balcony cleaning','Stairs cleaning','Full home cleaning','Deep cleaning','Other'],
@@ -1290,6 +1444,11 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  void search(String v){debounce?.cancel();place=null;final q=v.trim();if(q.length<2){setState(()=>suggestions=[]);return;}debounce=Timer(const Duration(milliseconds:450),()async{try{final s=await ApiService.placeAutocomplete(q);if(mounted&&dest.text.trim()==q)setState(()=>suggestions=s);}catch(_){try{final points=await locationFromAddress(q);if(points.isNotEmpty&&mounted&&dest.text.trim()==q){final p=points.first;setState(()=>suggestions=[{'type':'native','placeId':'native:${p.latitude},${p.longitude}','text':q,'mainText':q,'secondaryText':'Device address search'}]);}}catch(_){if(mounted&&dest.text.trim()==q)setState(()=>suggestions=[]);}}});}
  Future<void>select(Map<String,dynamic>s)async{final id=s['placeId']?.toString();if(id==null||id.isEmpty)return;setState(()=>busy=true);try{if(id.startsWith('native:')){final parts=id.substring(7).split(',');final lat=double.tryParse(parts.isNotEmpty?parts[0]:'');final lng=double.tryParse(parts.length>1?parts[1]:'');if(lat==null||lng==null)throw Exception('Unable to read the selected address.');final d=<String,dynamic>{'address':s['text']?.toString()??'','lat':lat,'lng':lng};if(mounted){setState((){place=d;dest.text=d['address']?.toString()??'';suggestions=[];destinationPoint=LatLng(lat,lng);});_fitMapToPoints();}return;}Map<String,dynamic> d;try{d=await ApiService.placeDetails(id);}catch(_){final points=await locationFromAddress(s['text']?.toString()??'');if(points.isEmpty)throw Exception('Address service is unavailable. Please try a landmark or PIN code.');final x=points.first;d=<String,dynamic>{'address':s['text']?.toString()??'','lat':x.latitude,'lng':x.longitude};}if(mounted){final lat=double.tryParse(d['lat']?.toString()??'');final lng=double.tryParse(d['lng']?.toString()??'');setState((){place=d;dest.text=d['address']?.toString()??s['text']?.toString()??'';suggestions=[];if(lat!=null&&lng!=null)destinationPoint=LatLng(lat,lng);});if(destinationPoint!=null)_fitMapToPoints();}}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
  Future<void>calculate()async{
+  if(isService){
+    final parsed=double.tryParse(quantityController.text.trim());
+    if(parsed==null||parsed<=0||parsed>1000){_snack('Enter a valid service quantity.');return;}
+    serviceQuantity=parsed;
+  }
   // A manually selected pickup is valid even when GPS permission is denied
   // or the device cannot acquire a current position.
   if(pos==null&&pickupPoint==null)await locate();
@@ -1310,8 +1469,11 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
     final a=double.tryParse(p['lat']?.toString()??''),b=double.tryParse(p['lng']?.toString()??'');
     if(a==null||b==null)throw Exception('Destination not found.');
     if(isService){
+      if(servicePricingRule==null)await _loadServicePricingRule();
+      final quote=await ApiService.quoteService(widget.session.token,serviceCategory,quantity:serviceQuantity,addOns:selectedPricingAddOns,variantKey:selectedPricingVariant);
       if(mounted)setState((){
         place=p;
+        serviceQuote=quote;
         routePolylines={};
         routeSteps=[];
         destinationPoint=LatLng(a,b);
@@ -1381,6 +1543,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
   }catch(_){} }
  double _fare(String t,double d){final base=t=='bike'?30:t=='auto'?40:60;final min=base;final slabs=t=='bike'?[[10,6],[20,5.5],[30,5],[50,4.5],[double.infinity,4.5]]:t=='auto'?[[10,7.5],[20,6.5],[30,6],[50,5.5],[double.infinity,5.5]]:[[10,9.5],[20,9],[30,8],[50,6.5],[100,5],[double.infinity,2.5]];var left=d,prev=0.0,total=0.0;for(final x in slabs){final limit=x[0].toDouble(),rate=x[1].toDouble();final take=left<=0?0.0:(left<limit-prev?left:limit-prev);if(take>0)total+=take*rate;left-=take;prev=limit;if(left<=0)break;}return (base+total).clamp(min,double.infinity).roundToDouble();}
  Future<void>book()async{
+  if(isService&&serviceQuote==null){_snack('Please calculate the latest service estimate before requesting the booking.');return;}
   if(pickupPoint==null)return;
   if(!isService&&(km==null||fare==null))return;
   final selectedTasks=serviceCategory=='cleaning'?selectedCleaningTasks:selectedServiceTasks;
@@ -1581,6 +1744,66 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                )).toList(),
              ),
            ),
+         if(isService&&servicePricingRule!=null&&!['fixed','inspection_quote'].contains(servicePricingRule!['pricingMode']))
+           Container(
+             margin:const EdgeInsets.only(bottom:8),
+             padding:const EdgeInsets.all(12),
+             decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(16)),
+             child:Row(children:[
+               const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                 Text('Quantity / number of units',style:TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
+                 Text('Rooms, bathrooms, ACs, items or service units as configured',style:TextStyle(fontSize:10,color:gfMuted)),
+               ])),
+               SizedBox(width:76,child:TextField(
+                 controller:quantityController,
+                 enabled:!busy,
+                 keyboardType:const TextInputType.numberWithOptions(decimal:true),
+                 textAlign:TextAlign.center,
+                 decoration:const InputDecoration(isDense:true,contentPadding:EdgeInsets.symmetric(vertical:10,horizontal:6),border:OutlineInputBorder()),
+                 onChanged:(value){final parsed=double.tryParse(value);setState((){if(parsed!=null&&parsed>0&&parsed<=1000)serviceQuantity=parsed;serviceQuote=null;});},
+               )),
+             ]),
+           ),
+         if(isService&&servicePricingRule?['variants'] is List&&(servicePricingRule!['variants'] as List).isNotEmpty)
+           Container(
+             margin:const EdgeInsets.only(bottom:8),
+             padding:const EdgeInsets.all(12),
+             decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(16)),
+             child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+               const Text('Choose package / home size',style:TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
+               const SizedBox(height:6),
+               Wrap(spacing:7,runSpacing:4,children:[
+                 for(final variant in (servicePricingRule!['variants'] as List).whereType<Map>())
+                   ChoiceChip(
+                     label:Text('${variant['label']??variant['key']} · ₹${variant['price']??0}'),
+                     selected:selectedPricingVariant==variant['key']?.toString(),
+                     onSelected:(selected){if(selected)setState((){selectedPricingVariant=variant['key']?.toString();serviceQuote=null;});},
+                   ),
+               ]),
+             ]),
+           ),
+         if(isService&&servicePricingRule?['addOns'] is List&&(servicePricingRule!['addOns'] as List).isNotEmpty)
+           Container(
+             margin:const EdgeInsets.only(bottom:8),
+             padding:const EdgeInsets.all(12),
+             decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(16)),
+             child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+               const Text('Optional add-ons',style:TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
+               Wrap(spacing:7,children:[
+                 for(final addon in (servicePricingRule!['addOns'] as List).whereType<Map>())
+                   FilterChip(
+                     label:Text('${addon['label']??addon['key']} · ₹${addon['price']??0}'),
+                     selected:selectedPricingAddOns.contains(addon['key']?.toString()),
+                     onSelected:(selected){setState((){
+                       final key=addon['key']?.toString()??'';
+                       if(selected&&!selectedPricingAddOns.contains(key))selectedPricingAddOns.add(key);
+                       if(!selected)selectedPricingAddOns.remove(key);
+                       serviceQuote=null;
+                     });},
+                   ),
+               ]),
+             ]),
+           ),
          if(isService&&serviceTaskOptions.isNotEmpty)
            Padding(
              padding:const EdgeInsets.only(bottom:8),
@@ -1634,6 +1857,19 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
            icon:Icon(isService?Icons.handyman:Icons.alt_route),
            label:Text(isService?'Request service':'Show route & fare'),
          ),
+         if(isService&&serviceQuote!=null)
+           Container(
+             margin:const EdgeInsets.only(top:10),
+             padding:const EdgeInsets.all(14),
+             decoration:BoxDecoration(color:const Color(0xFFEFFFF5),borderRadius:BorderRadius.circular(18)),
+             child:Row(children:[
+               const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                 Text('SERVER-CALCULATED ESTIMATE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
+                 Text('Final booking reserve is verified again by Gofixo server',style:TextStyle(fontSize:10,color:gfMuted)),
+               ])),
+               Text('₹${(double.tryParse(serviceQuote!['total']?.toString()??'0')??0).toStringAsFixed(0)}',style:const TextStyle(fontSize:24,fontWeight:FontWeight.w900,color:gfNavy)),
+             ]),
+           ),
          if(isService&&place!=null)
            Padding(
              padding:const EdgeInsets.only(top:12),
@@ -1660,7 +1896,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                    ),
                    FilledButton(
                      style:FilledButton.styleFrom(backgroundColor:gfGreen),
-                     onPressed:busy?null:book,
+                     onPressed:busy||(isService&&serviceQuote==null)?null:book,
                      child:const Text('Request'),
                    ),
                  ],
@@ -1786,13 +2022,20 @@ class _Services extends StatefulWidget{
 }
 class _ServicesState extends State<_Services>{
   List<Map<String,dynamic>> items=[];
-  @override void initState(){super.initState();_load();}
+  Timer? _refreshTimer;
+  @override void initState(){
+    super.initState();
+    _load();
+    // Admin catalog changes reach an already-open customer app without an APK update.
+    _refreshTimer=Timer.periodic(const Duration(seconds:45),(_)=>_load());
+  }
+  @override void dispose(){_refreshTimer?.cancel();super.dispose();}
   Future<void> _load()async{
     try{
       final remote=await ApiService.serviceCatalog();
-      if(mounted)setState(()=>items=remote.isEmpty?List<Map<String,dynamic>>.from(_Services._fallback):remote);
+      if(mounted)setState(()=>items=remote);
     }catch(_){
-      if(mounted)setState(()=>items=List<Map<String,dynamic>>.from(_Services._fallback));
+      if(mounted&&items.isEmpty)setState(()=>items=List<Map<String,dynamic>>.from(_Services._fallback));
     }
   }
   String _groupFor(String key) {
@@ -1808,6 +2051,12 @@ class _ServicesState extends State<_Services>{
     for (final item in items) {
       final key = item['key']?.toString() ?? 'other';
       grouped.putIfAbsent(_groupFor(key), () => []).add(item);
+    }
+    if (items.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 18),
+        child: Center(child: Text('No services are available right now. Please check again soon.', textAlign: TextAlign.center)),
+      );
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: grouped.entries.map((group) =>
       Padding(
@@ -2062,14 +2311,26 @@ class _Incoming extends StatelessWidget{
   ]));
  }
 }
+class _QuoteMaterialRow{
+ final name=TextEditingController();
+ final quantity=TextEditingController(text:'1');
+ final unitPrice=TextEditingController();
+ void dispose(){name.dispose();quantity.dispose();unitPrice.dispose();}
+}
 class _Active extends StatefulWidget{
  final Session session; final Map<String,dynamic>b; final Future<void> Function({bool silent})changed;
  const _Active({required this.session,required this.b,required this.changed});
  @override State<_Active> createState()=>_ActiveState();
 }
 class _ActiveState extends State<_Active>{
- final pin=TextEditingController(); bool submitting=false;
- @override void dispose(){pin.dispose();super.dispose();}
+ final pin=TextEditingController();
+ final quoteDescription=TextEditingController();
+ final quoteLabour=TextEditingController();
+ final List<_QuoteMaterialRow> quoteMaterials=[_QuoteMaterialRow()];
+ bool submitting=false;
+ @override void dispose(){pin.dispose();quoteDescription.dispose();quoteLabour.dispose();for(final item in quoteMaterials){item.dispose();}super.dispose();}
+ void addQuoteMaterial(){if(quoteMaterials.length>=50)return;setState(()=>quoteMaterials.add(_QuoteMaterialRow()));}
+ void removeQuoteMaterial(int index){if(quoteMaterials.length<=1)return;setState(()=>quoteMaterials.removeAt(index).dispose());}
  Future<void> _navigateToTarget() async {
     final isService=widget.b['service_type']=='services';
     final ongoing=widget.b['status']=='ongoing';
@@ -2143,6 +2404,33 @@ class _ActiveState extends State<_Active>{
    catch(e){if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
    finally{if(mounted)setState(()=>submitting=false);}
   }
+  Future<void>sendServiceQuote()async{
+   final labour=double.tryParse(quoteLabour.text.trim());
+   final description=quoteDescription.text.trim();
+   if(description.isEmpty||labour==null||labour<=0){ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Enter the work details and a valid labour amount.')));return;}
+   if(quoteMaterials.length>50){ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('You can add up to 50 material items.')));return;}
+   final materials=<Map<String,dynamic>>[];
+   for(var index=0;index<quoteMaterials.length;index++){
+    final item=quoteMaterials[index];
+    final name=item.name.text.trim();
+    final quantityText=item.quantity.text.trim();
+    final priceText=item.unitPrice.text.trim();
+    if(name.isEmpty&&priceText.isEmpty)continue;
+    final qty=double.tryParse(quantityText);
+    final unit=double.tryParse(priceText);
+    if(name.isEmpty||qty==null||qty<=0||unit==null||unit<0){
+     ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text('Check material '+(index+1).toString()+': enter name, valid quantity and unit price.')));return;
+    }
+    materials.add({'name':name,'quantity':qty,'unitPrice':unit});
+   }
+   setState(()=>submitting=true);
+   try{
+    await ApiService.proposeServiceQuote(widget.session.token,id,description:description,labourAmount:labour,materials:materials,creditVisitFee:const {'electrician','plumber','ac_service','carpenter','appliance_repair','refrigerator_repair','washing_machine_repair','ro_water_purifier','geyser_repair'}.contains(widget.b['service_category']));
+    if(mounted)ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Quote sent. Wait for the customer to approve it.')));
+    await widget.changed();
+   }catch(e){if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
+   finally{if(mounted)setState(()=>submitting=false);}
+  }
 
   return _Box(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
    if(widget.b['customer_id']!=null) Row(children:[
@@ -2204,7 +2492,43 @@ class _ActiveState extends State<_Active>{
         style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:gfNavy)),
     ])),
    ],
-   if(accepted||arrived)...[
+   if(arrived&&isHomeService)...[
+    const SizedBox(height:8),
+    Container(width:double.infinity,padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:gfLine),borderRadius:BorderRadius.circular(14)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      const Text('INSPECTION & CUSTOMER QUOTE',style:TextStyle(fontSize:10,fontWeight:FontWeight.w900,color:gfGreen)),
+      const SizedBox(height:5),
+      const Text('If extra repair work or parts are needed, send the customer a clear quote. Work and extra charges must wait for approval.',style:TextStyle(fontSize:11,color:gfMuted)),
+      const SizedBox(height:8),
+      TextField(controller:quoteDescription,decoration:const InputDecoration(labelText:'Work / inspection details')),
+      const SizedBox(height:6),
+      TextField(controller:quoteLabour,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Labour amount (₹)')),
+      const SizedBox(height:6),
+      ...quoteMaterials.asMap().entries.map((entry){
+       final index=entry.key;final item=entry.value;
+       return Padding(padding:const EdgeInsets.only(bottom:8),child:Column(children:[
+        Row(children:[
+         Expanded(child:Text('Material '+(index+1).toString(),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:gfNavy))),
+         if(quoteMaterials.length>1)IconButton(tooltip:'Remove material',onPressed:submitting?null:()=>removeQuoteMaterial(index),icon:const Icon(Icons.delete_outline_rounded,color:Colors.red)),
+        ]),
+        TextField(controller:item.name,decoration:const InputDecoration(labelText:'Material name (required)')),
+        Row(children:[
+         Expanded(child:TextField(controller:item.quantity,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Qty'))),
+         const SizedBox(width:8),
+         Expanded(child:TextField(controller:item.unitPrice,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Unit price ₹'))),
+        ]),
+       ]));
+      }),
+      Align(alignment:Alignment.centerLeft,child:TextButton.icon(
+       onPressed:submitting||quoteMaterials.length>=50?null:addQuoteMaterial,
+       icon:const Icon(Icons.add_circle_outline_rounded),
+       label:Text(quoteMaterials.length>=50?'Maximum 50 materials':'Add another material'),
+      )),
+      if(const {'electrician','plumber','ac_service','carpenter','appliance_repair','refrigerator_repair','washing_machine_repair','ro_water_purifier','geyser_repair'}.contains(widget.b['service_category']))const Text('Your inspection fee will be credited against approved repair labour.',style:TextStyle(fontSize:10,fontWeight:FontWeight.w700,color:gfGreen)),
+      if(widget.b['service_quote_status']=='proposed')const Text('A quote is already waiting for customer approval. You can send a revised quote after their response.',style:TextStyle(fontSize:10,fontWeight:FontWeight.w700,color:gfMuted)),
+      SizedBox(width:double.infinity,child:FilledButton(onPressed:submitting||widget.b['service_quote_status']=='proposed'?null:sendServiceQuote,style:FilledButton.styleFrom(backgroundColor:gfGreen),child:Text(submitting?'Sending…':'Send quote for customer approval →'))),
+    ])),
+   ],
+   if((accepted||arrived)&&!(isHomeService&&widget.b['service_quote_status']=='proposed'))...[
     const SizedBox(height:4),
     Container(width:double.infinity,padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:const Color(0xFFFFF7E8),borderRadius:BorderRadius.circular(14)),child:Row(children:[
      const Icon(Icons.lock_outline_rounded,color:gfGreen),const SizedBox(width:8),Expanded(child:Text(accepted?'When you reach the pickup/service address, ask the customer for their 4-digit start PIN. You can enter it here.':'Ask the customer for the 4-digit start PIN. The trip/job begins only after verification.',style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:gfNavy)))
@@ -2230,8 +2554,9 @@ class _ActiveState extends State<_Active>{
          Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
            const Text('UPFRONT FARE',style:TextStyle(fontSize:9,fontWeight:FontWeight.w800,color:gfGreen)),
            Text('₹'+(widget.b['fare_amount']??0).toString(),style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:gfNavy)),
+           if(isHomeService&&(double.tryParse(widget.b['approved_service_materials_amount']?.toString()??'0')??0)>0)Text('Approved materials ₹'+(widget.b['approved_service_materials_amount']).toString(),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:gfGreen)),
            if(waitingFee>0) Text('Waiting fee ₹'+waitingFee.toStringAsFixed(2),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800,color:gfGreen)),
-           const Text('Fare is locked to the customer estimate',style:TextStyle(fontSize:10,color:gfMuted)),
+           Text(isHomeService?'Labour and customer-approved materials only':'Fare is locked to the customer estimate',style:const TextStyle(fontSize:10,color:gfMuted)),
          ])),
        ]),
      ),
@@ -2239,20 +2564,23 @@ class _ActiveState extends State<_Active>{
      SizedBox(width:double.infinity,child:FilledButton(style:FilledButton.styleFrom(backgroundColor:gfGreen),onPressed:submitting?null:()async{
       final baseFare=double.tryParse(widget.b['fare_amount']?.toString()??'');
       final waitFee=double.tryParse(widget.b['waiting_fee_amount']?.toString()??'')??0;
-      final value=baseFare==null?null:double.parse((baseFare+waitFee).toStringAsFixed(2));
+      final materials=double.tryParse(widget.b['service_quote_materials_amount']?.toString()??'0')??0;
+      final value=baseFare==null?null:double.parse((baseFare+waitFee+(isHomeService?materials:0)).toStringAsFixed(2));
       if(value==null||value<=0){ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Locked fare is unavailable.')));return;}
       setState(()=>submitting=true);
       try{
-       final result=await ApiService.confirmPayment(widget.session.token,id,value,paymentMethod:'cash');
+       final settlementMethod=isHomeService?'wallet':'cash';
+       final result=await ApiService.confirmPayment(widget.session.token,id,value,paymentMethod:settlementMethod);
        final tx=result['transaction'] is Map?Map<String,dynamic>.from(result['transaction'] as Map):const <String,dynamic>{};
        if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(
-         'Cash received ₹'+(tx['gross_amount']??value).toString()+' · Your earning ₹'+(tx['provider_earning_amount']??'').toString()
+         (isHomeService?'Gofixo Wallet settlement recorded ₹':'Cash received ₹')+
+         (tx['gross_amount']??value).toString()+' · Your earning ₹'+(tx['provider_earning_amount']??'').toString()
        )));
        await widget.changed();
      }
       catch(e){if(mounted)ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}
       finally{if(mounted)setState(()=>submitting=false);}
-     },child:Text(submitting?'Saving…':'Confirm cash payment →'))),
+     },child:Text(submitting?'Saving…':isHomeService?'Confirm Gofixo Wallet settlement →':'Confirm cash payment →'))),
    ],
 
    const SizedBox(height:6),
@@ -2280,6 +2608,25 @@ class _Booking extends StatelessWidget{
     ],Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('#'+id+' · '+s.toUpperCase(),style:const TextStyle(fontWeight:FontWeight.w800,color:gfNavy)),if(b['provider_name']!=null)Text(b['provider_name'].toString(),style:const TextStyle(fontSize:11,color:gfMuted))])),Text('₹'+(b['fare_amount']??b['estimated_fare']??0).toString(),style:const TextStyle(fontWeight:FontWeight.w900))]),
    if(isService)Text((b['service_category']?.toString()??'other').replaceAll('_',' ').toUpperCase(),style:const TextStyle(fontSize:9,fontWeight:FontWeight.w900,color:gfGreen)),
    if(isService&&b['service_description']?.toString().trim().isNotEmpty==true)Container(width:double.infinity,margin:const EdgeInsets.only(top:5,bottom:5),padding:const EdgeInsets.all(9),decoration:BoxDecoration(color:const Color(0xFFEFFFF5),borderRadius:BorderRadius.circular(10)),child:Text(b['service_description'].toString(),style:const TextStyle(fontSize:11,height:1.3,color:gfNavy))),
+   if(isService&&b['service_quote_id']!=null)...[
+    Container(width:double.infinity,margin:const EdgeInsets.only(top:8),padding:const EdgeInsets.all(11),decoration:BoxDecoration(color:const Color(0xFFEFFFF5),borderRadius:BorderRadius.circular(12)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Text('PARTNER QUOTE · ${(b['service_quote_status']??'').toString().toUpperCase()}',style:const TextStyle(fontSize:10,fontWeight:FontWeight.w900,color:gfGreen)),
+      const SizedBox(height:4),
+      Text(b['service_quote_description']?.toString()??'',style:const TextStyle(fontSize:11,color:gfNavy)),
+      Text('Labour ₹${b['service_quote_labour_amount']??0}',style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:gfNavy)),
+      if((double.tryParse(b['service_quote_visit_fee_credit_amount']?.toString()??'0')??0)>0)Text('Visit fee credit −₹${b['service_quote_visit_fee_credit_amount']}',style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:gfGreen)),
+      Text('Net labour ₹${b['service_quote_service_amount']??b['service_quote_labour_amount']??0} · Materials ₹${b['service_quote_materials_amount']??0}',style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:gfNavy)),
+      Text('Total ₹${b['service_quote_total_amount']??0}',style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900,color:gfNavy)),
+      if(b['service_quote_materials'] is List)...(b['service_quote_materials'] as List).map((m)=>Text('• ${m['name']} × ${m['quantity']} — ₹${m['total']}',style:const TextStyle(fontSize:10,color:gfMuted))),
+      if(b['service_quote_status']=='proposed'&&(s=='accepted'||s=='arrived'))Row(children:[
+        Expanded(child:OutlinedButton(onPressed:()async{try{await ApiService.respondServiceQuote(session.token,int.tryParse(id)??0,approve:false);await onChanged();}catch(e){ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}},child:const Text('Decline'))),
+        const SizedBox(width:8),
+        Expanded(child:FilledButton(onPressed:()async{try{await ApiService.respondServiceQuote(session.token,int.tryParse(id)??0,approve:true);await onChanged();}catch(e){ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(e.toString().replaceFirst('Exception: ',''))));}},style:FilledButton.styleFrom(backgroundColor:gfGreen),child:const Text('Approve & reserve'))),
+      ]),
+      if(b['service_quote_status']=='proposed'&&s!='accepted'&&s!='arrived')const Text('This quote can no longer be approved because the job has started.',style:TextStyle(fontSize:10,color:gfMuted)),
+    ])),
+   ],
+
    if(s=='no_provider')Container(width:double.infinity,margin:const EdgeInsets.only(top:7),padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:const Color(0xFFFFF7E8),borderRadius:BorderRadius.circular(10)),child:const Text('No eligible partner is available for this request. Any reserved service-wallet amount has been released. Please create a new booking.',style:TextStyle(fontSize:11,height:1.3,fontWeight:FontWeight.w700,color:gfNavy))),
    if(s=='cancelled')Container(width:double.infinity,margin:const EdgeInsets.only(top:7),padding:const EdgeInsets.all(9),decoration:BoxDecoration(color:const Color(0xFFFFF1F0),borderRadius:BorderRadius.circular(10)),child:const Text('This booking was cancelled.',style:TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:gfNavy))),
    Text(b['pickup_location']?.toString()??'',maxLines:1,overflow:TextOverflow.ellipsis),
