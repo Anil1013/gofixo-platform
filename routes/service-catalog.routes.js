@@ -123,7 +123,7 @@ router.put('/admin/services/:key', requireAdmin, async (req, res, next) => {
       try {
         const rule = metadata.pricingRule;
         const sampleQuantity = rule?.minimumQuantity === undefined ? 1 : Number(rule.minimumQuantity);
-        calculateServicePrice(rule, { quantity: sampleQuantity });
+        calculateServicePrice(rule, { quantity: sampleQuantity, variantKey: Array.isArray(rule?.variants) ? rule.variants[0]?.key : undefined });
       } catch (pricingError) {
         if (pricingError instanceof TypeError || pricingError instanceof RangeError) {
           return res.status(400).json({ error: `Invalid pricing rule: ${pricingError.message}` });
