@@ -46,7 +46,15 @@ const PARTNER_SKILL_OPTIONS = [
   { key: 'babysitter', label: 'Babysitter' },
   { key: 'elder_care', label: 'Senior & Disability Care' },
   { key: 'other', label: 'Other Service' },
-].map((item) => ({ ...item, service_type: item.service_type || 'services' }));
+].map((item) => ({
+  ...item,
+  service_type: item.service_type || 'services',
+  provider_type: item.service_type === 'ride' ? undefined : (
+    ['electrician', 'plumber', 'ac_service', 'painter', 'carpenter', 'appliance_repair', 'refrigerator_repair', 'washing_machine_repair', 'ro_water_purifier', 'cctv_security', 'internet_wifi', 'geyser_repair'].includes(item.key)
+      ? 'skilled_worker'
+      : 'general_worker'
+  ),
+}));
 
 export default function ProviderHome({ onLogout }) {
   const [profile, setProfile] = useState(null);
