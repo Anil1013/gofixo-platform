@@ -1386,7 +1386,7 @@ class ReferenceBookingPage extends StatefulWidget{
 class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  GoogleMapController? mapController;
  StreamSubscription<Position>? locationSub;
- final dest=TextEditingController();final pickupController=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your current location…';String serviceCategory='other',serviceDescription='';final List<String> selectedCleaningTasks=[];final List<String> selectedServiceTasks=[];double serviceQuantity=1;final quantityController=TextEditingController(text:'1');Map<String,dynamic>? serviceQuote;Map<String,dynamic>? servicePricingRule;String? selectedPricingVariant;final List<String> selectedPricingAddOns=[];Position? pos;Map<String,dynamic>? place,pickupPlace;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[],pickupSuggestions=[];Set<Polyline> routePolylines={};List<Map<String,dynamic>> routeSteps=[];LatLng? destinationPoint,pickupPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce,pickupDebounce;LatLng? lastReversePoint;
+ final dest=TextEditingController();final pickupController=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your current location…';String serviceCategory='other',serviceDescription='';final List<String> selectedCleaningTasks=[];final List<String> selectedServiceTasks=[];double serviceQuantity=1;final quantityController=TextEditingController(text:'1');Map<String,dynamic>? serviceQuote;Map<String,dynamic>? servicePricingRule;List<String> catalogTaskOptions=[];String? selectedPricingVariant;final List<String> selectedPricingAddOns=[];Position? pos;Map<String,dynamic>? place,pickupPlace;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[],pickupSuggestions=[];Set<Polyline> routePolylines={};List<Map<String,dynamic>> routeSteps=[];LatLng? destinationPoint,pickupPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce,pickupDebounce;LatLng? lastReversePoint;
  @override void initState(){super.initState();type=widget.type;serviceCategory=widget.serviceCategory??'other';serviceDescription=widget.serviceDescription??'';serviceDesc.text=serviceDescription;_loadServicePricingRule();WidgetsBinding.instance.addPostFrameCallback((_)=>locate());}
  Future<void> _loadServicePricingRule()async{
   if(!isService)return;
@@ -1400,6 +1400,9 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
     final foundItem=item;
     setState((){
       servicePricingRule=foundItem!=null&&foundItem['pricingRule'] is Map?Map<String,dynamic>.from(foundItem['pricingRule'] as Map):null;
+      final metadata=foundItem?['metadata'];
+      final configuredTasks=metadata is Map?metadata['taskOptions']:null;
+      catalogTaskOptions=configuredTasks is List?configuredTasks.map((task)=>task.toString().trim()).where((task)=>task.isNotEmpty).take(30).toSet().toList():[];
       final variants=servicePricingRule?['variants'];
       selectedPricingVariant=variants is List&&variants.isNotEmpty?(variants.first as Map)['key']?.toString():null;
       selectedPricingAddOns.clear();
@@ -1433,7 +1436,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
    'babysitter':['Hourly babysitting','Half-day childcare','Full-day childcare','After-school care','Other'],
    'elder_care':['Companionship','Daily assistance','Mobility assistance','Meal assistance','Appointment accompaniment','Other'],
   };
-  return tasks[serviceCategory]??const <String>[];
+  return catalogTaskOptions.isNotEmpty?catalogTaskOptions:(tasks[serviceCategory]??const <String>['Installation / setup','Repair / troubleshooting','Cleaning / maintenance','Inspection / consultation','Replacement / upgrade','Other']);
  }
  Future<void>locate()async{if(busy)return;setState(()=>busy=true);try{if(!await Geolocator.isLocationServiceEnabled())throw Exception('Please turn on Location Services.');var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)throw Exception('Location permission is required.');Position?best;for(var i=0;i<3;i++){final x=await Geolocator.getCurrentPosition(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:0,timeLimit:Duration(seconds:12)));if(best==null||x.accuracy<best.accuracy)best=x;if(x.accuracy<=30)break;}final x=best!;if(x.accuracy>150)throw Exception('GPS accuracy is too weak. Please move outdoors and try again.');final a=await _reverse(x.latitude,x.longitude);if(mounted){setState((){pos=x;pickup=a;pickupController.text=a;pickupPlace={'address':a,'lat':x.latitude,'lng':x.longitude};pickupPoint=LatLng(x.latitude,x.longitude);lastReversePoint=LatLng(x.latitude,x.longitude);});await _centerMap(LatLng(x.latitude,x.longitude),17);}_startLocationStream();}catch(e){_snack(e.toString());}finally{if(mounted)setState(()=>busy=false);}}
  void _startLocationStream(){locationSub?.cancel();locationSub=Geolocator.getPositionStream(locationSettings:const LocationSettings(accuracy:LocationAccuracy.bestForNavigation,distanceFilter:5)).listen((x)async{if(!mounted||x.accuracy>150)return;final point=LatLng(x.latitude,x.longitude);final old=pos;setState(()=>pos=x);if(old==null||Geolocator.distanceBetween(old.latitude,old.longitude,x.latitude,x.longitude)>=3){if(lastReversePoint==null||Geolocator.distanceBetween(lastReversePoint!.latitude,lastReversePoint!.longitude,x.latitude,x.longitude)>=50){final address=await _reverse(x.latitude,x.longitude);if(!mounted)return;setState((){if(pickupPoint==null||_samePoint(pickupPoint!,old==null?point:LatLng(old.latitude,old.longitude))){pickup=address;pickupController.text=address;pickupPlace={'address':address,'lat':x.latitude,'lng':x.longitude};pickupPoint=point;}lastReversePoint=point;});}}});}
@@ -1567,6 +1570,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
       serviceType:isService?'services':'ride',
       serviceCategory:isService?serviceCategory:null,
       serviceDescription:isService?requestDetails:null,
+      pricingSelection:isService&&servicePricingRule!=null?{'quantity':serviceQuantity,'addOns':List<String>.from(selectedPricingAddOns),if(selectedPricingVariant!=null)'variantKey':selectedPricingVariant}:null,
     );
     // Keep the customer on the new booking's live status instead of returning
     // straight to Home, so they can see when a partner accepts the request.
