@@ -3,6 +3,8 @@
 const express = require('express');
 const pool = require('../config/db');
 const { requireAdmin } = require('../middleware/admin');
+const { requireAuth } = require('../middleware/auth');
+const { calculateServicePrice } = require('../services/service-pricing');
 const { HOME_SERVICE_CATALOG, getServiceBaseFare, isValidServiceCategoryKey } = require('../services/catalog');
 
 const router = express.Router();
@@ -16,6 +18,7 @@ function publicItem(row) {
     providerType: row.provider_type,
     baseFare: Number(row.base_fare),
     metadata: row.metadata || {},
+    pricingRule: row.metadata?.pricingRule || null,
   };
 }
 
@@ -38,6 +41,30 @@ router.get('/services', async (req, res, next) => {
       return res.json(HOME_SERVICE_CATALOG.map((item) => ({
         ...item, description: '', baseFare: getServiceBaseFare(item.key), metadata: {},
       })));
+    }
+    return next(err);
+  }
+});
+
+
+// Customer price preview. The same server-side rule is re-applied at booking time.
+router.post('/:key/quote', requireAuth(['customer']), async (req, res, next) => {
+  try {
+    const key = String(req.params.key || '').trim().toLowerCase();
+    if (!isValidServiceCategoryKey(key)) return res.status(400).json({ error: 'Unknown service category' });
+    const result = await pool.query(
+      `SELECT label, base_fare, is_active, metadata FROM service_catalog WHERE category_key = $1`,
+      [key]
+    );
+    const row = result.rows[0];
+    if (!row || row.is_active !== true) return res.status(409).json({ error: 'This service is not available for new bookings' });
+    const configuredRule = row.metadata?.pricingRule;
+    const rule = configuredRule || { pricingMode: 'fixed', unitPrice: Number(row.base_fare), unitLabel: 'service' };
+    const quote = calculateServicePrice(rule, req.body?.selection || {});
+    return res.json({ categoryKey: key, serviceName: row.label, currency: 'INR', ...quote });
+  } catch (err) {
+    if (err instanceof TypeError || err instanceof RangeError) {
+      return res.status(400).json({ error: err.message });
     }
     return next(err);
   }
