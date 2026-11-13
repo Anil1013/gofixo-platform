@@ -119,6 +119,18 @@ router.put('/admin/services/:key', requireAdmin, async (req, res, next) => {
     const isActive = body.is_active;
     const metadata = body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata)
       ? body.metadata : {};
+    if (metadata.pricingRule !== undefined) {
+      try {
+        const rule = metadata.pricingRule;
+        const sampleQuantity = rule?.minimumQuantity === undefined ? 1 : Number(rule.minimumQuantity);
+        calculateServicePrice(rule, { quantity: sampleQuantity });
+      } catch (pricingError) {
+        if (pricingError instanceof TypeError || pricingError instanceof RangeError) {
+          return res.status(400).json({ error: `Invalid pricing rule: ${pricingError.message}` });
+        }
+        throw pricingError;
+      }
+    }
     if (!label || label.length > 120) return res.status(400).json({ error: 'A service label of 1–120 characters is required' });
     if (description.length > 4000 || imageUrl.length > 2048) return res.status(400).json({ error: 'Description or image URL is too long' });
     if (!['general_worker', 'skilled_worker'].includes(providerType)) return res.status(400).json({ error: 'Invalid provider type' });
