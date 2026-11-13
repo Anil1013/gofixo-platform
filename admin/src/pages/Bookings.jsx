@@ -38,14 +38,14 @@ export default function Bookings() {
       <div style={{ overflowX: 'auto' }}>
         <table className="data-table">
           <thead><tr>
-            <th>#</th><th>Service</th><th>Provider</th><th>Provider photo</th><th>Customer</th><th>Customer photo</th>
+            <th>Sr. No.</th><th>Booking ID</th><th>Service</th><th>Provider</th><th>Provider photo</th><th>Customer</th><th>Customer photo</th>
             <th>Pickup</th><th>Destination / Service</th><th>Distance</th>
             <th>Fare</th><th>Status</th><th>Created</th><th>Completed</th>
           </tr></thead>
           <tbody>
-            {bookings.map((b) => (
+            {bookings.map((b, index) => (
               <tr key={b.id}>
-                <td>{b.id}</td>
+                <td>{index + 1}</td><td>{b.id}</td>
                 <td><div>{b.service_type}</div>{b.service_category && <div className="sub-line">{String(b.service_category).replaceAll('_', ' ')}</div>}</td>
                 <td>{b.provider_generated_id ? <><div>{b.provider_generated_id}</div><div className="sub-line">{b.provider_name} · {b.provider_phone}</div></> : '—'}</td>
                 <td><AdminPhoto kind="provider" id={b.provider_id} documentId={b.provider_profile_photo_document_id} /></td>
@@ -63,7 +63,7 @@ export default function Bookings() {
                 <td>{b.completed_at ? new Date(b.completed_at).toLocaleString() : '—'}</td>
               </tr>
             ))}
-            {bookings.length === 0 && <tr><td colSpan="13">No bookings yet.</td></tr>}
+            {bookings.length === 0 && <tr><td colSpan="14">No bookings yet.</td></tr>}
           </tbody>
         </table>
       </div>
