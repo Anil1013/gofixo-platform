@@ -335,7 +335,7 @@ class _AuthState extends State<Auth>{
  final form=GlobalKey<FormState>();final name=TextEditingController(),phone=TextEditingController(),pass=TextEditingController();
  String mode='login',type='bike';bool busy=false;String? error,msg;String appVersion='',buildNumber='';
  final Set<String> serviceCategories={};
- List<Map<String,dynamic>> serviceCatalog=[];
+ List<Map<String,dynamic>> serviceCatalog=[];bool serviceCatalogLoading=true;
  static const _fallbackServiceCatalog=<Map<String,dynamic>>[
   {'key':'electrician','label':'Electrician','providerType':'skilled_worker'},
   {'key':'plumber','label':'Plumber','providerType':'skilled_worker'},
@@ -364,8 +364,9 @@ class _AuthState extends State<Auth>{
  Future<void> _loadServiceCatalog()async{
   try{
    final remote=await ApiService.serviceCatalog();
-   if(mounted)setState(()=>serviceCatalog=remote.isEmpty?_fallbackServiceCatalog:remote);
+   if(mounted)setState(()=>serviceCatalog=remote);
   }catch(_){if(mounted)setState(()=>serviceCatalog=_fallbackServiceCatalog);}
+  finally{if(mounted)setState(()=>serviceCatalogLoading=false);}
  }
  Future<void> _loadAppVersion()async{try{final info=await PackageInfo.fromPlatform();if(mounted)setState((){appVersion=info.version;buildNumber=info.buildNumber;});}catch(_){}}
  @override void dispose(){name.dispose();phone.dispose();pass.dispose();super.dispose();}
@@ -399,14 +400,19 @@ class _AuthState extends State<Auth>{
    if(reg)const SizedBox(height:14),
    if(reg&&provider)DropdownButtonFormField<String>(value:type,decoration:const InputDecoration(labelText:'Partner type',border:OutlineInputBorder()),items:const[
     DropdownMenuItem(value:'bike',child:Text('Bike driver')),DropdownMenuItem(value:'auto',child:Text('Auto driver')),DropdownMenuItem(value:'car',child:Text('Car driver')),DropdownMenuItem(value:'general_worker',child:Text('Home helper')),DropdownMenuItem(value:'skilled_worker',child:Text('Skilled worker'))
-   ],onChanged:(v)=>setState((){type=v??'bike';if(type=='bike'||type=='auto'||type=='car')serviceCategories.clear();})),
+   ],onChanged:(v)=>setState((){
+    type=v??'bike';
+    serviceCategories.removeWhere((key)=>!serviceCatalog.any((item)=>item['key']?.toString()==key&&item['providerType']?.toString()==type));
+   })),
    if(reg&&provider&&(type=='general_worker'||type=='skilled_worker'))...
      [
        const Text('Work specialties',style:TextStyle(fontWeight:FontWeight.w800,color:navy)),
        const SizedBox(height:4),
        const Text('Choose every service you can professionally deliver.',style:TextStyle(fontSize:11,color:muted)),
        const SizedBox(height:9),
-       Wrap(
+       if(serviceCatalogLoading)const Text('Loading active services…',style:TextStyle(fontSize:11,color:muted)),
+       if(!serviceCatalogLoading&&serviceCatalog.where((item)=>item['providerType']?.toString()==type).isEmpty)const Text('No active services are available for this partner type right now.',style:TextStyle(fontSize:11,color:muted)),
+       if(!serviceCatalogLoading&&serviceCatalog.where((item)=>item['providerType']?.toString()==type).isNotEmpty)Wrap(
          spacing:8,runSpacing:8,
          children:serviceCatalog
            .where((item)=>item['providerType']?.toString()==type)
