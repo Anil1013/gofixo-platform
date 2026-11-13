@@ -1363,7 +1363,7 @@ class ReferenceBookingPage extends StatefulWidget{
 class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
  GoogleMapController? mapController;
  StreamSubscription<Position>? locationSub;
- final dest=TextEditingController();final pickupController=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your current location…';String serviceCategory='other',serviceDescription='';final List<String> selectedCleaningTasks=[];final List<String> selectedServiceTasks=[];int serviceQuantity=1;Map<String,dynamic>? serviceQuote;Map<String,dynamic>? servicePricingRule;final List<String> selectedPricingAddOns=[];Position? pos;Map<String,dynamic>? place,pickupPlace;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[],pickupSuggestions=[];Set<Polyline> routePolylines={};List<Map<String,dynamic>> routeSteps=[];LatLng? destinationPoint,pickupPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce,pickupDebounce;LatLng? lastReversePoint;
+ final dest=TextEditingController();final pickupController=TextEditingController();final serviceDesc=TextEditingController();String type='bike',pickup='Detecting your current location…';String serviceCategory='other',serviceDescription='';final List<String> selectedCleaningTasks=[];final List<String> selectedServiceTasks=[];double serviceQuantity=1;final quantityController=TextEditingController(text:'1');Map<String,dynamic>? serviceQuote;Map<String,dynamic>? servicePricingRule;final List<String> selectedPricingAddOns=[];Position? pos;Map<String,dynamic>? place,pickupPlace;bool get isService=>type=='general_worker'||type=='skilled_worker';List<Map<String,dynamic>> suggestions=[],pickupSuggestions=[];Set<Polyline> routePolylines={};List<Map<String,dynamic>> routeSteps=[];LatLng? destinationPoint,pickupPoint;double? km,fare;double? routeEtaSeconds;bool busy=false;Timer? debounce,pickupDebounce;LatLng? lastReversePoint;
  @override void initState(){super.initState();type=widget.type;serviceCategory=widget.serviceCategory??'other';serviceDescription=widget.serviceDescription??'';serviceDesc.text=serviceDescription;_loadServicePricingRule();WidgetsBinding.instance.addPostFrameCallback((_)=>locate());}
  Future<void> _loadServicePricingRule()async{
   if(!isService)return;
@@ -1380,7 +1380,7 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
     });
   }catch(_){}
  }
- @override void dispose(){debounce?.cancel();pickupDebounce?.cancel();locationSub?.cancel();dest.dispose();pickupController.dispose();serviceDesc.dispose();super.dispose();}
+ @override void dispose(){debounce?.cancel();pickupDebounce?.cancel();locationSub?.cancel();dest.dispose();pickupController.dispose();serviceDesc.dispose();quantityController.dispose();super.dispose();}
  List<String> get serviceTaskOptions {
   const tasks=<String,List<String>>{
    'cleaning':['Bathroom cleaning','Utensil washing','Kitchen cleaning','Bedroom cleaning','Living room cleaning','Balcony cleaning','Stairs cleaning','Full home cleaning','Deep cleaning','Other'],
@@ -1721,9 +1721,14 @@ class _ReferenceBookingPageState extends State<ReferenceBookingPage>{
                  Text('Quantity / number of units',style:TextStyle(fontWeight:FontWeight.w900,color:gfNavy)),
                  Text('Rooms, bathrooms, ACs, items or service units as configured',style:TextStyle(fontSize:10,color:gfMuted)),
                ])),
-               IconButton(onPressed:busy||serviceQuantity<=1?null:(){setState(()=>serviceQuantity--);},icon:const Icon(Icons.remove_circle_outline)),
-               Text('$serviceQuantity',style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900,color:gfNavy)),
-               IconButton(onPressed:busy||serviceQuantity>=100?null:(){setState(()=>serviceQuantity++);},icon:const Icon(Icons.add_circle_outline,color:gfGreen)),
+               SizedBox(width:76,child:TextField(
+                 controller:quantityController,
+                 enabled:!busy,
+                 keyboardType:const TextInputType.numberWithOptions(decimal:true),
+                 textAlign:TextAlign.center,
+                 decoration:const InputDecoration(isDense:true,contentPadding:EdgeInsets.symmetric(vertical:10,horizontal:6),border:OutlineInputBorder()),
+                 onChanged:(value){final parsed=double.tryParse(value);if(parsed!=null&&parsed>0&&parsed<=1000){serviceQuantity=parsed;}},
+               )),
              ]),
            ),
          if(isService&&servicePricingRule?['addOns'] is List&&(servicePricingRule!['addOns'] as List).isNotEmpty)
