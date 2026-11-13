@@ -44,7 +44,7 @@ const PARTNER_SKILL_OPTIONS = [
   { key: 'driver', label: 'Personal Driver' },
   { key: 'tutor', label: 'Tutor' },
   { key: 'babysitter', label: 'Babysitter' },
-  { key: 'elder_care', label: 'Elder Care' },
+  { key: 'elder_care', label: 'Senior & Disability Care' },
   { key: 'other', label: 'Other Service' },
 ].map((item) => ({ ...item, service_type: item.service_type || 'services' }));
 
@@ -529,7 +529,7 @@ export default function ProviderHome({ onLogout }) {
         <div className="job-panel-head">
           <div><span className="section-kicker">YOUR PARTNER PROFILE</span><h2>My services & skills</h2></div>
         </div>
-        <p className="route-info">Ek hi Partner ID se multiple Ride aur Home Services chala sakte hain. Nayi skill admin approval ke baad active hogi.</p>
+        <p className="route-info">Apne account type ke multiple eligible specialties request kar sakte hain. Har nayi skill Gofixo approval ke baad hi active hogi.</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: 8, marginBottom: 14 }}>
           {eligibleSkillOptions.filter((option) => !skills.some((skill) => skill.skill_key === option.key)).map((option) => (
             <label key={option.key} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: 9, border: '1px solid #DCE5E0', borderRadius: 10, fontSize: 12 }}>
