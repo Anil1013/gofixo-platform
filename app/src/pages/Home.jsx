@@ -110,6 +110,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
   const [work, setWork] = useState('');
   const [serviceCategory, setServiceCategory] = useState('');
   const [serviceCatalog, setServiceCatalog] = useState([]);
+  const [serviceCatalogLoaded, setServiceCatalogLoaded] = useState(false);
   const [serviceQuantity, setServiceQuantity] = useState(1);
   const [serviceVariantKey, setServiceVariantKey] = useState('');
   const [serviceAddOns, setServiceAddOns] = useState([]);
@@ -157,6 +158,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
         taskOptions: Array.isArray(item.metadata?.taskOptions) ? item.metadata.taskOptions : [],
       }));
       setServiceCatalog(mapped);
+      setServiceCatalogLoaded(true);
       if (mapped.length) {
         setServiceCategory((current) => (
           mapped.find((item) => item.category === current)
@@ -164,7 +166,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
           || mapped[0]
         ).category);
       }
-    }).catch(() => {});
+    }).catch(() => { if (active) setServiceCatalogLoaded(false); });
     return () => { active = false; };
   }, []);
 
@@ -181,12 +183,12 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
     return () => clearTimeout(timer);
   }, [destination, coords]);
 
-  const homeServiceCards = serviceCatalog.length ? serviceCatalog : HOME_SERVICE_CARDS;
+  const homeServiceCards = serviceCatalogLoaded ? serviceCatalog : HOME_SERVICE_CARDS;
   const selectedService = homeServiceCards.find((item) => item.category === serviceCategory) || null;
   const pricingRule = selectedService?.pricingRule || null;
 
   useEffect(() => {
-    if (category !== 'services' || !serviceCategory || !getToken() || getRole() !== 'customer') {
+    if (category !== 'services' || !serviceCategory || !selectedService || !getToken() || getRole() !== 'customer') {
       setServiceQuote(null);
       setServiceQuoteError('');
       setServiceQuoteLoading(false);
@@ -211,7 +213,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
       }
     }, 250);
     return () => { active = false; clearTimeout(timer); };
-  }, [category, serviceCategory, serviceQuantity, serviceVariantKey, serviceAddOns.join('|')]);
+  }, [category, serviceCategory, serviceCatalog, serviceCatalogLoaded, serviceQuantity, serviceVariantKey, serviceAddOns.join('|')]);
 
   useEffect(() => {
     if (category !== 'services' || !selectedService) return;
@@ -226,7 +228,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
       setServiceVariantKey('');
     }
     setServiceAddOns([]);
-  }, [category, serviceCategory, serviceCatalog]);
+  }, [category, serviceCategory, serviceCatalog, providerType]);
 
   const locationRequestRef = useRef(false);
   const destinationResolvedRef = useRef('');
@@ -414,6 +416,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
       if (category === 'services') {
         const quote = await apiPost(`/catalog/${encodeURIComponent(serviceCategory || 'other')}/quote`, { selection: pricingSelection || {} }, true);
         setServiceQuote(quote);
+        setServiceQuoteError('');
       }
       const body = {
         service_type: category,
@@ -654,13 +657,13 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
           {category === 'services' && (
             <div className="service-request-field service-request-field-top">
               <label>Select the service you need</label>
-              <div className="service-choice-grid">
+              {homeServiceCards.length === 0 ? <p className="booking-note">No home services are currently available. Please check again later.</p> : <div className="service-choice-grid">
                 {homeServiceCards.map((item) => (
                   <button
                     type="button"
                     key={item.label}
-                    className={`service-choice-card ${work === item.label ? 'selected' : ''}`}
-                    aria-pressed={work === item.label}
+                    className={`service-choice-card ${serviceCategory === item.category && !!work.trim() ? 'selected' : ''}`}
+                    aria-pressed={serviceCategory === item.category && !!work.trim()}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => {
                       setProviderType(item.type);
@@ -678,7 +681,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                     {work === item.label && <b>✓</b>}
                   </button>
                 ))}
-              </div>
+              </div>}
               {selectedService?.taskOptions?.length > 0 && (
                 <div className="service-task-options">
                   <small>Suggested tasks</small>
@@ -716,7 +719,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                   <strong>₹{Number(serviceQuote.total || 0).toLocaleString('en-IN')}</strong>
                 </div>
               )}
-              <input
+              {homeServiceCards.some((item) => item.category === 'other') && <input
                 className="service-custom-input"
                 value={homeServiceCards.some((item) => item.label === work) ? '' : work}
                 onChange={(e) => {
@@ -730,7 +733,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                   setError('');
                 }}
                 placeholder="Or describe another service…"
-              />
+              />}
             </div>
           )}
 
