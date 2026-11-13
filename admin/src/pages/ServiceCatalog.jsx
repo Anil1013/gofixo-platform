@@ -118,7 +118,7 @@ export default function ServiceCatalog() {
           <label>Provider type<select value={newService.provider_type} onChange={e=>setNewService(v=>({...v,provider_type:e.target.value}))}><option value="general_worker">General worker</option><option value="skilled_worker">Skilled worker</option></select></label>
           <label>Sort order<input type="number" min="0" value={newService.sort_order} onChange={e=>setNewService(v=>({...v,sort_order:e.target.value}))} /></label>
           <label style={{gridColumn:'1 / -1'}}>Description<textarea rows="2" value={newService.description} onChange={e=>setNewService(v=>({...v,description:e.target.value}))} /></label>
-          <label style={{gridColumn:'1 / -1'}}>Dynamic pricing rule JSON (optional)<textarea rows="5" value={newService.pricing_rule_json} onChange={e=>setNewService(v=>({...v,pricing_rule_json:e.target.value}))} placeholder={'{"pricingMode":"per_unit","unitPrice":349,"unitLabel":"room","minimumQuantity":1,"maximumQuantity":20,"quantityStep":1,"addOns":[{"key":"deep_clean","label":"Deep cleaning","price":199}]}'} /></label>
+          <label style={{gridColumn:'1 / -1'}}>Dynamic pricing rule JSON (optional)<textarea rows="5" value={newService.pricing_rule_json} onChange={e=>setNewService(v=>({...v,pricing_rule_json:e.target.value}))} placeholder={'{"pricingMode":"fixed","variants":[{"key":"1bhk","label":"1 BHK","price":1299},{"key":"2bhk","label":"2 BHK","price":1699},{"key":"3bhk","label":"3 BHK","price":2199}],"addOns":[{"key":"balcony","label":"Balcony cleaning","price":199}]}'} /></label>
           <div><button disabled={saving==='new'} onClick={addService}>{saving==='new'?'Adding…':'Add service'}</button></div>
         </div>
       </article>
