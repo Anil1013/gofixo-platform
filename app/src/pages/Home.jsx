@@ -587,7 +587,6 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
               setCategory('services');
               setProviderType(item.type);
               setServiceCategory(item.category);
-              setProviderType(item.type);
               setServiceQuantity(Number(item.pricingRule?.minimumQuantity || 1));
               setServiceVariantKey(item.pricingRule?.variants?.[0]?.key || '');
               setServiceAddOns([]);
