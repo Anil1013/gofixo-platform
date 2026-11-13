@@ -4,6 +4,13 @@ import { apiDelete, apiGet, apiPut } from '../api';
 const empty = { label: '', description: '', image_url: '', provider_type: 'general_worker', base_fare: 299, is_active: true, sort_order: 100 };
 const money = (value) => Number(value || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
 
+function parseTaskOptions(value) {
+  const options = [...new Set(String(value || '').split(/\r?\n/).map((item) => item.trim()).filter(Boolean))];
+  if (options.length > 30) throw new Error('A service can have at most 30 task suggestions.');
+  if (options.some((item) => item.length > 80)) throw new Error('Each task suggestion must be 80 characters or fewer.');
+  return options;
+}
+
 function parsePricingRule(value) {
   if (!String(value || '').trim()) return null;
   const parsed = JSON.parse(value);
@@ -20,7 +27,7 @@ export default function ServiceCatalog() {
   const [saving, setSaving] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [newService, setNewService] = useState({ key: '', ...empty, pricing_rule_json: '' });
+  const [newService, setNewService] = useState({ key: '', ...empty, pricing_rule_json: '', task_options_text: '' });
 
   async function load() {
     setLoading(true);
@@ -34,6 +41,7 @@ export default function ServiceCatalog() {
         base_fare: Number(row.base_fare),
         sort_order: Number(row.sort_order || 0),
         pricing_rule_json: row.metadata?.pricingRule ? JSON.stringify(row.metadata.pricingRule, null, 2) : '',
+        task_options_text: Array.isArray(row.metadata?.taskOptions) ? row.metadata.taskOptions.join('\n') : '',
       }])));
     } catch (e) {
       setError(e.message || 'Could not load the service catalog.');
@@ -87,15 +95,17 @@ export default function ServiceCatalog() {
     let pricingRule;
     try {
       pricingRule = parsePricingRule(newService.pricing_rule_json);
+      const taskOptions = parseTaskOptions(newService.task_options_text);
+      const metadata = { ...(pricingRule ? { pricingRule } : {}), ...(taskOptions.length ? { taskOptions } : {}) };
       const baseFare = validateBaseFare(newService.base_fare);
       const imageUrl = validateImageUrl(newService.image_url);
       setSaving('new'); setError(''); setNotice('');
       await apiPut(`/catalog/admin/services/${encodeURIComponent(key)}`, {
-        ...newService, image_url: imageUrl, metadata: pricingRule ? { pricingRule } : {},
+        ...newService, image_url: imageUrl, metadata,
         base_fare: baseFare, sort_order: Number(newService.sort_order),
       });
       setNotice(`${newService.label.trim()} added to the catalog.`);
-      setNewService({ key: '', ...empty, pricing_rule_json: '' });
+      setNewService({ key: '', ...empty, pricing_rule_json: '', task_options_text: '' });
       await load();
     } catch (e) {
       setError(e.message || 'Service could not be added.');
@@ -113,9 +123,12 @@ export default function ServiceCatalog() {
       if (!item.label?.trim()) throw new Error('Service name is required.');
       if (!Number.isInteger(sortOrder) || sortOrder < 0 || sortOrder > 100000) throw new Error('Display order must be a whole number from 0 to 100000.');
       const pricingRule = parsePricingRule(item.pricing_rule_json);
+      const taskOptions = parseTaskOptions(item.task_options_text);
       const metadata = { ...(item.metadata || {}) };
       if (pricingRule) metadata.pricingRule = pricingRule;
       else delete metadata.pricingRule;
+      if (taskOptions.length) metadata.taskOptions = taskOptions;
+      else delete metadata.taskOptions;
       setSaving(key); setError(''); setNotice('');
       await apiPut(`/catalog/admin/services/${encodeURIComponent(key)}`, {
         label: item.label.trim(), description: item.description || '', image_url: imageUrl,
@@ -196,6 +209,7 @@ export default function ServiceCatalog() {
           <label>Display order *<input required type="number" min="0" step="1" value={newService.sort_order} onChange={(e) => setNewService((v) => ({ ...v, sort_order: e.target.value }))} /><small>Lower number appears earlier in the app.</small></label>
           <label>Service image URL<input type="url" value={newService.image_url} onChange={(e) => setNewService((v) => ({ ...v, image_url: e.target.value }))} placeholder="https://…" /><small>HTTPS image link only.</small></label>
           <label className="catalog-wide">Description<textarea rows="2" maxLength={4000} value={newService.description} onChange={(e) => setNewService((v) => ({ ...v, description: e.target.value }))} placeholder="Explain what is included in this service." /></label>
+          <label className="catalog-wide">Customer task suggestions (one per line)<textarea rows="3" maxLength={2500} value={newService.task_options_text} onChange={(e) => setNewService((v) => ({ ...v, task_options_text: e.target.value }))} placeholder={"Installation / setup\nRepair / troubleshooting\nMaintenance\nOther"} /><small>Optional. These appear as selectable tasks in the customer app; leave blank to use sensible defaults.</small></label>
           <label className="catalog-wide">Advanced pricing rule JSON (optional)<textarea rows="4" value={newService.pricing_rule_json} onChange={(e) => setNewService((v) => ({ ...v, pricing_rule_json: e.target.value }))} placeholder={'{"pricingMode":"fixed","variants":[{"key":"1bhk","label":"1 BHK","price":1299}],"addOns":[]}'}/><small>Only configure this when the corresponding customer quote and booking flow supports the rule.</small></label>
         </div>
         <div className="catalog-form-actions"><button className="btn btn-approve" type="submit" disabled={saving === 'new'}>{saving === 'new' ? 'Adding service…' : '+ Add service'}</button></div>
@@ -235,6 +249,7 @@ export default function ServiceCatalog() {
                     <label>Display order<input type="number" min="0" max="100000" step="1" value={d.sort_order ?? 0} onChange={(e) => change(item.category_key, 'sort_order', e.target.value)} /><small>Lower = earlier in customer and partner app.</small></label>
                     <label className="catalog-toggle"><input type="checkbox" checked={!!d.is_active} onChange={(e) => change(item.category_key, 'is_active', e.target.checked)} /> Show to customers</label>
                     <label className="catalog-wide">Description<textarea rows="2" maxLength={4000} value={d.description || ''} onChange={(e) => change(item.category_key, 'description', e.target.value)} /></label>
+                    <label className="catalog-wide">Customer task suggestions (one per line)<textarea rows="3" maxLength={2500} value={d.task_options_text || ''} onChange={(e) => change(item.category_key, 'task_options_text', e.target.value)} placeholder={"Installation / setup\nRepair / troubleshooting\nMaintenance\nOther"} /><small>Optional. These appear as selectable tasks in the customer app; leave blank to use sensible defaults.</small></label>
                     <label className="catalog-wide">Advanced pricing rule JSON<textarea rows="3" value={d.pricing_rule_json || ''} onChange={(e) => change(item.category_key, 'pricing_rule_json', e.target.value)} placeholder={'{"pricingMode":"per_unit","unitPrice":349,"unitLabel":"room","minimumQuantity":1,"maximumQuantity":20,"quantityStep":1,"addOns":[]}'}/><small>Saving this rule does not activate unsupported checkout behaviour.</small></label>
                   </div>
                   <div className="catalog-card-actions">
