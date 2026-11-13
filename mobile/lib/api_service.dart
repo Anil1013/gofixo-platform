@@ -66,7 +66,7 @@ class ApiService {
   static Future<List<Map<String,dynamic>>> providerSkills(String token)async{final d=await _request('GET','/providers/me/skills',token:token);return d is List?d.map((e)=>Map<String,dynamic>.from(e as Map)).toList():[];}
   static Future<List<Map<String,dynamic>>> updateProviderSkills(String token,List<Map<String,dynamic>> skills)async{final d=await _request('PUT','/providers/me/skills',token:token,body:{'skills':skills});return d is List?d.map((e)=>Map<String,dynamic>.from(e as Map)).toList():[];}
   static Future<Map<String,dynamic>> setProviderSkillAvailability(String token,String skillKey,bool enabled)async=>Map<String,dynamic>.from(await _request('PATCH','/providers/me/skills/'+Uri.encodeComponent(skillKey)+'/availability',token:token,body:{'is_available':enabled}) as Map);
-  static Future<Map<String,dynamic>> quoteService(String token,String categoryKey,{required double quantity,List<String> addOns=const []})async=>Map<String,dynamic>.from(await _request('POST','/catalog/'+Uri.encodeComponent(categoryKey)+'/quote',token:token,body:{'selection':{'quantity':quantity,'addOns':addOns}}) as Map);
+  static Future<Map<String,dynamic>> quoteService(String token,String categoryKey,{required double quantity,List<String> addOns=const [],String? variantKey})async=>Map<String,dynamic>.from(await _request('POST','/catalog/'+Uri.encodeComponent(categoryKey)+'/quote',token:token,body:{'selection':{'quantity':quantity,'addOns':addOns,if(variantKey!=null)'variantKey':variantKey}}) as Map);
   static Future<List<Map<String,dynamic>>> serviceCatalog()async{
     final d=await _request('GET','/catalog/services');
     return d is List?d.map((e)=>Map<String,dynamic>.from(e as Map)).toList():[];
