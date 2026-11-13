@@ -53,12 +53,15 @@ export default function ServiceCatalog() {
     try { pricingRule = item.pricing_rule_json?.trim() ? JSON.parse(item.pricing_rule_json) : null; }
     catch (_) { setError('Pricing rule must be valid JSON.'); return; }
     if (pricingRule && (typeof pricingRule !== 'object' || Array.isArray(pricingRule))) { setError('Pricing rule must be a JSON object.'); return; }
+    const metadata = { ...(item.metadata || {}) };
+    if (pricingRule) metadata.pricingRule = pricingRule;
+    else delete metadata.pricingRule;
     setSaving(key); setError(''); setNotice('');
     try {
       await apiPut(`/catalog/admin/services/${encodeURIComponent(key)}`, {
         label: item.label, description: item.description, image_url: item.image_url,
         provider_type: item.provider_type, base_fare: Number(item.base_fare),
-        is_active: item.is_active, sort_order: Number(item.sort_order), metadata: pricingRule ? { ...(item.metadata || {}), pricingRule } : {},
+        is_active: item.is_active, sort_order: Number(item.sort_order), metadata,
       });
       setNotice(`${item.label} saved. Public catalog will refresh shortly.`);
       await load();
