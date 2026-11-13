@@ -142,7 +142,7 @@ router.put('/admin/services/:key', requireAdmin, async (req, res, next) => {
     if (!label || label.length > 120) return res.status(400).json({ error: 'A service label of 1–120 characters is required' });
     if (description.length > 4000 || imageUrl.length > 2048) return res.status(400).json({ error: 'Description or image URL is too long' });
     if (!['general_worker', 'skilled_worker'].includes(providerType)) return res.status(400).json({ error: 'Invalid provider type' });
-    if (!Number.isFinite(baseFare) || baseFare < 0 || baseFare > 100000) return res.status(400).json({ error: 'Base fare must be between 0 and 100000' });
+    if (!Number.isFinite(baseFare) || baseFare <= 0 || baseFare > 100000) return res.status(400).json({ error: 'Upfront booking amount must be greater than 0 and no more than 100000' });
     if (!Number.isInteger(sortOrder) || sortOrder < 0 || sortOrder > 100000) return res.status(400).json({ error: 'Invalid sort order' });
     if (typeof isActive !== 'boolean') return res.status(400).json({ error: 'is_active must be true or false' });
     if (imageUrl && !/^https:\/\//i.test(imageUrl)) return res.status(400).json({ error: 'Image URL must use HTTPS' });
