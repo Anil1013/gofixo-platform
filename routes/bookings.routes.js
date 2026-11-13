@@ -73,19 +73,22 @@ async function reserveServiceWallet(client, customerId, bookingId, amount) {
   const reservedBefore = Number(w.reserved_balance);
   const after = money(before - amount);
   const reservedAfter = money(reservedBefore + amount);
-  await client.query(
-    `UPDATE wallets SET available_balance = $1, reserved_balance = $2, updated_at = NOW() WHERE id = $3`,
-    [after, reservedAfter, w.id]
-  );
-  await client.query(
+  const ledger = await client.query(
     `INSERT INTO wallet_transactions
       (wallet_id, customer_id, booking_id, type, amount, balance_before, balance_after,
        reserved_before, reserved_after, status, reference_id, metadata)
      VALUES ($1, $2, $3, 'BOOKING_RESERVE', $4, $5, $6, $7, $8, 'success', $9, $10)
-     ON CONFLICT (type, reference_id) DO NOTHING`,
+     ON CONFLICT (type, reference_id) DO NOTHING
+     RETURNING id`,
     [w.id, customerId, bookingId, amount, before, after, reservedBefore, reservedAfter,
       'BOOKING_RESERVE_' + bookingId,
       JSON.stringify({ service_type: 'services' })]
+  );
+  // Never mutate balances when the idempotency key already exists.
+  if (ledger.rowCount !== 1) return false;
+  await client.query(
+    `UPDATE wallets SET available_balance = $1, reserved_balance = $2, updated_at = NOW() WHERE id = $3`,
+    [after, reservedAfter, w.id]
   );
   return true;
 }
@@ -113,18 +116,20 @@ async function releaseServiceWallet(client, bookingId, customerId, amount, reaso
   const reservedBefore = Number(row.reserved_balance);
   const after = movement.availableAfter;
   const reservedAfter = movement.reservedAfter;
-  await client.query('UPDATE wallets SET available_balance=$1, reserved_balance=$2, updated_at=NOW() WHERE id=$3', [after, reservedAfter, row.wallet_id]);
-  await client.query(
+  const ledger = await client.query(
     `INSERT INTO wallet_transactions
       (wallet_id, customer_id, booking_id, type, amount, balance_before, balance_after,
        reserved_before, reserved_after, status, reference_id, metadata)
      VALUES ($1,$2,$3,'BOOKING_RELEASE',$4,$5,$6,$7,$8,'success',$9,$10)
-     ON CONFLICT (type, reference_id) DO NOTHING`,
+     ON CONFLICT (type, reference_id) DO NOTHING
+     RETURNING id`,
     [row.wallet_id, customerId, bookingId, releaseAmount, before, after, reservedBefore, reservedAfter,
       'BOOKING_RELEASE_' + bookingId,
       JSON.stringify({ reason })]
   );
-  await client.query("UPDATE wallet_transactions SET status='released' WHERE id=$1", [row.id]);
+  if (ledger.rowCount !== 1) return false;
+  await client.query('UPDATE wallets SET available_balance=$1, reserved_balance=$2, updated_at=NOW() WHERE id=$3', [after, reservedAfter, row.wallet_id]);
+  await client.query("UPDATE wallet_transactions SET status='released' WHERE id=$1 AND status='success'", [row.id]);
   return true;
 }
 
@@ -151,18 +156,20 @@ async function captureServiceWallet(client, bookingId, customerId, amount) {
   if (!movement) return false;
   const after = movement.availableAfter;
   const reservedAfter = movement.reservedAfter;
-  await client.query('UPDATE wallets SET available_balance=$1, reserved_balance=$2, updated_at=NOW() WHERE id=$3', [after, reservedAfter, row.wallet_id]);
-  await client.query(
+  const ledger = await client.query(
     `INSERT INTO wallet_transactions
       (wallet_id, customer_id, booking_id, type, amount, balance_before, balance_after,
        reserved_before, reserved_after, status, reference_id, metadata)
      VALUES ($1,$2,$3,'BOOKING_CAPTURE',$4,$5,$6,$7,$8,'success',$9,$10)
-     ON CONFLICT (type, reference_id) DO NOTHING`,
+     ON CONFLICT (type, reference_id) DO NOTHING
+     RETURNING id`,
     [row.wallet_id, customerId, bookingId, captureAmount, before, after, reservedBefore, reservedAfter,
       'BOOKING_CAPTURE_' + bookingId,
       JSON.stringify({ platform_settlement: true })]
   );
-  await client.query("UPDATE wallet_transactions SET status='captured' WHERE id=$1", [row.id]);
+  if (ledger.rowCount !== 1) return false;
+  await client.query('UPDATE wallets SET available_balance=$1, reserved_balance=$2, updated_at=NOW() WHERE id=$3', [after, reservedAfter, row.wallet_id]);
+  await client.query("UPDATE wallet_transactions SET status='captured' WHERE id=$1 AND status='success'", [row.id]);
   return true;
 }
 
