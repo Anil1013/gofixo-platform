@@ -157,9 +157,12 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
         taskOptions: Array.isArray(item.metadata?.taskOptions) ? item.metadata.taskOptions : [],
       }));
       setServiceCatalog(mapped);
-      if (mapped.length && !mapped.some((item) => item.category === serviceCategory)) {
-        setServiceCategory(mapped[0].category);
-        setProviderType(mapped[0].type || 'general_worker');
+      if (mapped.length) {
+        setServiceCategory((current) => (
+          mapped.find((item) => item.category === current)
+          || mapped.find((item) => item.category === 'other')
+          || mapped[0]
+        ).category);
       }
     }).catch(() => {});
     return () => { active = false; };
@@ -186,6 +189,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
     if (category !== 'services' || !serviceCategory || !getToken() || getRole() !== 'customer') {
       setServiceQuote(null);
       setServiceQuoteError('');
+      setServiceQuoteLoading(false);
       return undefined;
     }
     let active = true;
@@ -211,6 +215,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
 
   useEffect(() => {
     if (category !== 'services' || !selectedService) return;
+    if (selectedService.type && providerType !== selectedService.type) setProviderType(selectedService.type);
     const rule = selectedService.pricingRule;
     const minimum = Number(rule?.minimumQuantity || 1);
     const maximum = Number(rule?.maximumQuantity || 1000);
