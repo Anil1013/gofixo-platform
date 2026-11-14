@@ -137,8 +137,34 @@ router.put('/admin/services/:key', requireAdmin, async (req, res, next) => {
     if (metadata.pricingRule !== undefined) {
       try {
         const rule = metadata.pricingRule;
-        const sampleQuantity = rule?.minimumQuantity === undefined ? 1 : Number(rule.minimumQuantity);
-        calculateServicePrice(rule, { quantity: sampleQuantity, variantKey: Array.isArray(rule?.variants) ? rule.variants[0]?.key : undefined });
+        if (!rule || typeof rule !== 'object' || Array.isArray(rule)) {
+          throw new TypeError('Pricing rule must be an object');
+        }
+        for (const field of ['variants', 'addOns']) {
+          if (rule[field] !== undefined && (!Array.isArray(rule[field]) || rule[field].length > 20)) {
+            throw new TypeError(`${field} must contain no more than 20 entries`);
+          }
+          const seen = new Set();
+          for (const entry of rule[field] || []) {
+            if (!entry || typeof entry !== 'object'
+              || typeof entry.key !== 'string' || !/^[a-z0-9_]{1,60}$/.test(entry.key)
+              || typeof entry.label !== 'string' || !entry.label.trim() || entry.label.trim().length > 80
+              || seen.has(entry.key)) {
+              throw new TypeError(`${field} need unique valid keys and non-empty labels (up to 80 characters)`);
+            }
+            seen.add(entry.key);
+            const price = Number(entry.price);
+            if (!Number.isFinite(price) || price < 0 || price > 1000000
+              || (field === 'variants' && price <= 0)) {
+              throw new TypeError(`${field} contain an invalid price`);
+            }
+          }
+        }
+        const sampleQuantity = rule.minimumQuantity === undefined ? 1 : Number(rule.minimumQuantity);
+        calculateServicePrice(rule, {
+          quantity: sampleQuantity,
+          variantKey: Array.isArray(rule.variants) ? rule.variants[0]?.key : undefined,
+        });
       } catch (pricingError) {
         if (pricingError instanceof TypeError || pricingError instanceof RangeError) {
           return res.status(400).json({ error: `Invalid pricing rule: ${pricingError.message}` });
