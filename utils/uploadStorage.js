@@ -7,11 +7,14 @@ const UPLOAD_DIR = path.resolve(
 );
 
 function resolveUploadPath(fileUrl) {
-  if (typeof fileUrl !== 'string') return null;
-  const match = /^\\/uploads\\/(.+)$/.exec(fileUrl);
-  if (!match) return null;
+  if (typeof fileUrl !== 'string' || !fileUrl.startsWith('/uploads/')) {
+    return null;
+  }
 
-  const resolved = path.resolve(UPLOAD_DIR, match[1]);
+  const relativePath = fileUrl.slice('/uploads/'.length);
+  if (!relativePath) return null;
+
+  const resolved = path.resolve(UPLOAD_DIR, relativePath);
   if (!resolved.startsWith(UPLOAD_DIR + path.sep)) return null;
   return resolved;
 }
