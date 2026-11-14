@@ -724,9 +724,24 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                   setWork(e.target.value);
                   setServiceCategory(e.target.value.trim() ? 'other' : '');
                   setProviderType(homeServiceCards.find((item) => item.category === 'other')?.type || 'general_worker');
-                  setServiceQuantity(1);
-                  setServiceVariantKey('');
-                  setServiceAddOns([]);
+                  // Keep the active "other" service pricing selection valid when
+                  // free-text details change; the category may remain "other", so
+                  // the category effect will not necessarily normalize these fields.
+                  const otherService = homeServiceCards.find((item) => item.category === 'other');
+                  const otherRule = otherService?.pricingRule;
+                  const minQuantity = Number(otherRule?.minimumQuantity || 1);
+                  const maxQuantity = Number(otherRule?.maximumQuantity || 1000);
+                  setServiceQuantity((current) => (
+                    Number.isFinite(current) && current >= minQuantity && current <= maxQuantity
+                      ? current : minQuantity
+                  ));
+                  setServiceVariantKey((current) => (
+                    otherRule?.variants?.some((variant) => variant.key === current)
+                      ? current : (otherRule?.variants?.[0]?.key || '')
+                  ));
+                  setServiceAddOns((current) => (
+                    current.filter((key) => otherRule?.addOns?.some((addon) => addon.key === key))
+                  ));
                   setServiceQuote(null);
                   setError('');
                 }}
