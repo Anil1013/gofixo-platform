@@ -15,6 +15,7 @@ const { broadcastProviderLocation } = require('../services/realtime');
 const { isValidServiceCategoryKey } = require('../services/catalog');
 const { validateUploadFile } = require('../utils/fileValidation');
 const { createRateLimiter } = require('../utils/requestRateLimit');
+const { UPLOAD_DIR, resolveUploadPath } = require('../utils/uploadStorage');
 const providerRegisterLimit = createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 8, keyPrefix: 'provider-register' });
 
 const PROVIDER_TYPES = ['bike', 'auto', 'car', 'general_worker', 'skilled_worker'];
@@ -275,10 +276,8 @@ router.get('/admin/:id/documents/:documentId', requireAdmin, async (req, res, ne
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Document not found' });
 
-    const relativePath = result.rows[0].file_url.replace(/^\/uploads\//, '');
-    const filePath = path.resolve(__dirname, '..', 'uploads', relativePath);
-    const uploadsRoot = path.resolve(__dirname, '..', 'uploads') + path.sep;
-    if (!filePath.startsWith(uploadsRoot)) return res.status(400).json({ error: 'Invalid document path' });
+    const filePath = resolveUploadPath(result.rows[0].file_url);
+    if (!filePath) return res.status(400).json({ error: 'Invalid document path' });
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Document file not found' });
 
     res.sendFile(filePath);
@@ -299,10 +298,8 @@ router.get('/:id/documents/:documentId', requireAuth(['provider']), async (req, 
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Document not found' });
 
-    const relativePath = result.rows[0].file_url.replace(/^\/uploads\//, '');
-    const filePath = path.resolve(__dirname, '..', 'uploads', relativePath);
-    const uploadsRoot = path.resolve(__dirname, '..', 'uploads') + path.sep;
-    if (!filePath.startsWith(uploadsRoot)) return res.status(400).json({ error: 'Invalid document path' });
+    const filePath = resolveUploadPath(result.rows[0].file_url);
+    if (!filePath) return res.status(400).json({ error: 'Invalid document path' });
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Document file not found' });
 
     res.sendFile(filePath);
@@ -345,7 +342,7 @@ router.post('/:id/documents', requireAuth(['provider']), requireOwnProvider, upl
       }
     }
 
-    const dir = path.join(__dirname, '..', 'uploads', 'providers', String(req.params.id));
+    const dir = path.join(UPLOAD_DIR, 'providers', String(req.params.id));
     await fsp.mkdir(dir, { recursive: true });
     const extension = path.extname(req.file.originalname || '').toLowerCase();
     const filename = `${skillKey ? skillKey + '-' : ''}${docType}-${crypto.randomBytes(16).toString('hex')}${extension}`;
@@ -884,10 +881,8 @@ router.get('/:id/profile-photo', requireAuth(['provider', 'customer']), async (r
       [providerId]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Profile photo not set' });
-    const relativePath = result.rows[0].file_url.replace(/^\/uploads\//, '');
-    const filePath = path.resolve(__dirname, '..', 'uploads', relativePath);
-    const uploadsRoot = path.resolve(__dirname, '..', 'uploads') + path.sep;
-    if (!filePath.startsWith(uploadsRoot)) return res.status(400).json({ error: 'Invalid photo path' });
+    const filePath = resolveUploadPath(result.rows[0].file_url);
+    if (!filePath) return res.status(400).json({ error: 'Invalid photo path' });
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Profile photo file not found' });
     res.sendFile(filePath);
   } catch (err) { next(err); }

@@ -13,6 +13,7 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 4000,
         GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY || '',
+        GOFIXO_UPLOAD_DIR: process.env.GOFIXO_UPLOAD_DIR || '/home/ubuntu/gofixo-data/uploads',
         GOFIXO_RELEASE_COMMIT: process.env.GOFIXO_RELEASE_COMMIT || 'unknown',
       },
     },

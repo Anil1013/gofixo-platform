@@ -13,6 +13,7 @@ const { checkLoginRateLimit, recordFailedLogin, clearLoginFailures } = require('
 const { requireAuth } = require('../middleware/auth');
 const { validateUploadFile } = require('../utils/fileValidation');
 const { createRateLimiter } = require('../utils/requestRateLimit');
+const { UPLOAD_DIR, resolveUploadPath } = require('../utils/uploadStorage');
 
 const customerRegisterLimit = createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 8, keyPrefix: 'customer-register' });
 const forgotPasswordLimit = createRateLimiter({ windowMs: 15 * 60 * 1000, maxRequests: 5, keyPrefix: 'forgot-password' });
@@ -75,7 +76,7 @@ router.post('/customer/profile-photo', requireAuth(['customer']), profileUpload.
     if (!validateUploadFile(req.file, new Set(['image/jpeg', 'image/png', 'image/webp']))) {
       return res.status(400).json({ error: 'Profile photo content does not match a supported JPG, PNG or WEBP image' });
     }
-    const dir = path.join(__dirname, '..', 'uploads', 'customers', String(req.user.id));
+    const dir = path.join(UPLOAD_DIR, 'customers', String(req.user.id));
     await fsp.mkdir(dir, { recursive: true });
     const ext = path.extname(req.file.originalname || '').toLowerCase();
     const filename = 'profile-' + crypto.randomBytes(16).toString('hex') + ext;
@@ -109,10 +110,8 @@ router.get('/customer/:id/profile-photo', requireAuth(['provider', 'customer']),
 
     const result = await pool.query('SELECT profile_photo_url FROM customers WHERE id = $1', [customerId]);
     if (result.rows.length === 0 || !result.rows[0].profile_photo_url) return res.status(404).json({ error: 'Profile photo not set' });
-    const relativePath = result.rows[0].profile_photo_url.replace(/^\/uploads\//, '');
-    const filePath = path.resolve(__dirname, '..', 'uploads', relativePath);
-    const uploadsRoot = path.resolve(__dirname, '..', 'uploads') + path.sep;
-    if (!filePath.startsWith(uploadsRoot)) return res.status(400).json({ error: 'Invalid photo path' });
+    const filePath = resolveUploadPath(result.rows[0].profile_photo_url);
+    if (!filePath) return res.status(400).json({ error: 'Invalid photo path' });
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Profile photo file not found' });
     res.sendFile(filePath);
   } catch (err) { next(err); }
@@ -122,10 +121,8 @@ router.get('/customer/profile-photo', requireAuth(['customer']), async (req, res
   try {
     const result = await pool.query('SELECT profile_photo_url FROM customers WHERE id = $1', [req.user.id]);
     if (result.rows.length === 0 || !result.rows[0].profile_photo_url) return res.status(404).json({ error: 'Profile photo not set' });
-    const relativePath = result.rows[0].profile_photo_url.replace(/^\/uploads\//, '');
-    const filePath = path.resolve(__dirname, '..', 'uploads', relativePath);
-    const uploadsRoot = path.resolve(__dirname, '..', 'uploads') + path.sep;
-    if (!filePath.startsWith(uploadsRoot)) return res.status(400).json({ error: 'Invalid photo path' });
+    const filePath = resolveUploadPath(result.rows[0].profile_photo_url);
+    if (!filePath) return res.status(400).json({ error: 'Invalid photo path' });
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Profile photo file not found' });
     res.sendFile(filePath);
   } catch (err) { next(err); }

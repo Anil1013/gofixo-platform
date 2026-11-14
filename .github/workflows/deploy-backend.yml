@@ -41,6 +41,16 @@ jobs:
 
             test "$(git rev-parse HEAD)" = "$(git rev-parse refs/remotes/gofixo-deploy/main)"
             test -f server.js
+
+            # Keep private customer/provider uploads outside the Git checkout so
+            # deployments and git resets cannot overwrite or remove user files.
+            GOFIXO_UPLOAD_DIR="${GOFIXO_UPLOAD_DIR:-/home/ubuntu/gofixo-data/uploads}"
+            mkdir -p "$GOFIXO_UPLOAD_DIR"
+            chmod 700 "$(dirname "$GOFIXO_UPLOAD_DIR")" "$GOFIXO_UPLOAD_DIR"
+            if [ -d uploads ] && [ -z "$(find "$GOFIXO_UPLOAD_DIR" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
+              cp -a uploads/. "$GOFIXO_UPLOAD_DIR"/
+              echo "Migrated existing upload files to persistent storage."
+            fi
             test -f ecosystem.config.cjs
 
             npm install --omit=dev
@@ -83,13 +93,15 @@ jobs:
 
             # Persist the deployment secret for the backend and keep the file private.
             touch .env
-            grep -v -E '^(GOOGLE_MAPS_API_KEY|CASHFREE_)' .env > .env.tmp || true
+            grep -v -E '^(GOOGLE_MAPS_API_KEY|GOFIXO_UPLOAD_DIR|CASHFREE_)' .env > .env.tmp || true
             printf 'GOOGLE_MAPS_API_KEY=%s\n' "$GOOGLE_MAPS_API_KEY" >> .env.tmp
+            printf 'GOFIXO_UPLOAD_DIR=%s\n' "$GOFIXO_UPLOAD_DIR" >> .env.tmp
             mv .env.tmp .env
             chmod 600 .env
 
             # Export into the shell so PM2 receives the same environment.
             export GOOGLE_MAPS_API_KEY
+            export GOFIXO_UPLOAD_DIR
             export GOFIXO_RELEASE_COMMIT="$(git rev-parse HEAD)"
 
             pm2 startOrRestart ecosystem.config.cjs --update-env
