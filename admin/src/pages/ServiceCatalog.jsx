@@ -18,6 +18,113 @@ function parsePricingRule(value) {
   return parsed;
 }
 
+
+function PricingRuleEditor({ value, onChange }) {
+  let rule = {};
+  try { rule = value ? JSON.parse(value) : {}; } catch { rule = {}; }
+  const mode = rule.pricingMode || 'fixed';
+  const variants = Array.isArray(rule.variants) ? rule.variants : [];
+  const addOns = Array.isArray(rule.addOns) ? rule.addOns : [];
+  const numeric = (v) => v === '' || v === null || v === undefined ? undefined : Number(v);
+  const update = (patch) => {
+    const next = { ...rule, ...patch };
+    Object.keys(next).forEach((key) => next[key] === undefined && delete next[key]);
+    onChange(JSON.stringify(next, null, 2));
+  };
+  const updateRow = (field, index, patch) => {
+    const rows = [...(field === 'variants' ? variants : addOns)];
+    rows[index] = { ...rows[index], ...patch };
+    update({ [field]: rows });
+  };
+  const addRow = (field) => {
+    const rows = field === 'variants' ? variants : addOns;
+    if (rows.length >= 20) return;
+    const key = field === 'variants' ? 'package_' + (rows.length + 1) : 'addon_' + (rows.length + 1);
+    update({ [field]: [...rows, { key, label: '', price: '' }] });
+  };
+  const removeRow = (field, index) => update({
+    [field]: (field === 'variants' ? variants : addOns).filter((_, i) => i !== index),
+  });
+  const setNumber = (field, raw) => update({ [field]: numeric(raw) });
+  return (
+    <div className="pricing-editor">
+      <div className="pricing-editor-intro">
+        <strong>Set how the customer price is calculated</strong>
+        <span>Rates saved here are used for customer estimates and checked again by the server at booking time.</span>
+      </div>
+      <div className="pricing-editor-grid">
+        <label>Pricing type
+          <select value={mode} onChange={(e) => update({
+            pricingMode: e.target.value,
+            ...(e.target.value === 'inspection_quote' ? { variants: [], addOns: [], unitPrice: undefined } : {}),
+          })}>
+            <option value="fixed">Fixed package</option>
+            <option value="per_unit">Per unit</option>
+            <option value="per_hour">Per hour</option>
+            <option value="per_item">Per item</option>
+            <option value="per_kg">Per KG</option>
+            <option value="per_sqft">Per sq. ft.</option>
+            <option value="inspection_quote">Inspection & partner quote</option>
+          </select>
+        </label>
+        {mode === 'inspection_quote' ? (
+          <label>Visit / inspection fee (₹)
+            <input type="number" min="0" max="1000000" step="0.01" value={rule.visitFee ?? 0} onChange={(e) => setNumber('visitFee', e.target.value)} />
+          </label>
+        ) : (
+          <>
+            <label>Unit name
+              <input value={rule.unitLabel || (mode === 'per_kg' ? 'kg' : mode === 'per_hour' ? 'hour' : mode === 'per_sqft' ? 'sq. ft.' : mode === 'per_item' ? 'item' : 'service')} onChange={(e) => update({ unitLabel: e.target.value })} placeholder="room, hour, kg…" />
+            </label>
+            {variants.length === 0 && <label>{mode === 'fixed' ? 'Package price (₹)' : 'Rate per unit (₹)'}
+              <input type="number" min="0.01" max="1000000" step="0.01" value={rule.unitPrice ?? ''} onChange={(e) => setNumber('unitPrice', e.target.value)} placeholder="Enter rate" />
+            </label>}
+            <label>Minimum charge (₹)
+              <input type="number" min="0" max="1000000" step="0.01" value={rule.minimumCharge ?? ''} onChange={(e) => setNumber('minimumCharge', e.target.value)} placeholder="Optional" />
+            </label>
+            <label>Visit fee (₹)
+              <input type="number" min="0" max="1000000" step="0.01" value={rule.visitFee ?? ''} onChange={(e) => setNumber('visitFee', e.target.value)} placeholder="Optional" />
+            </label>
+            {mode !== 'fixed' && <>
+              <label>Minimum quantity<input type="number" min="0.01" step="0.01" value={rule.minimumQuantity ?? 1} onChange={(e) => setNumber('minimumQuantity', e.target.value)} /></label>
+              <label>Maximum quantity<input type="number" min="0.01" step="0.01" value={rule.maximumQuantity ?? 1000} onChange={(e) => setNumber('maximumQuantity', e.target.value)} /></label>
+              <label>Quantity increment<input type="number" min="0.01" step="0.01" value={rule.quantityStep ?? 1} onChange={(e) => setNumber('quantityStep', e.target.value)} /></label>
+            </>}
+          </>
+        )}
+        <label>Estimated duration (minutes)
+          <input type="number" min="0" max="10080" step="1" value={rule.estimatedMinutes ?? ''} onChange={(e) => setNumber('estimatedMinutes', e.target.value)} placeholder="Optional" />
+        </label>
+      </div>
+      {mode === 'inspection_quote' && (
+        <label className="pricing-inline-check">
+          <input type="checkbox" checked={rule.creditVisitFeeOnApprovedRepair === true} onChange={(e) => update({ creditVisitFeeOnApprovedRepair: e.target.checked })} />
+          Credit visit fee against labour when customer approves the repair
+        </label>
+      )}
+      {mode !== 'inspection_quote' && <>
+        <div className="pricing-subsection">
+          <div className="pricing-subsection-head"><div><strong>Packages / variants</strong><small>For example: 1 BHK, 2 BHK, 3 BHK. Each package has its own total price.</small></div><button type="button" className="btn btn-light" onClick={() => addRow('variants')} disabled={variants.length >= 20}>+ Add package</button></div>
+          {variants.map((item, index) => <div className="pricing-row" key={'variant-' + index}>
+            <label>Package name<input value={item.label || ''} onChange={(e) => updateRow('variants', index, { label: e.target.value, key: item.key || e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') })} placeholder="2 BHK" /></label>
+            <label>Price (₹)<input type="number" min="0.01" step="0.01" value={item.price ?? ''} onChange={(e) => updateRow('variants', index, { price: numeric(e.target.value) })} /></label>
+            <button type="button" className="btn btn-reject" onClick={() => removeRow('variants', index)} aria-label="Remove package">Remove</button>
+          </div>)}
+        </div>
+        <div className="pricing-subsection">
+          <div className="pricing-subsection-head"><div><strong>Optional extras / add-ons</strong><small>Customer can select these; selected prices are added to the estimate.</small></div><button type="button" className="btn btn-light" onClick={() => addRow('addOns')} disabled={addOns.length >= 20}>+ Add extra</button></div>
+          {addOns.map((item, index) => <div className="pricing-row" key={'addon-' + index}>
+            <label>Extra name<input value={item.label || ''} onChange={(e) => updateRow('addOns', index, { label: e.target.value, key: item.key || e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') })} placeholder="Balcony cleaning" /></label>
+            <label>Extra price (₹)<input type="number" min="0" step="0.01" value={item.price ?? ''} onChange={(e) => updateRow('addOns', index, { price: numeric(e.target.value) })} /></label>
+            <button type="button" className="btn btn-reject" onClick={() => removeRow('addOns', index)} aria-label="Remove extra">Remove</button>
+          </div>)}
+        </div>
+      </>}
+      <details className="pricing-advanced-json"><summary>Advanced settings (JSON)</summary><textarea rows="5" value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder="Optional advanced pricing configuration" /></details>
+    </div>
+  );
+}
+
 export default function ServiceCatalog() {
   const [items, setItems] = useState([]);
   const [draft, setDraft] = useState({});
@@ -213,7 +320,7 @@ export default function ServiceCatalog() {
           <label>Service image URL<input type="url" value={newService.image_url} onChange={(e) => setNewService((v) => ({ ...v, image_url: e.target.value }))} placeholder="https://…" /><small>HTTPS image link only.</small></label>
           <label className="catalog-wide">Description<textarea rows="2" maxLength={4000} value={newService.description} onChange={(e) => setNewService((v) => ({ ...v, description: e.target.value }))} placeholder="Explain what is included in this service." /></label>
           <label className="catalog-wide">Customer task suggestions (one per line)<textarea rows="3" maxLength={2500} value={newService.task_options_text} onChange={(e) => setNewService((v) => ({ ...v, task_options_text: e.target.value }))} placeholder={"Installation / setup\nRepair / troubleshooting\nMaintenance\nOther"} /><small>Optional. These appear as selectable tasks in the customer app; leave blank to use sensible defaults.</small></label>
-          <label className="catalog-wide">Advanced pricing rule JSON (optional)<textarea rows="4" value={newService.pricing_rule_json} onChange={(e) => setNewService((v) => ({ ...v, pricing_rule_json: e.target.value }))} placeholder={'{"pricingMode":"fixed","variants":[{"key":"1bhk","label":"1 BHK","price":1299}],"addOns":[]}'}/><small>Fixed and per-unit rules can show supported variants, quantities and add-ons. inspection_quote supports a visit fee only; do not add variants or add-ons.</small></label>
+          <div className="catalog-wide"><PricingRuleEditor value={newService.pricing_rule_json} onChange={(value) => setNewService((v) => ({ ...v, pricing_rule_json: value }))} /></div>
         </div>
         <div className="catalog-form-actions"><button className="btn btn-approve" type="submit" disabled={saving === 'new'}>{saving === 'new' ? 'Adding service…' : '+ Add service'}</button></div>
       </form>
@@ -253,7 +360,7 @@ export default function ServiceCatalog() {
                     <label className="catalog-toggle"><input type="checkbox" checked={!!d.is_active} onChange={(e) => change(item.category_key, 'is_active', e.target.checked)} /> Show to customers</label>
                     <label className="catalog-wide">Description<textarea rows="2" maxLength={4000} value={d.description || ''} onChange={(e) => change(item.category_key, 'description', e.target.value)} /></label>
                     <label className="catalog-wide">Customer task suggestions (one per line)<textarea rows="3" maxLength={2500} value={d.task_options_text || ''} onChange={(e) => change(item.category_key, 'task_options_text', e.target.value)} placeholder={"Installation / setup\nRepair / troubleshooting\nMaintenance\nOther"} /><small>Optional. These appear as selectable tasks in the customer app; leave blank to use sensible defaults.</small></label>
-                    <label className="catalog-wide">Advanced pricing rule JSON<textarea rows="3" value={d.pricing_rule_json || ''} onChange={(e) => change(item.category_key, 'pricing_rule_json', e.target.value)} placeholder={'{"pricingMode":"per_unit","unitPrice":349,"unitLabel":"room","minimumQuantity":1,"maximumQuantity":20,"quantityStep":1,"addOns":[]}'}/><small>Changes apply to new customer quotes and bookings after the catalog refreshes. inspection_quote supports a visit fee only; variants and add-ons are rejected.</small></label>
+                    <div className="catalog-wide"><PricingRuleEditor value={d.pricing_rule_json || ''} onChange={(value) => change(item.category_key, 'pricing_rule_json', value)} /></div>
                   </div>
                   <div className="catalog-card-actions">
                     <button className="btn btn-approve" type="button" disabled={busy} onClick={() => save(item.category_key)}>{busy ? 'Saving…' : 'Save changes'}</button>
