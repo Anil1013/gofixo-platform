@@ -729,12 +729,15 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                   // the category effect will not necessarily normalize these fields.
                   const otherService = homeServiceCards.find((item) => item.category === 'other');
                   const otherRule = otherService?.pricingRule;
-                  const minQuantity = Number(otherRule?.minimumQuantity || 1);
-                  const maxQuantity = Number(otherRule?.maximumQuantity || 1000);
-                  setServiceQuantity((current) => (
-                    Number.isFinite(current) && current >= minQuantity && current <= maxQuantity
-                      ? current : minQuantity
-                  ));
+                  const minQuantity = Number(otherRule?.minimumQuantity ?? 1);
+                  const maxQuantity = Number(otherRule?.maximumQuantity ?? 1000);
+                  const quantityStep = Number(otherRule?.quantityStep ?? 1);
+                  setServiceQuantity((current) => {
+                    const steps = (current - minQuantity) / quantityStep;
+                    const valid = Number.isFinite(current) && current >= minQuantity && current <= maxQuantity
+                      && Number.isFinite(steps) && Math.abs(steps - Math.round(steps)) < 1e-9;
+                    return valid ? current : minQuantity;
+                  });
                   setServiceVariantKey((current) => (
                     otherRule?.variants?.some((variant) => variant.key === current)
                       ? current : (otherRule?.variants?.[0]?.key || '')
