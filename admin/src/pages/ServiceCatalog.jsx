@@ -193,7 +193,7 @@ export default function ServiceCatalog() {
 
       <div className="catalog-info">
         <strong>Before publishing a service</strong>
-        <span>Check its name, image, provider type, upfront wallet reservation amount and display order. Archiving only hides it from new bookings; past bookings and partner history are retained. Advanced pricing JSON is saved as configuration and does not by itself activate a new pricing flow in booking checkout.</span>
+        <span>Check its name, image, provider type, upfront wallet reservation amount and display order. Archiving only hides it from new bookings; past bookings and partner history are retained. Advanced pricing rules are used by customer price estimates and are revalidated by the server when a booking is created.</span>
       </div>
 
       {error && <div className="topup-alert topup-alert-error" role="alert">{error}</div>}
@@ -213,7 +213,7 @@ export default function ServiceCatalog() {
           <label>Service image URL<input type="url" value={newService.image_url} onChange={(e) => setNewService((v) => ({ ...v, image_url: e.target.value }))} placeholder="https://…" /><small>HTTPS image link only.</small></label>
           <label className="catalog-wide">Description<textarea rows="2" maxLength={4000} value={newService.description} onChange={(e) => setNewService((v) => ({ ...v, description: e.target.value }))} placeholder="Explain what is included in this service." /></label>
           <label className="catalog-wide">Customer task suggestions (one per line)<textarea rows="3" maxLength={2500} value={newService.task_options_text} onChange={(e) => setNewService((v) => ({ ...v, task_options_text: e.target.value }))} placeholder={"Installation / setup\nRepair / troubleshooting\nMaintenance\nOther"} /><small>Optional. These appear as selectable tasks in the customer app; leave blank to use sensible defaults.</small></label>
-          <label className="catalog-wide">Advanced pricing rule JSON (optional)<textarea rows="4" value={newService.pricing_rule_json} onChange={(e) => setNewService((v) => ({ ...v, pricing_rule_json: e.target.value }))} placeholder={'{"pricingMode":"fixed","variants":[{"key":"1bhk","label":"1 BHK","price":1299}],"addOns":[]}'}/><small>Only configure this when the corresponding customer quote and booking flow supports the rule.</small></label>
+          <label className="catalog-wide">Advanced pricing rule JSON (optional)<textarea rows="4" value={newService.pricing_rule_json} onChange={(e) => setNewService((v) => ({ ...v, pricing_rule_json: e.target.value }))} placeholder={'{"pricingMode":"fixed","variants":[{"key":"1bhk","label":"1 BHK","price":1299}],"addOns":[]}'}/><small>Fixed and per-unit rules can show supported variants, quantities and add-ons. inspection_quote supports a visit fee only; do not add variants or add-ons.</small></label>
         </div>
         <div className="catalog-form-actions"><button className="btn btn-approve" type="submit" disabled={saving === 'new'}>{saving === 'new' ? 'Adding service…' : '+ Add service'}</button></div>
       </form>
@@ -253,7 +253,7 @@ export default function ServiceCatalog() {
                     <label className="catalog-toggle"><input type="checkbox" checked={!!d.is_active} onChange={(e) => change(item.category_key, 'is_active', e.target.checked)} /> Show to customers</label>
                     <label className="catalog-wide">Description<textarea rows="2" maxLength={4000} value={d.description || ''} onChange={(e) => change(item.category_key, 'description', e.target.value)} /></label>
                     <label className="catalog-wide">Customer task suggestions (one per line)<textarea rows="3" maxLength={2500} value={d.task_options_text || ''} onChange={(e) => change(item.category_key, 'task_options_text', e.target.value)} placeholder={"Installation / setup\nRepair / troubleshooting\nMaintenance\nOther"} /><small>Optional. These appear as selectable tasks in the customer app; leave blank to use sensible defaults.</small></label>
-                    <label className="catalog-wide">Advanced pricing rule JSON<textarea rows="3" value={d.pricing_rule_json || ''} onChange={(e) => change(item.category_key, 'pricing_rule_json', e.target.value)} placeholder={'{"pricingMode":"per_unit","unitPrice":349,"unitLabel":"room","minimumQuantity":1,"maximumQuantity":20,"quantityStep":1,"addOns":[]}'}/><small>Saving this rule does not activate unsupported checkout behaviour.</small></label>
+                    <label className="catalog-wide">Advanced pricing rule JSON<textarea rows="3" value={d.pricing_rule_json || ''} onChange={(e) => change(item.category_key, 'pricing_rule_json', e.target.value)} placeholder={'{"pricingMode":"per_unit","unitPrice":349,"unitLabel":"room","minimumQuantity":1,"maximumQuantity":20,"quantityStep":1,"addOns":[]}'}/><small>Changes apply to new customer quotes and bookings after the catalog refreshes. inspection_quote supports a visit fee only; variants and add-ons are rejected.</small></label>
                   </div>
                   <div className="catalog-card-actions">
                     <button className="btn btn-approve" type="button" disabled={busy} onClick={() => save(item.category_key)}>{busy ? 'Saving…' : 'Save changes'}</button>

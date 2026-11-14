@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { calculateRideFare } = require('../services/ride-pricing');
+const { calculateServicePrice } = require('../services/service-pricing');
 const { HOME_SERVICE_CATALOG, normalizeServiceCategory, normalizeServiceCategories, getServiceBaseFare, isServiceCategoryForProvider } = require('../services/catalog');
 
 test('ride pricing is independent and deterministic', () => {
@@ -55,4 +56,65 @@ test('home-service catalog exposes stable labels and usable images', () => {
     assert.ok(item.label && item.label.trim().length > 0, item.key + ' label');
     assert.match(item.imageUrl, /^https:\/\//, item.key + ' image URL must use HTTPS');
   }
+});
+
+test('home-service pricing applies selected BHK package and approved add-ons', () => {
+  const quote = calculateServicePrice({
+    pricingMode: 'fixed',
+    variants: [
+      { key: '1bhk', label: '1 BHK', price: 1299 },
+      { key: '2bhk', label: '2 BHK', price: 1799 },
+    ],
+    addOns: [{ key: 'sofa', label: 'Sofa cleaning', price: 299 }],
+  }, { variantKey: '2bhk', addOns: ['sofa'] });
+  assert.equal(quote.variantKey, '2bhk');
+  assert.equal(quote.baseAmount, 1799);
+  assert.equal(quote.addOnsAmount, 299);
+  assert.equal(quote.total, 2098);
+});
+
+test('home-service per-unit pricing enforces quantity limits and steps', () => {
+  const rule = { pricingMode: 'per_unit', unitPrice: 349, minimumQuantity: 2, maximumQuantity: 8, quantityStep: 2 };
+  assert.equal(calculateServicePrice(rule, { quantity: 4 }).total, 1396);
+  assert.throws(() => calculateServicePrice(rule, { quantity: 1 }), /between 2 and 8/);
+  assert.throws(() => calculateServicePrice(rule, { quantity: 3 }), /increments of 2/);
+});
+
+test('home-service pricing rejects unknown variants and add-ons', () => {
+  const rule = {
+    pricingMode: 'fixed',
+    variants: [{ key: '1bhk', label: '1 BHK', price: 1299 }],
+    addOns: [{ key: 'sofa', price: 299 }],
+  };
+  assert.throws(() => calculateServicePrice(rule, { variantKey: '3bhk' }), /valid service package/);
+  assert.throws(() => calculateServicePrice(rule, { variantKey: '1bhk', addOns: ['unknown'] }), /Unknown add-on/);
+});
+
+test('inspection pricing clearly returns a quote-required result', () => {
+  const quote = calculateServicePrice({
+    pricingMode: 'inspection_quote',
+    visitFee: 199,
+    creditVisitFeeOnApprovedRepair: true,
+  });
+  assert.equal(quote.total, 199);
+  assert.equal(quote.requiresQuote, true);
+  assert.equal(quote.visitFeeCreditedOnApproval, true);
+});
+
+
+test('inspection quote rejects variants and add-ons that it cannot price', () => {
+  assert.throws(() => calculateServicePrice({
+    pricingMode: 'inspection_quote',
+    visitFee: 199,
+    variants: [{ key: 'standard', label: 'Standard', price: 499 }],
+  }), /inspection_quote supports a visit fee only/);
+  assert.throws(() => calculateServicePrice({
+    pricingMode: 'inspection_quote',
+    visitFee: 199,
+    addOns: [{ key: 'parts', label: 'Parts', price: 299 }],
+  }), /inspection_quote supports a visit fee only/);
+  assert.throws(() => calculateServicePrice({
+    pricingMode: 'inspection_quote',
+    visitFee: 199,
+  }, { addOns: ['parts'] }), /inspection_quote supports a visit fee only/);
 });
