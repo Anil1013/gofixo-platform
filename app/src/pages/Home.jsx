@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { apiPost, getRole, getToken, getUser } from '../api';
+import { apiGet, apiPost, getRole, getToken, getUser } from '../api';
 import ProfilePhoto from '../components/ProfilePhoto';
 import MapView from '../components/MapView';
 import { reverseGeocodeDetails, reverseGeocode, searchAddress, searchAddressSuggestions, getPlaceDetails, getRoute, formatDistance } from '../utils/geo';
@@ -82,7 +82,6 @@ const HOME_SERVICE_CARDS = [
   { label: 'AC Service', category: 'ac_service', type: 'skilled_worker', image: 'https://imagedelivery.net/xaKlCos5cTg_1RWzIu_h-A/63023f11-6fa4-41a7-ca68-748ee14fc600/public' },
   { label: 'Cleaning', category: 'cleaning', type: 'general_worker', image: 'https://www.trueprocleaners.com/imgs/oc-house-cleaning-european-01.webp' },
   { label: 'Carpenter', category: 'carpenter', type: 'skilled_worker', image: 'https://images.unsplash.com/photo-1756736668332-e921516c1305?auto=format&fit=crop&w=700&q=82' },
-  { label: 'Home Repair', category: 'other', type: 'skilled_worker', image: 'https://manitasenbarcelona.com/images/sobre-nosotros-manitas-barcelona.jpg' },
   { label: 'Appliance Repair', category: 'appliance_repair', type: 'skilled_worker', image: 'https://www.trueprocleaners.com/imgs/oc-house-cleaning-european-01.webp' },
   { label: 'More', category: 'other', type: 'general_worker', image: 'https://allhomerepairs247.com/images/woman-ipad-red.webp' },
 ];
@@ -109,6 +108,14 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
   const [location, setLocation] = useState('');
   const [work, setWork] = useState('');
   const [serviceCategory, setServiceCategory] = useState('');
+  const [serviceCatalog, setServiceCatalog] = useState([]);
+  const [serviceCatalogLoaded, setServiceCatalogLoaded] = useState(false);
+  const [serviceQuantity, setServiceQuantity] = useState(1);
+  const [serviceVariantKey, setServiceVariantKey] = useState('');
+  const [serviceAddOns, setServiceAddOns] = useState([]);
+  const [serviceQuote, setServiceQuote] = useState(null);
+  const [serviceQuoteError, setServiceQuoteError] = useState('');
+  const [serviceQuoteLoading, setServiceQuoteLoading] = useState(false);
   const [coords, setCoords] = useState(null);
   const [pickupPincode, setPickupPincode] = useState('');
   const [pickupArea, setPickupArea] = useState('');
@@ -137,6 +144,32 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
   }, [initialCategory]);
 
   useEffect(() => {
+    let active = true;
+    apiGet('/catalog/services').then((items) => {
+      if (!active || !Array.isArray(items)) return;
+      const mapped = items.map((item) => ({
+        label: item.label,
+        category: item.key,
+        type: item.providerType,
+        image: item.imageUrl,
+        baseFare: Number(item.baseFare || 0),
+        pricingRule: item.pricingRule || item.metadata?.pricingRule || null,
+        taskOptions: Array.isArray(item.metadata?.taskOptions) ? item.metadata.taskOptions : [],
+      }));
+      setServiceCatalog(mapped);
+      setServiceCatalogLoaded(true);
+      if (mapped.length) {
+        setServiceCategory((current) => (
+          mapped.find((item) => item.category === current)
+          || mapped.find((item) => item.category === 'other')
+          || mapped[0]
+        ).category);
+      }
+    }).catch(() => { if (active) setServiceCatalogLoaded(false); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
     const query = destination.trim();
     if (query.length < 3) {
       setDestinationSuggestions([]);
@@ -148,6 +181,53 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
     }, 350);
     return () => clearTimeout(timer);
   }, [destination, coords]);
+
+  const homeServiceCards = serviceCatalogLoaded ? serviceCatalog : HOME_SERVICE_CARDS;
+  const selectedService = homeServiceCards.find((item) => item.category === serviceCategory) || null;
+  const pricingRule = selectedService?.pricingRule || null;
+
+  useEffect(() => {
+    if (category !== 'services' || !serviceCategory || !selectedService || !getToken() || getRole() !== 'customer') {
+      setServiceQuote(null);
+      setServiceQuoteError('');
+      setServiceQuoteLoading(false);
+      return undefined;
+    }
+    let active = true;
+    const selection = {
+      quantity: serviceQuantity,
+      addOns: serviceAddOns,
+      ...(serviceVariantKey ? { variantKey: serviceVariantKey } : {}),
+    };
+    const timer = setTimeout(async () => {
+      setServiceQuoteLoading(true);
+      setServiceQuoteError('');
+      try {
+        const quote = await apiPost(`/catalog/${encodeURIComponent(serviceCategory)}/quote`, { selection }, true);
+        if (active) setServiceQuote(quote);
+      } catch (err) {
+        if (active) { setServiceQuote(null); setServiceQuoteError(err.message || 'Service estimate is unavailable.'); }
+      } finally {
+        if (active) setServiceQuoteLoading(false);
+      }
+    }, 250);
+    return () => { active = false; clearTimeout(timer); };
+  }, [category, serviceCategory, serviceCatalog, serviceCatalogLoaded, serviceQuantity, serviceVariantKey, serviceAddOns.join('|')]);
+
+  useEffect(() => {
+    if (category !== 'services' || !selectedService) return;
+    if (selectedService.type && providerType !== selectedService.type) setProviderType(selectedService.type);
+    const rule = selectedService.pricingRule;
+    const minimum = Number(rule?.minimumQuantity || 1);
+    const maximum = Number(rule?.maximumQuantity || 1000);
+    setServiceQuantity((current) => current < minimum || current > maximum ? minimum : current);
+    if (Array.isArray(rule?.variants) && rule.variants.length) {
+      if (!rule.variants.some((variant) => variant.key === serviceVariantKey)) setServiceVariantKey(rule.variants[0].key);
+    } else {
+      setServiceVariantKey('');
+    }
+    setServiceAddOns([]);
+  }, [category, serviceCategory, serviceCatalog, providerType]);
 
   const locationRequestRef = useRef(false);
   const destinationResolvedRef = useRef('');
@@ -327,6 +407,16 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
         return;
       }
 
+      const pricingSelection = category === 'services' ? {
+        quantity: serviceQuantity,
+        addOns: serviceAddOns,
+        ...(serviceVariantKey ? { variantKey: serviceVariantKey } : {}),
+      } : undefined;
+      if (category === 'services') {
+        const quote = await apiPost(`/catalog/${encodeURIComponent(serviceCategory || 'other')}/quote`, { selection: pricingSelection || {} }, true);
+        setServiceQuote(quote);
+        setServiceQuoteError('');
+      }
       const body = {
         service_type: category,
         provider_type: providerType,
@@ -334,6 +424,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
         drop_or_service_address: category === 'services' ? [location, pickupHouse, pickupStreet, pickupArea, pickupPincode].filter(Boolean).join(', ') : [destination, dropHouse, dropStreet, dropArea, dropPincode].filter(Boolean).join(', '),
         service_category: category === 'services' ? (serviceCategory || 'other') : undefined,
         service_description: category === 'services' ? work.trim() : undefined,
+        pricing_selection: pricingSelection,
         pickup_lat: coords.lat,
         pickup_lng: coords.lng,
         drop_lat: category === 'ride' ? resolvedDestination.lat : undefined,
@@ -352,7 +443,7 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
 
   const estimatedFare = category === 'ride' && route ? calculateFare(providerType, route.distanceKm) : null;
   const currentUser = getUser() || {};
-  const previewServices = HOME_SERVICE_CARDS.slice(0, 4);
+  const previewServices = homeServiceCards.slice(0, 4);
 
   const markers = [];
   if (coords) markers.push({ lat: coords.lat, lng: coords.lng, emoji: '📍', color: '#EC4899' });
@@ -490,11 +581,15 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
           <button type="button" onClick={() => { setCategory('services'); setProviderType('general_worker'); setServiceCategory('other'); setWork(''); setShowBooking(true); }}>See all →</button>
         </div>
         <div className="reference-service-cards">
-          {previewServices.map((item) => (
-            <button type="button" key={item.label} onClick={() => {
+          {previewServices.length === 0 ? <p className="booking-note">No home services are currently available.</p> : previewServices.map((item) => (
+            <button type="button" key={item.category} onClick={() => {
               setCategory('services');
               setProviderType(item.type);
               setServiceCategory(item.category);
+              setServiceQuantity(Number(item.pricingRule?.minimumQuantity || 1));
+              setServiceVariantKey(item.pricingRule?.variants?.[0]?.key || '');
+              setServiceAddOns([]);
+              setServiceQuote(null);
               setWork(item.label);
               setShowBooking(true);
             }}>
@@ -560,17 +655,21 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
           {category === 'services' && (
             <div className="service-request-field service-request-field-top">
               <label>Select the service you need</label>
-              <div className="service-choice-grid">
-                {HOME_SERVICE_CARDS.map((item) => (
+              {homeServiceCards.length === 0 ? <p className="booking-note">No home services are currently available. Please check again later.</p> : <div className="service-choice-grid">
+                {homeServiceCards.map((item) => (
                   <button
                     type="button"
-                    key={item.label}
-                    className={`service-choice-card ${work === item.label ? 'selected' : ''}`}
-                    aria-pressed={work === item.label}
+                    key={item.category}
+                    className={`service-choice-card ${serviceCategory === item.category && !!work.trim() ? 'selected' : ''}`}
+                    aria-pressed={serviceCategory === item.category && !!work.trim()}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => {
                       setProviderType(item.type);
                       setServiceCategory(item.category);
+                      setServiceQuantity(Number(item.pricingRule?.minimumQuantity || 1));
+                      setServiceVariantKey(item.pricingRule?.variants?.[0]?.key || '');
+                      setServiceAddOns([]);
+                      setServiceQuote(null);
                       setWork(item.label);
                       setError('');
                     }}
@@ -580,18 +679,77 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                     {work === item.label && <b>✓</b>}
                   </button>
                 ))}
-              </div>
-              <input
+              </div>}
+              {selectedService?.taskOptions?.length > 0 && (
+                <div className="service-task-options">
+                  <small>Suggested tasks</small>
+                  <div className="service-choice-grid">
+                    {selectedService.taskOptions.map((task) => (
+                      <button type="button" key={task} className={work === task ? 'selected' : ''} onClick={() => setWork(task)}>{task}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {pricingRule?.pricingMode !== 'inspection_quote' && pricingRule?.variants?.length > 0 && (
+                <label className="service-pricing-field">Choose package / size
+                  <select value={serviceVariantKey} onChange={(event) => setServiceVariantKey(event.target.value)}>
+                    {pricingRule.variants.map((variant) => <option key={variant.key} value={variant.key}>{variant.label || variant.key} · ₹{Number(variant.price || 0).toLocaleString('en-IN')}</option>)}
+                  </select>
+                </label>
+              )}
+              {pricingRule && pricingRule.pricingMode !== 'fixed' && pricingRule.pricingMode !== 'inspection_quote' && !pricingRule.variants?.length && (
+                <label className="service-pricing-field">{pricingRule.unitLabel || 'Quantity'}
+                  <input type="number" min={pricingRule.minimumQuantity ?? 1} max={pricingRule.maximumQuantity ?? 1000} step={pricingRule.quantityStep ?? 1} value={serviceQuantity} onChange={(event) => setServiceQuantity(Number(event.target.value))} />
+                </label>
+              )}
+              {pricingRule?.pricingMode !== 'inspection_quote' && pricingRule?.addOns?.length > 0 && (
+                <div className="service-pricing-field"><strong>Optional add-ons</strong>
+                  {pricingRule.addOns.map((addon) => (
+                    <label key={addon.key} className="service-addon-option"><input type="checkbox" checked={serviceAddOns.includes(addon.key)} onChange={(event) => setServiceAddOns((current) => event.target.checked ? [...current, addon.key] : current.filter((key) => key !== addon.key))} /> {addon.label || addon.key} · ₹{Number(addon.price || 0).toLocaleString('en-IN')}</label>
+                  ))}
+                </div>
+              )}
+              {serviceQuoteLoading && <p className="booking-note">Calculating your service estimate…</p>}
+              {serviceQuoteError && <p className="auth-error">{serviceQuoteError}</p>}
+              {serviceQuote && (
+                <div className="ride-summary">
+                  <span>{serviceQuote.requiresQuote ? 'Inspection visit fee' : 'Estimated service amount'}{serviceQuote.requiresQuote ? ' · final repair quote after inspection' : ''}</span>
+                  <strong>₹{Number(serviceQuote.total || 0).toLocaleString('en-IN')}</strong>
+                </div>
+              )}
+              {homeServiceCards.some((item) => item.category === 'other') && <input
                 className="service-custom-input"
-                value={HOME_SERVICE_CARDS.some((item) => item.label === work) ? '' : work}
+                value={homeServiceCards.some((item) => item.label === work) ? '' : work}
                 onChange={(e) => {
                   setWork(e.target.value);
-                  setProviderType(e.target.value.trim() ? 'skilled_worker' : 'general_worker');
                   setServiceCategory(e.target.value.trim() ? 'other' : '');
+                  setProviderType(homeServiceCards.find((item) => item.category === 'other')?.type || 'general_worker');
+                  // Keep the active "other" service pricing selection valid when
+                  // free-text details change; the category may remain "other", so
+                  // the category effect will not necessarily normalize these fields.
+                  const otherService = homeServiceCards.find((item) => item.category === 'other');
+                  const otherRule = otherService?.pricingRule;
+                  const minQuantity = Number(otherRule?.minimumQuantity ?? 1);
+                  const maxQuantity = Number(otherRule?.maximumQuantity ?? 1000);
+                  const quantityStep = Number(otherRule?.quantityStep ?? 1);
+                  setServiceQuantity((current) => {
+                    const steps = (current - minQuantity) / quantityStep;
+                    const valid = Number.isFinite(current) && current >= minQuantity && current <= maxQuantity
+                      && Number.isFinite(steps) && Math.abs(steps - Math.round(steps)) < 1e-9;
+                    return valid ? current : minQuantity;
+                  });
+                  setServiceVariantKey((current) => (
+                    otherRule?.variants?.some((variant) => variant.key === current)
+                      ? current : (otherRule?.variants?.[0]?.key || '')
+                  ));
+                  setServiceAddOns((current) => (
+                    current.filter((key) => otherRule?.addOns?.some((addon) => addon.key === key))
+                  ));
+                  setServiceQuote(null);
                   setError('');
                 }}
                 placeholder="Or describe another service…"
-              />
+              />}
             </div>
           )}
 
@@ -619,10 +777,10 @@ export default function Home({ onBooked, initialCategory = 'ride' }) {
                 setCoords(null);
                 setRoute(null);
               }}
-              onKeyDown={(e) => { if (e.key === 'Enter' && category === 'ride') findPickup(); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') findPickup(); }}
               placeholder="Search area, street or building"
             />
-            {category === 'ride' && <button type="button" onClick={findPickup} disabled={pickupFinding}>{pickupFinding ? '…' : 'Find'}</button>}
+            <button type="button" onClick={findPickup} disabled={pickupFinding}>{pickupFinding ? '…' : 'Find'}</button>
           </div>
           <div className="input-grid-2">
             <input value={pickupPincode} onChange={(e) => setPickupPincode(e.target.value)} placeholder="PIN code" inputMode="numeric" />

@@ -44,9 +44,17 @@ const PARTNER_SKILL_OPTIONS = [
   { key: 'driver', label: 'Personal Driver' },
   { key: 'tutor', label: 'Tutor' },
   { key: 'babysitter', label: 'Babysitter' },
-  { key: 'elder_care', label: 'Elder Care' },
+  { key: 'elder_care', label: 'Senior & Disability Care' },
   { key: 'other', label: 'Other Service' },
-].map((item) => ({ ...item, service_type: item.service_type || 'services' }));
+].map((item) => ({
+  ...item,
+  service_type: item.service_type || 'services',
+  provider_type: item.service_type === 'ride' ? undefined : (
+    ['electrician', 'plumber', 'ac_service', 'painter', 'carpenter', 'appliance_repair', 'refrigerator_repair', 'washing_machine_repair', 'ro_water_purifier', 'cctv_security', 'internet_wifi', 'geyser_repair'].includes(item.key)
+      ? 'skilled_worker'
+      : 'general_worker'
+  ),
+}));
 
 export default function ProviderHome({ onLogout }) {
   const [profile, setProfile] = useState(null);
@@ -61,6 +69,7 @@ export default function ProviderHome({ onLogout }) {
   const [secondsLeft, setSecondsLeft] = useState(null);
   const [pickupRoute, setPickupRoute] = useState(null);
   const [skills, setSkills] = useState([]);
+  const [partnerSkillOptions, setPartnerSkillOptions] = useState(PARTNER_SKILL_OPTIONS);
   const [selectedSkills, setSelectedSkills] = useState([]);
   const [skillsBusy, setSkillsBusy] = useState(false);
 
@@ -91,6 +100,22 @@ export default function ProviderHome({ onLogout }) {
     loadAll();
     const interval = setInterval(loadAll, 2000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    apiGet('/catalog/services').then((catalog) => {
+      if (!active || !Array.isArray(catalog)) return;
+      const rideOptions = PARTNER_SKILL_OPTIONS.filter((option) => option.service_type === 'ride');
+      const serviceOptions = catalog.map((item) => ({
+        key: item.key,
+        label: item.label,
+        service_type: 'services',
+        provider_type: item.providerType,
+      }));
+      setPartnerSkillOptions([...rideOptions, ...serviceOptions]);
+    }).catch(() => {});
+    return () => { active = false; };
   }, []);
 
   // Keep the provider's phone screen awake while the partner app is open.
@@ -271,10 +296,10 @@ export default function ProviderHome({ onLogout }) {
     setSkillsBusy(true);
     setError('');
     try {
-      const requested = selectedSkills.map((key) => {
-        const item = PARTNER_SKILL_OPTIONS.find((option) => option.key === key);
-        return { skill_key: item.key, service_type: item.service_type };
-      });
+      const requested = selectedSkills.map((key) => partnerSkillOptions.find((option) => option.key === key))
+        .filter(Boolean)
+        .map((item) => ({ skill_key: item.key, service_type: item.service_type }));
+      if (!requested.length) throw new Error('Refresh the service list and choose an available skill.');
       const updated = await apiPut('/providers/me/skills', { skills: requested }, true);
       setSkills(updated);
       setSelectedSkills([]);
@@ -472,6 +497,11 @@ export default function ProviderHome({ onLogout }) {
 
   const providerTypeLabel = profile.type === 'general_worker' ? 'Home Services' : profile.type === 'skilled_worker' ? 'Skilled Expert' : (profile.type || 'bike').replaceAll('_', ' ');
   const ratingValue = profile.avg_rating ? Number(profile.avg_rating).toFixed(1) : '—';
+  const eligibleSkillOptions = partnerSkillOptions.filter((option) => (
+    option.service_type === 'ride'
+      ? option.key === profile.type
+      : option.provider_type === profile.type
+  ));
 
   return (
     <div className="screen provider-home-screen">
@@ -507,9 +537,9 @@ export default function ProviderHome({ onLogout }) {
         <div className="job-panel-head">
           <div><span className="section-kicker">YOUR PARTNER PROFILE</span><h2>My services & skills</h2></div>
         </div>
-        <p className="route-info">Ek hi Partner ID se multiple Ride aur Home Services chala sakte hain. Nayi skill admin approval ke baad active hogi.</p>
+        <p className="route-info">Apne account type ke multiple eligible specialties request kar sakte hain. Har nayi skill Gofixo approval ke baad hi active hogi.</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: 8, marginBottom: 14 }}>
-          {PARTNER_SKILL_OPTIONS.filter((option) => !skills.some((skill) => skill.skill_key === option.key)).map((option) => (
+          {eligibleSkillOptions.filter((option) => !skills.some((skill) => skill.skill_key === option.key)).map((option) => (
             <label key={option.key} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: 9, border: '1px solid #DCE5E0', borderRadius: 10, fontSize: 12 }}>
               <input
                 type="checkbox"
@@ -527,7 +557,7 @@ export default function ProviderHome({ onLogout }) {
           {skills.map((skill) => (
             <div key={skill.skill_key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: 10, border: '1px solid #DCE5E0', borderRadius: 10 }}>
               <div>
-                <strong style={{ display: 'block', textTransform: 'capitalize' }}>{skill.skill_key.replaceAll('_', ' ')}</strong>
+                <strong style={{ display: 'block' }}>{partnerSkillOptions.find((option) => option.key === skill.skill_key)?.label || skill.skill_key.replaceAll('_', ' ')}</strong>
                 <small style={{ color: skill.kyc_status === 'approved' ? '#15803D' : skill.kyc_status === 'rejected' ? '#B91C1C' : '#A16207' }}>
                   {skill.service_type} · {skill.kyc_status}{skill.review_note ? ` · ${skill.review_note}` : ''}
                 </small>
